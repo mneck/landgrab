@@ -13,7 +13,7 @@ config_version=5
 config/name="landgrab"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
-run/main_scene="res://scenes/main_menu.tscn"
+run/main_scene="res://scenes/StartScreen.tscn"
 
 [physics]
 
