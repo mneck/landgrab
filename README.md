@@ -1,16 +1,36 @@
 # Overview
 
-Landgrab is a strategy game where players take turns playing **Personnel** cards and **Action** cards to build farms, settlements, and other structures on an island map comprised of Field, Mountain, Water, Forest, Fog, and Sand tiles. Each player has different winning conditions depending on one of four **Player Types: The Hotelier, The Industrialist, The Chieftain, The Bureaucrat.**
+Landgrab is a strategy game where players take turns playing **Personnel** cards and **Action** cards to build farms, settlements, and other structures on an island map comprised of Field, Mountain, Water, Forest, Fog, and Sand tiles. Each player has different winning conditions depending on one of four **Player Types:**
+- The Hotelier
+- The Industrialist 
+- The Chieftain
+- The Bureaucrat
 
 ## Winning Conditions
 
-1. The Hotelier wins by collecting Coins. Coins are collected primarily by placing Resort tokens on Sand and Field hexes. A Resort produces Coins when an **Ad Campaign** event card is played; each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex. The Hotelier starts with the following cards: **Builder, Liaison, Surveyor** and can build **Resorts** and **Housing** buildings.
 
-2. The Industrialist wins by collecting and exporting Wood and Ore resources. Wood and Ore tokens are collected when an **Extraction** event card is played; each **Industrial Zone** produces one Wood resource for each adjacent Forest hex and one Ore resource for each adjacent Mountain hex. The Industrialist starts with the following cards: **Builder, Liaison, Surveyor** and can build **Industrial Zone** and **Farm** buildings.
+### The Hotelier
+> From paradise to parking lots!
+> 
+1. **The Hotelier** wins by collecting Coins. Coins are collected primarily by placing Resort tokens on Sand and Field hexes. A Resort produces Coins when an **Ad Campaign** event card is played; each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex. The Hotelier starts with the following cards: **Builder, Liaison, Surveyor** and can build **Resorts** and **Housing** buildings. The Hotelier may not build more Resorts than Housing.
 
-3. The Bureaucrat wins by collecting Vote tokens. The Bureaucrat receives a Vote when a player buys a card from the card market. The Bureaucrat starts with the following cards: **Builder, Liaison, Surveyor** and can build **Infrastructure** buildings.
+### The Industrialist
+> You see a forest? I see Ikea furniture.
+> 
+2. **The Industrialist** wins by collecting and exporting Wood and Ore. When an Extraction event card is played, each Industrial Zone produces:
+- 1 Wood per adjacent Forest hex
+- 1 Ore per adjacent Mountain hex
+The Industrialist starts with the following cards: **Builder, Liaison, Surveyor** and can build **Industrial Zone** and **Farm** buildings. The Industrialist may not build more Industrial Zones than Farms.
 
-4. The Chieftain wins by securing Hexes on the map and keeping those areas undeveloped. A Hex is secured by placing an empty brown ring on a Mountain, Field, Sand, or Forest hex, which prevents the Hotelier and Industrialist players from being able to receive Coins or Wood/Ore resources from that hex. The Chieftain starts with the following cards: **Elder, Liaison, Surveyor** and can build **Villages** and **National Parks**.
+### The Bureaucrat
+> You'll need a permit for that.
+> 
+3. **The Bureaucrat** wins by collecting Votes. The Bureaucrat gains Votes by playing an Elections event card, which generates one Vote for each Resort, Village, Industrial Zone, Farm, or Housing adjacent to Infrastructure; the same hex is only counted once for voting (e.g. if a Farm is adjacent to 2-3 Infrastructure hexes, only 1 vote is generated). The Bureaucrat starts with the following cards: **Builder, Liaison, Surveyor** and can build **Infrastructure** buildings. The Bureaucrat may not build more Infrastructure than Civic Offices.
+
+### The Chieftain
+> Go away.
+> 
+4. The Chieftain wins by building Reserves on the map and keeping those areas undeveloped. A Hex is secured by placing an empty brown ring on a Mountain, Field, Sand, or Forest hex, which prevents the Hotelier and Industrialist players from being able to receive Coins or Wood/Ore resources from that hex. The Chieftain starts with the **Elder, Liaison, Surveyor** cards and can build **Villages** and **Reserves**.
 
 # Setup
 
@@ -22,13 +42,9 @@ Games can be played with the following variations:
 
 **4-player**: Hotelier, Industrialist, Chieftain, Bureaucrat
 
-The game takes place on an island, where the interior of the island is comprised of Fog hexes, and the outer rim of the island is visible as Sand, Forest, Mountain, Water, or Field hexes; the outermost rim of the map is comprised of Water hexes.
+## Map
 
-
-
-For the initial version of the game, players are playing on hex tiles. In the MVP version (Landgrab 2.0) of the game, 2 players, playing locally, can only choose between **Hotelier** and **Industrialist** player types and can only build Resorts, Industrial Zones, and Settlements.
-
-In Landgrab 3.0, the game is expanded to introduce the **Bureaucrat** player type responsible for managing policy cards in the game, allowing for 2 to 3 players to play locally.
+The game takes place on an island, where the interior of the island is comprised of Fog hexes, and the outer rim of the island is visible as Sand, Forest, Mountain, Water, or Field hexes. The outermost rim of the map is comprised of Water hexes to represent the surrounding ocean.
 
 **Player type summaries (for 2-player MVP)**
 
@@ -71,9 +87,13 @@ Collected by the Bureaucrat whenever a player buys a card from the card market (
 ### 💰 Revenue (market currency)
 Used in the Conference/card market for purchasing cards. The Hotelier generates Coins which function as revenue.
 
-# Cards
+# Turns
+## Cards
 
-**Turns**
+By default, at the start of each turn, a player can:
+- Draw 2 cards
+- Draw 1 card and play 1 card
+- Play 2 cards
 
 Players can draw and play a certain number of cards each turn according to the number of settlements a player has built. If a player has built 0-1 settlements, that player draws 1 card per turn from her draw pile and can play 1 card. Otherwise, a player draws and plays a number of cards equal to the number of Districts owned by that player. If a player has 3 Resorts, for example, that player would start her turn by drawing 3 cards and then playing 3 cards.
 
@@ -88,7 +108,7 @@ Hotelier, Industrialist, and Bureaucrat start with: **Builder, Liaison, Surveyor
 1. **Builder**: Put a Build card in your hand; discard the Builder.
 2. **Liaison**: Put a Purchase Order card in your hand; discard the Liaison.
 3. **Surveyor**: Put an Expedition card in your hand; discard the Surveyor.
-4. **Elder** (Chieftain only): Used to secure hexes; see Chieftain winning conditions.
+4. **Elder** (Chieftain only): Used to secure hexes as Reservations; see Chieftain winning conditions.
 
 Any personnel card can also be discarded to collect a card from the Conference cards.
 
@@ -108,9 +128,9 @@ Event cards are single-use; after each one is played, it is removed from the pla
     
 3. **Expedition [Surveyor]**
     
-    Select any tile. Any fog tile adjacent to that tile will turn into another tile type.
+    Select any non-Fog tile. Any Fog tiles adjacent to that tile will turn into either a Mountain, Forest, Field, Sand, or Water tile.
 
-4. **Ad Campaign** (event): When played, each Resort produces 1 Coin for each adjacent Forest, Water, and Mountain hex. Triggers the Hotelier's primary way to collect Coins.
+4. **Ad Campaign** (event): When played, each Resort produces 2 Coins for each adjacent Forest, Water, and Mountain hex, and 1 Coin for each adjacent Field or Sand hex. This is the Hotelier's primary way to collect Coins.
 
 5. **Extraction** (event): When played, each Industrial Zone produces 1 Wood per adjacent Forest hex and 1 Ore per adjacent Mountain hex. Triggers the Industrialist's primary way to collect resources.
 
@@ -124,7 +144,20 @@ The following cards are all available for purchase:
 
 **Action cards**
 
-1. Build
+1. Build: Place one of the following tokens on a hex on the map: 
+- Industrialist:
+    - Industrial Zone
+    - Farm
+- Hotelier:
+    - Resort
+    - Housing
+- Chieftain:
+    - Village
+    - Reserve
+- Bureaucrat:
+    - Infrastructure
+    - Civic Office
+
 2. Purchase Order
 3. Expedition
 4. Ad Campaign: when played, each Resort produces 1 Coin per adjacent Forest, Water, and Mountain hex
