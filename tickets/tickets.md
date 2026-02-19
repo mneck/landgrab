@@ -20,7 +20,7 @@ For prototyping purposes, let's use emojis for card images:
 👷 Builder
 👩‍💼 Liaison
 👲 Elder
-🧗‍♀️ Cartographer
+🧗‍♀️ Explorer
 📜 Charter
 🏗️ Build
 🏕️ Expedition
@@ -38,7 +38,7 @@ Cards should be updated accordingly.
 | **Labels** | — |
 | **URL** | https://linear.app/landgrab/issue/LAN-12/create-card-assets |
 
-Each card (like Charter, Liaison, Builder, Cartographer) should have a simple image (pixellated, line drawing only \[no shading or colors\]) in the top half, that gives a brief idea of what the card does. The Builder could have a man with a hardhat and hammer, the Cartographer could have an adventurous woman looking at a map, the Liaison could be a woman in a business suit. These assets should be saved to assets/cards.
+Each card (like Charter, Liaison, Builder, Explorer) should have a simple image (pixellated, line drawing only \[no shading or colors\]) in the top half, that gives a brief idea of what the card does. The Builder could have a man with a hardhat and hammer, the Explorer could have an adventurous woman looking at a map, the Liaison could be a woman in a business suit. These assets should be saved to assets/cards.
 
 ### [LAN-10] Fix card design
 
@@ -50,7 +50,7 @@ Each card (like Charter, Liaison, Builder, Cartographer) should have a simple im
 | **Labels** | Bug |
 | **URL** | https://linear.app/landgrab/issue/LAN-10/fix-card-design |
 
-Each card (like Charter, Liaison, Builder, Cartographer) should appear as a handheld card, with the card title at the top, an image for flavor, and a brief description of what the card does.
+Each card (like Charter, Liaison, Builder, Explorer) should appear as a handheld card, with the card title at the top, an image for flavor, and a brief description of what the card does.
 
 ### [LAN-11] Fix starting turn
 
@@ -62,4 +62,4 @@ Each card (like Charter, Liaison, Builder, Cartographer) should appear as a hand
 | **Labels** | Bug |
 | **URL** | https://linear.app/landgrab/issue/LAN-11/fix-starting-turn |
 
-Players are not obligated to play a Charter when starting their turn. In a player's first action, they can play any of the 4 cards from their hand: Charter, Cartographer, Liaison, or Builder. In a player's second action, they can then play any card that was added to their hand, or they can draw the card they just discarded (after it was played), or they can play a card that was originally in their hand.
+Players are not obligated to play a Charter when starting their turn. In a player's first action, they can play any of the 4 cards from their hand: Charter, Explorer, Liaison, or Builder. In a player's second action, they can then play any card that was added to their hand, or they can draw the card they just discarded (after it was played), or they can play a card that was originally in their hand.

@@ -15,14 +15,15 @@ export type BuildingType =
   | "CivicOffice"
   | "Reserve";
 
-export type PersonnelCard = "Builder" | "Elder" | "Liaison" | "Cartographer";
+export type PersonnelCard = "Builder" | "Elder" | "Liaison" | "Explorer";
 
 export type EventCard =
   | "Charter"
   | "Build"
   | "Procurement"
   | "Expedition"
-  | "Reserve";
+  | "Reserve"
+  | "Contact";
 
 export type CardType = PersonnelCard | EventCard;
 
@@ -127,8 +128,8 @@ export function createInitialGameState(
     type,
     hand:
       type === "Chieftain"
-        ? (["Elder", "Liaison", "Cartographer", "Charter"] as CardType[])
-        : (["Builder", "Liaison", "Cartographer", "Charter"] as CardType[]),
+        ? (["Elder", "Liaison", "Explorer", "Charter"] as CardType[])
+        : (["Builder", "Liaison", "Explorer", "Charter"] as CardType[]),
     discardPile: [],
     drawPile: [],
     resources: { wood: 0, ore: 0, coins: 0, votes: 0 },

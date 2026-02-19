@@ -3,8 +3,8 @@ import type { CardType } from "../types/game";
 interface GameActionsProps {
   actionsRemaining: number;
   placementMode?: boolean;
-  /** Cards that can be played; each maps to an onClick handler */
-  playableCards: { card: CardType; onPlay: () => void }[];
+  /** Cards that can be played; each maps to an onClick handler. Use label to override button text. */
+  playableCards: { card: CardType; label?: string; onPlay: () => void }[];
   canDraw: boolean;
   onDraw?: () => void;
   onCancelPlacement?: () => void;
@@ -34,9 +34,9 @@ export function GameActions({
           )
         ) : (
           <>
-            {playableCards.map(({ card, onPlay }, i) => (
-              <button key={`${card}-${i}`} type="button" onClick={onPlay}>
-                Play {card}
+            {playableCards.map(({ card, label, onPlay }, i) => (
+              <button key={`${card}-${label ?? ""}-${i}`} type="button" onClick={onPlay}>
+                Play {label ?? card}
               </button>
             ))}
             {canDraw && onDraw && (

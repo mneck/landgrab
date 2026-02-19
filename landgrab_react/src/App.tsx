@@ -65,16 +65,19 @@ function canPlaceCharter(
 /** Personnel cards add an event card to hand and go to discard */
 const PERSONNEL_TO_EVENT: Record<PersonnelCard, EventCard | null> = {
   Builder: "Build",
-  Elder: "Reserve",
+  Elder: null, // Elder adds Contact OR Reserve (player chooses)
   Liaison: "Procurement",
-  Cartographer: "Expedition",
+  Explorer: "Expedition",
 };
+
+/** Elder choice: add Contact (convert Fog + Village) or Reserve */
+const ELDER_EVENT_OPTIONS: EventCard[] = ["Contact", "Reserve"];
 
 const PERSONNEL_CARDS: PersonnelCard[] = [
   "Builder",
   "Elder",
   "Liaison",
-  "Cartographer",
+  "Explorer",
 ];
 
 function shuffle<T>(array: T[]): T[] {
@@ -160,10 +163,11 @@ function App() {
     setPlacementMode("charter");
   }
 
-  function handlePlayPersonnel(card: PersonnelCard) {
+  function handlePlayPersonnel(card: PersonnelCard, eventCard?: EventCard) {
     if (!currentPlayer.hand.includes(card) || game.actionsRemaining < 1) return;
-    const eventCard = PERSONNEL_TO_EVENT[card];
-    if (!eventCard) return;
+    const resolvedEvent =
+      eventCard ?? PERSONNEL_TO_EVENT[card];
+    if (!resolvedEvent) return;
 
     consumeAction((g) => ({
       ...g,
@@ -171,7 +175,7 @@ function App() {
         i === g.currentPlayerIndex
           ? {
               ...p,
-              hand: [...p.hand.filter((c) => c !== card), eventCard],
+              hand: [...p.hand.filter((c) => c !== card), resolvedEvent],
               discardPile: [...p.discardPile, card],
             }
           : p
@@ -194,15 +198,26 @@ function App() {
 
   function buildPlayableCards() {
     if (game.actionsRemaining < 1) return [];
-    const result: { card: CardType; onPlay: () => void }[] = [];
+    const result: { card: CardType; label?: string; onPlay: () => void }[] = [];
     for (const card of currentPlayer.hand) {
       if (card === "Charter") {
         result.push({ card, onPlay: handlePlayCharter });
       } else if (PERSONNEL_CARDS.includes(card as PersonnelCard)) {
-        result.push({
-          card,
-          onPlay: () => handlePlayPersonnel(card as PersonnelCard),
-        });
+        const personnel = card as PersonnelCard;
+        if (personnel === "Elder") {
+          for (const eventCard of ELDER_EVENT_OPTIONS) {
+            result.push({
+              card,
+              label: `${personnel} → ${eventCard}`,
+              onPlay: () => handlePlayPersonnel(personnel, eventCard),
+            });
+          }
+        } else {
+          result.push({
+            card,
+            onPlay: () => handlePlayPersonnel(personnel),
+          });
+        }
       } else {
         // Event cards: Build, Procurement, Expedition, Reserve
         result.push({

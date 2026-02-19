@@ -36,8 +36,8 @@ export const CARD_INFO: Record<CardType, CardInfo> = {
     icon: "👩‍💼",
     image: "",
   },
-  Cartographer: {
-    title: "Cartographer",
+  Explorer: {
+    title: "Explorer",
     description: "Add an Expedition card to your hand; discard this card.",
     icon: "🧗‍♀️",
     image: "",
@@ -64,6 +64,13 @@ export const CARD_INFO: Record<CardType, CardInfo> = {
     title: "Reserve",
     description: "Place a Reserve on terrain adjacent to Village or Reserve.",
     icon: "🏞️",
+    image: "",
+  },
+  Contact: {
+    title: "Contact",
+    description:
+      "Convert a Fog hex to terrain and place a Village there (Chieftain only).",
+    icon: "🤝",
     image: "",
   },
 };
