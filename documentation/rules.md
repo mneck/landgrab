@@ -6,6 +6,9 @@ Landgrab is a strategy game where players take turns playing **Personnel** cards
 - The Chieftain
 - The Bureaucrat
 
+Resources are generated according to adjacency;
+adjacency refers to any hex sharing a border.
+
 ## Winning Conditions
 
 ### The Hotelier
@@ -95,7 +98,7 @@ Personnel cards are used to generate Event cards, which are immediately added to
 
 1. **Build [generated from Builder]**
     
-    Industrialist, Hotelier, and Bureaucrat players pay 1 Wood, 1 Ore, and 1 Coin to construct a building. Aside from the Buildings initially placed using **Charter**, a Building cannot be placed to any adjacent Fog hexes (an Expedition must first be placed to change Fog tiles to non-Fog tiles). The following rules regarding "Build" are specific to each player type:
+    Industrialist, Hotelier, and Bureaucrat players pay 1 Wood, 1 Ore, and 1 Coin to construct a building. Aside from the Buildings initially placed using **Charter**, a Building cannot be placed adjacent to any Fog hexes (an Expedition must first be placed to change any Fog tiles to non-Fog tiles). The following rules regarding "Build" are specific to each player type:
 
     a. The **Industrialist** can build a Farm or Industrial Zone on Sand or Field hex; must be placed adjacent to another Farm, Industrial Zone, or Infrastructure hex.
 
@@ -110,6 +113,7 @@ Personnel cards are used to generate Event cards, which are immediately added to
     Take one of the following actions:
     - Acquire 1-4 Wood **or** 1-4 Ore resources from the Market, or sell 1-4 Wood **or** 1-4 Ore resources to the market. Market mechanics are explained in the [Resource Market](#resource-market) section.
     - Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies.
+- Chieftain generates 1 coin per Reserve that is not adjacent to any other player's building.
     
 3. **Expedition [generated from Cartographer]**
     
