@@ -1,8 +1,8 @@
-import type { CardType } from "../types/game";
 import { CARD_INFO } from "../data/cardData";
 
 interface CardProps {
-  card: CardType;
+  /** Card identifier (CardType or PoliticsCard, etc.) */
+  card: string;
   /** Optional: make card compact for hand display */
   compact?: boolean;
 }

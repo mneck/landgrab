@@ -1,5 +1,3 @@
-import type { CardType } from "../types/game";
-
 /** Cards use emojis for prototyping (per LAN-13) */
 
 export interface CardInfo {
@@ -9,7 +7,7 @@ export interface CardInfo {
   image: string;
 }
 
-export const CARD_INFO: Record<CardType, CardInfo> = {
+export const CARD_INFO: Record<string, CardInfo> = {
   Charter: {
     title: "Charter",
     description:
@@ -20,20 +18,20 @@ export const CARD_INFO: Record<CardType, CardInfo> = {
   Builder: {
     title: "Builder",
     description: "Add a Build card to your hand; discard this card.",
-    icon: "👷",
+    icon: "👷🏼",
     image: "",
   },
   Elder: {
     title: "Elder",
     description:
       "Convert Fog to terrain and place Village, or add Reserve to hand.",
-    icon: "👲",
+    icon: "👲🏾",
     image: "",
   },
   Liaison: {
     title: "Liaison",
     description: "Add a Procurement card to your hand; discard this card.",
-    icon: "👩‍💼",
+    icon: "👩🏻‍💼",
     image: "",
   },
   Explorer: {
@@ -71,6 +69,44 @@ export const CARD_INFO: Record<CardType, CardInfo> = {
     description:
       "Convert a Fog hex to terrain and place a Village there (Chieftain only).",
     icon: "🤝",
+    image: "",
+  },
+  /* Politics-specific cards */
+  Bribe: {
+    title: "Bribe",
+    description: "Pay 1 Coin and remove 1 card from the Politics market.",
+    icon: "💵",
+    image: "",
+  },
+  Zoning: {
+    title: "Zoning",
+    description:
+      "Place a Zoning marker on a Sand or Field hex adjacent to your building.",
+    icon: "📋",
+    image: "",
+  },
+  UrbanPlanning: {
+    title: "Urban Planning",
+    description: "Place an additional building on a hex you control; double production.",
+    icon: "🏙️",
+    image: "",
+  },
+  Dividends: {
+    title: "Dividends",
+    description: "Gain 1 Coin per Building you control.",
+    icon: "📈",
+    image: "",
+  },
+  NGOBacking: {
+    title: "NGO Backing",
+    description: "Chieftain gains 1 Coin per Village.",
+    icon: "🌍",
+    image: "",
+  },
+  Propaganda: {
+    title: "Propaganda",
+    description: "Pay 1 Coin and remove 1 Vote from the Bureaucrat.",
+    icon: "📢",
     image: "",
   },
 };

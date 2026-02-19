@@ -48,6 +48,28 @@ export interface Player {
   victoryProgress: number; // coins, VP, votes, or reserves depending on type
 }
 
+/** Conference row: 4 Personnel cards at costs 1–4 Coins */
+export type ConferenceSlot = PersonnelCard | null;
+
+/** Politics row: 4 Event cards at costs 1–4 Coins (core events + politics-specific) */
+export type PoliticsCard =
+  | EventCard
+  | "Bribe"
+  | "Zoning"
+  | "UrbanPlanning"
+  | "Dividends"
+  | "NGOBacking"
+  | "Propaganda";
+export type PoliticsSlot = PoliticsCard | null;
+
+/** Resource market: 4 price slots (1–4 Coins), each slot holds count of that resource */
+export type ResourceTrack = [number, number, number, number];
+
+/** Decrement actions remaining, clamped to never go below 0 */
+export function decrementActionsRemaining(current: number): number {
+  return Math.max(0, current - 1);
+}
+
 export interface GameState {
   mapRadius: number;
   fogRadius: number;
@@ -55,6 +77,15 @@ export interface GameState {
   players: Player[];
   currentPlayerIndex: number;
   actionsRemaining: number;
+  /** Conference: 4 Personnel slots at costs 1–4 */
+  conference: [ConferenceSlot, ConferenceSlot, ConferenceSlot, ConferenceSlot];
+  conferenceDeck: PersonnelCard[];
+  /** Politics: 4 Event slots at costs 1–4 */
+  politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot];
+  politicsDeck: PoliticsCard[];
+  /** Wood and Ore market tracks; each has 4 slots for prices 1–4 */
+  woodMarket: ResourceTrack;
+  oreMarket: ResourceTrack;
 }
 
 function shuffle<T>(array: T[]): T[] {
@@ -136,6 +167,44 @@ export function createInitialGameState(
     victoryProgress: 0,
   }));
 
+  const conferenceDeck: PersonnelCard[] = shuffle([
+    "Builder",
+    "Liaison",
+    "Explorer",
+    "Elder",
+    "Builder",
+    "Liaison",
+    "Explorer",
+    "Elder",
+  ]);
+  const conference: [ConferenceSlot, ConferenceSlot, ConferenceSlot, ConferenceSlot] = [
+    conferenceDeck.shift() ?? null,
+    conferenceDeck.shift() ?? null,
+    conferenceDeck.shift() ?? null,
+    conferenceDeck.shift() ?? null,
+  ];
+
+  const politicsPool: PoliticsCard[] = [
+    "Build",
+    "Procurement",
+    "Expedition",
+    "Reserve",
+    "Contact",
+    "Bribe",
+    "Zoning",
+    "UrbanPlanning",
+    "Dividends",
+    "NGOBacking",
+    "Propaganda",
+  ];
+  const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
+  const politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
+    politicsDeck.shift() ?? null,
+    politicsDeck.shift() ?? null,
+    politicsDeck.shift() ?? null,
+    politicsDeck.shift() ?? null,
+  ];
+
   return {
     mapRadius,
     fogRadius,
@@ -143,5 +212,11 @@ export function createInitialGameState(
     players,
     currentPlayerIndex: 0,
     actionsRemaining: 2,
+    conference,
+    conferenceDeck,
+    politics,
+    politicsDeck,
+    woodMarket: [0, 0, 1, 1],
+    oreMarket: [0, 0, 1, 1],
   };
 }

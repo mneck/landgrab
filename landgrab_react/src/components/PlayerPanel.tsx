@@ -4,9 +4,16 @@ import { Card } from "./Card";
 interface PlayerPanelProps {
   player: Player;
   isCurrent: boolean;
+  selectedCard?: string | null;
+  onCardClick?: (card: string) => void;
 }
 
-export function PlayerPanel({ player, isCurrent }: PlayerPanelProps) {
+export function PlayerPanel({
+  player,
+  isCurrent,
+  selectedCard,
+  onCardClick,
+}: PlayerPanelProps) {
   return (
     <div
       className={`player-panel ${isCurrent ? "current" : ""}`}
@@ -22,9 +29,26 @@ export function PlayerPanel({ player, isCurrent }: PlayerPanelProps) {
       <div className="hand">
         <span className="label">Hand:</span>
         <div className="cards">
-          {player.hand.map((card, i) => (
-            <Card key={`${card}-${i}`} card={card} compact />
-          ))}
+          {player.hand.map((card, i) => {
+            const isSelected = selectedCard === card;
+            const clickable = isCurrent && onCardClick;
+            return (
+              <div
+                key={`${card}-${i}`}
+                className={`card-wrapper ${clickable ? "card-wrapper--clickable" : ""} ${isSelected ? "card-wrapper--selected" : ""}`}
+                onClick={() => clickable && onCardClick?.(card)}
+                onKeyDown={(e) =>
+                  clickable &&
+                  (e.key === "Enter" || e.key === " ") &&
+                  onCardClick?.(card)
+                }
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+              >
+                <Card card={card} compact />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

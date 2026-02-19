@@ -1,6 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { generateIsland } from "../../src/types/game";
+import {
+  generateIsland,
+  createInitialGameState,
+  decrementActionsRemaining,
+} from "../../src/types/game";
 import { hexDistance, hexKey, hexNeighbors } from "../../src/utils/hexGrid";
+
+describe("actionsRemaining", () => {
+  it("createInitialGameState has actionsRemaining >= 0", () => {
+    const state = createInitialGameState();
+    expect(state.actionsRemaining).toBeGreaterThanOrEqual(0);
+  });
+
+  it("decrementActionsRemaining never returns negative", () => {
+    expect(decrementActionsRemaining(2)).toBe(1);
+    expect(decrementActionsRemaining(1)).toBe(0);
+    expect(decrementActionsRemaining(0)).toBe(0);
+    expect(decrementActionsRemaining(-1)).toBe(0);
+    expect(decrementActionsRemaining(-10)).toBe(0);
+  });
+});
 
 describe("generateIsland - outermost fog ring becomes Field", () => {
   it("outermost fog hexes (dist === fogRadius) should always be Field", () => {
