@@ -15,15 +15,26 @@ All Linear-related tickets, scripts, and config for the Landgrab project.
    ```
    Get your key: https://linear.app/settings/api
 
-## Sync
+## Pull (Linear → local)
 
-From the project root:
+Fetch issues from Linear and write to `tickets/tickets.md`:
 
 ```bash
 node tickets/sync.mjs
 ```
 
-This fetches active issues from team **LAN** and writes them to `tickets/tickets.md`.
+## Push (local → Linear)
+
+Create tickets in `tickets/local.md`, then push them to Linear:
+
+```bash
+node tickets/sync.mjs --push
+```
+
+**Local ticket format** in `tickets/local.md`:
+- Lines starting with `- ` or `- [ ] ` are new tickets
+- Indent the next line(s) with 2+ spaces for an optional description
+- After a successful push, created tickets are removed from `local.md`
 
 ## Using in Cursor
 

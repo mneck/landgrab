@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { HexMap } from "./components/HexMap";
 import { PlayerPanel } from "./components/PlayerPanel";
 import { GameActions } from "./components/GameActions";
-import type { GameState, BuildingType } from "./types/game";
+import type {
+  GameState,
+  BuildingType,
+  CardType,
+  PersonnelCard,
+  EventCard,
+} from "./types/game";
 import type { HexCoord } from "./utils/hexGrid";
 import { createInitialGameState } from "./types/game";
 import { hexDistance, hexKey, hexNeighbors } from "./utils/hexGrid";
@@ -54,6 +60,30 @@ function canPlaceCharter(
     default:
       return false;
   }
+}
+
+/** Personnel cards add an event card to hand and go to discard */
+const PERSONNEL_TO_EVENT: Record<PersonnelCard, EventCard | null> = {
+  Builder: "Build",
+  Elder: "Reserve",
+  Liaison: "Procurement",
+  Cartographer: "Expedition",
+};
+
+const PERSONNEL_CARDS: PersonnelCard[] = [
+  "Builder",
+  "Elder",
+  "Liaison",
+  "Cartographer",
+];
+
+function shuffle<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
 
 function App() {
@@ -114,10 +144,105 @@ function App() {
     setSelectedHex(hex);
   }
 
+  const consumeAction = useCallback(
+    (updater: (g: GameState) => GameState) => {
+      setGame((g) => ({
+        ...updater(g),
+        actionsRemaining: g.actionsRemaining - 1,
+      }));
+    },
+    []
+  );
+
   function handlePlayCharter() {
     if (!currentPlayer.hand.includes("Charter") || game.actionsRemaining < 1)
       return;
     setPlacementMode("charter");
+  }
+
+  function handlePlayPersonnel(card: PersonnelCard) {
+    if (!currentPlayer.hand.includes(card) || game.actionsRemaining < 1) return;
+    const eventCard = PERSONNEL_TO_EVENT[card];
+    if (!eventCard) return;
+
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) =>
+        i === g.currentPlayerIndex
+          ? {
+              ...p,
+              hand: [...p.hand.filter((c) => c !== card), eventCard],
+              discardPile: [...p.discardPile, card],
+            }
+          : p
+      ),
+    }));
+  }
+
+  function handlePlayEventCard(card: EventCard) {
+    if (!currentPlayer.hand.includes(card) || game.actionsRemaining < 1) return;
+    // Event cards are trashed (removed from game)
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) =>
+        i === g.currentPlayerIndex
+          ? { ...p, hand: p.hand.filter((c) => c !== card) }
+          : p
+      ),
+    }));
+  }
+
+  function buildPlayableCards() {
+    if (game.actionsRemaining < 1) return [];
+    const result: { card: CardType; onPlay: () => void }[] = [];
+    for (const card of currentPlayer.hand) {
+      if (card === "Charter") {
+        result.push({ card, onPlay: handlePlayCharter });
+      } else if (PERSONNEL_CARDS.includes(card as PersonnelCard)) {
+        result.push({
+          card,
+          onPlay: () => handlePlayPersonnel(card as PersonnelCard),
+        });
+      } else {
+        // Event cards: Build, Procurement, Expedition, Reserve
+        result.push({
+          card,
+          onPlay: () => handlePlayEventCard(card as EventCard),
+        });
+      }
+    }
+    return result;
+  }
+
+  function handleDraw() {
+    if (game.actionsRemaining < 1) return;
+    const { drawPile, discardPile } = currentPlayer;
+    const hasCardsToDraw = drawPile.length > 0 || discardPile.length > 0;
+    if (!hasCardsToDraw) return;
+
+    consumeAction((g) => {
+      const p = g.players[g.currentPlayerIndex];
+      let newDraw = [...p.drawPile];
+      let newDiscard = [...p.discardPile];
+      if (newDraw.length === 0 && newDiscard.length > 0) {
+        newDraw = shuffle(newDiscard);
+        newDiscard = [];
+      }
+      const drawn = newDraw.shift()!;
+      return {
+        ...g,
+        players: g.players.map((pl, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...pl,
+                hand: [...pl.hand, drawn],
+                drawPile: newDraw,
+                discardPile: newDiscard,
+              }
+            : pl
+        ),
+      };
+    });
   }
 
   function handleEndTurn() {
@@ -167,17 +292,19 @@ function App() {
           <GameActions
             actionsRemaining={game.actionsRemaining}
             placementMode={placementMode === "charter"}
+            playableCards={buildPlayableCards()}
+            canDraw={
+              game.actionsRemaining > 0 &&
+              (currentPlayer.drawPile.length > 0 ||
+                currentPlayer.discardPile.length > 0)
+            }
+            onDraw={handleDraw}
             onCancelPlacement={
               placementMode === "charter"
                 ? () => {
                     setPlacementMode(null);
                     setSelectedHex(null);
                   }
-                : undefined
-            }
-            onPlayCharter={
-              currentPlayer.hand.includes("Charter") && game.actionsRemaining > 0
-                ? handlePlayCharter
                 : undefined
             }
             onEndTurn={handleEndTurn}

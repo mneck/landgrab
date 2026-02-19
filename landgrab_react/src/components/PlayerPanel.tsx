@@ -1,4 +1,5 @@
 import type { Player } from "../types/game";
+import { Card } from "./Card";
 
 interface PlayerPanelProps {
   player: Player;
@@ -22,9 +23,7 @@ export function PlayerPanel({ player, isCurrent }: PlayerPanelProps) {
         <span className="label">Hand:</span>
         <div className="cards">
           {player.hand.map((card, i) => (
-            <span key={`${card}-${i}`} className="card">
-              {card}
-            </span>
+            <Card key={`${card}-${i}`} card={card} compact />
           ))}
         </div>
       </div>

@@ -36,6 +36,8 @@ export interface Tile {
 export interface Player {
   type: PlayerType;
   hand: CardType[];
+  discardPile: CardType[];
+  drawPile: CardType[];
   resources: {
     wood: number;
     ore: number;
@@ -127,6 +129,8 @@ export function createInitialGameState(
       type === "Chieftain"
         ? (["Elder", "Liaison", "Cartographer", "Charter"] as CardType[])
         : (["Builder", "Liaison", "Cartographer", "Charter"] as CardType[]),
+    discardPile: [],
+    drawPile: [],
     resources: { wood: 0, ore: 0, coins: 0, votes: 0 },
     victoryProgress: 0,
   }));

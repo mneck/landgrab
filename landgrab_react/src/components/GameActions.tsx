@@ -1,7 +1,12 @@
+import type { CardType } from "../types/game";
+
 interface GameActionsProps {
   actionsRemaining: number;
   placementMode?: boolean;
-  onPlayCharter?: () => void;
+  /** Cards that can be played; each maps to an onClick handler */
+  playableCards: { card: CardType; onPlay: () => void }[];
+  canDraw: boolean;
+  onDraw?: () => void;
   onCancelPlacement?: () => void;
   onEndTurn?: () => void;
 }
@@ -9,7 +14,9 @@ interface GameActionsProps {
 export function GameActions({
   actionsRemaining,
   placementMode,
-  onPlayCharter,
+  playableCards,
+  canDraw,
+  onDraw,
   onCancelPlacement,
   onEndTurn,
 }: GameActionsProps) {
@@ -26,11 +33,18 @@ export function GameActions({
             </button>
           )
         ) : (
-          onPlayCharter && (
-            <button type="button" onClick={onPlayCharter}>
-              Play Charter (place building)
-            </button>
-          )
+          <>
+            {playableCards.map(({ card, onPlay }, i) => (
+              <button key={`${card}-${i}`} type="button" onClick={onPlay}>
+                Play {card}
+              </button>
+            ))}
+            {canDraw && onDraw && (
+              <button type="button" onClick={onDraw}>
+                Draw a card
+              </button>
+            )}
+          </>
         )}
         {onEndTurn && (
           <button type="button" onClick={onEndTurn}>

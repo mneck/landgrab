@@ -1,26 +1,27 @@
 import type { Tile } from "../types/game";
 import { hexCornerPoints, hexToPixel } from "../utils/hexGrid";
+import { assets } from "../constants/assets";
 
-/** Terrain tile types -> nature_tiles PNG files */
+/** Terrain tile types -> nature_tiles PNG files (from @assets) */
 const TERRAIN_IMAGES: Record<string, string> = {
-  Fog: "/assets/nature_tiles/fog_hex.png",
-  Field: "/assets/nature_tiles/field_hex.png",
-  Mountain: "/assets/nature_tiles/mountains_hex.png",
-  Water: "/assets/nature_tiles/water_hex.png",
-  Forest: "/assets/nature_tiles/forest_hex.png",
-  Sand: "/assets/nature_tiles/desert_hex.png",
+  Fog: assets.hexes.nature("fog_hex.png"),
+  Field: assets.hexes.nature("field_hex.png"),
+  Mountain: assets.hexes.nature("mountains_hex.png"),
+  Water: assets.hexes.nature("water_hex.png"),
+  Forest: assets.hexes.nature("forest_hex.png"),
+  Sand: assets.hexes.nature("desert_hex.png"),
 };
 
-/** Building types -> asset PNG files (disc overlays) */
+/** Building types -> asset PNG files (disc overlays, from @assets) */
 const BUILDING_IMAGES: Record<string, string> = {
-  Village: "/assets/indigenous_tiles/indigenous_disc.png",
-  Resort: "/assets/resort_tiles/resort_disc.png",
-  Housing: "/assets/resort_tiles/resort_homes_disc.png",
-  IndustrialZone: "/assets/industry_tiles/industry_disc.png",
-  Farm: "/assets/industry_tiles/industry_home_disc.png",
-  Infrastructure: "/assets/government_tiles/infrastructure_disc.png",
-  CivicOffice: "/assets/government_tiles/civic_offices_disc.png",
-  Reserve: "/assets/indigenous_tiles/reserve.png",
+  Village: assets.hexes.indigenous("indigenous_disc.png"),
+  Resort: assets.hexes.resort("resort_disc.png"),
+  Housing: assets.hexes.resort("resort_homes_disc.png"),
+  IndustrialZone: assets.hexes.industry("industry_disc.png"),
+  Farm: assets.hexes.industry("industry_home_disc.png"),
+  Infrastructure: assets.hexes.government("infrastructure_disc.png"),
+  CivicOffice: assets.hexes.government("civic_offices_disc.png"),
+  Reserve: assets.hexes.indigenous("reserve.png"),
 };
 
 interface HexTileProps {

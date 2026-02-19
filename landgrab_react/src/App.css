@@ -88,11 +88,107 @@
   margin-top: 0.25rem;
 }
 
+/* Card components — handheld card design */
 .card {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+  --card-width: 140px;
+  --card-radius: 10px;
+  background: linear-gradient(155deg, #2d3748 0%, #1a202c 100%);
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.card--handheld {
+  width: var(--card-width);
+  display: flex;
+  flex-direction: column;
+}
+
+.card__title-bar {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.03em;
+}
+
+.card__art {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+.card__art-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.card__art-icon {
+  font-size: 2.5rem;
+  opacity: 0.9;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.card__description {
+  padding: 0.5rem 0.6rem;
   font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+/* Compact cards for hand display */
+.card--compact {
+  width: 90px;
+  min-height: 110px;
+}
+
+.card--compact .card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.4rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.card--compact .card__icon {
+  font-size: 0.9rem;
+}
+
+.card--compact .card__title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card--compact .card__art {
+  aspect-ratio: 1;
+}
+
+.card--compact .card__art-icon {
+  font-size: 1.5rem;
 }
 
 .map-section {
