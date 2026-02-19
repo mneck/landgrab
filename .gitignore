@@ -1,1 +1,4 @@
 .DS_Store
+
+# Linear API key (keep in tickets/.env)
+tickets/.env
