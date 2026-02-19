@@ -1,10 +1,5 @@
 import type { HexCoord } from "../utils/hexGrid";
-import {
-  hexDistance,
-  hexKey,
-  hexNeighbors,
-  makeHexagonalShape,
-} from "../utils/hexGrid";
+import { hexDistance, hexKey, makeHexagonalShape } from "../utils/hexGrid";
 
 export type PlayerType = "Hotelier" | "Industrialist" | "Bureaucrat" | "Chieftain";
 
@@ -101,27 +96,15 @@ export function generateIsland(
     }
   }
 
-  const waterHexes = shuffledCoastline.filter(
-    (_, i) => fixedAssignments[i] === "Water"
-  );
-  const fogAdjacentToWater = new Set<string>();
-  for (const waterHex of waterHexes) {
-    for (const neighbor of hexNeighbors(waterHex)) {
-      if (hexDistance(neighbor, center) <= fogRadius) {
-        fogAdjacentToWater.add(hexKey(neighbor));
-      }
-    }
-  }
-
   const tiles: Record<string, Tile> = {};
   for (const hex of hexes) {
     const dist = hexDistance(hex, center);
     const k = hexKey(hex);
     let type: TileType;
-    if (fogAdjacentToWater.has(k)) {
-      type = "Field";
-    } else if (dist <= fogRadius) {
+    if (dist < fogRadius) {
       type = "Fog";
+    } else if (dist === fogRadius) {
+      type = "Field";
     } else if (dist === coastlineDist) {
       type = coastlineTypes.get(k) ?? "Field";
     } else {

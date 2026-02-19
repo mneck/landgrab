@@ -5,14 +5,14 @@ import { GameActions } from "./components/GameActions";
 import type { GameState, BuildingType } from "./types/game";
 import type { HexCoord } from "./utils/hexGrid";
 import { createInitialGameState } from "./types/game";
-import { hexKey, hexNeighbors } from "./utils/hexGrid";
+import { hexDistance, hexKey, hexNeighbors } from "./utils/hexGrid";
 import type { TileType } from "./types/game";
 
-const COASTLINE_TYPES: TileType[] = ["Field", "Mountain", "Forest", "Sand"];
+const REVEALED_TERRAIN_TYPES: TileType[] = ["Field", "Mountain", "Forest", "Sand", "Water"];
 
 function pickRevealedTileType(hex: HexCoord): TileType {
-  const idx = (hex.q * 7 + hex.r * 13) % COASTLINE_TYPES.length;
-  return COASTLINE_TYPES[Math.abs(idx)];
+  const idx = (hex.q * 7 + hex.r * 13) % REVEALED_TERRAIN_TYPES.length;
+  return REVEALED_TERRAIN_TYPES[Math.abs(idx)];
 }
 
 import "./App.css";
@@ -76,13 +76,15 @@ function App() {
 
       // Reveal adjacent Fog hexes per Charter rules
       const newTiles = { ...game.tiles };
+      const center = { q: 0, r: 0 };
       for (const neighbor of hexNeighbors(hex)) {
         const nk = hexKey(neighbor);
         const nt = newTiles[nk];
         if (nt?.type === "Fog") {
+          const isOuterFogRing = hexDistance(neighbor, center) === game.fogRadius;
           newTiles[nk] = {
             ...nt,
-            type: pickRevealedTileType(neighbor),
+            type: isOuterFogRing ? "Field" : pickRevealedTileType(neighbor),
           };
         }
       }
