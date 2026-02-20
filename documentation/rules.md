@@ -72,9 +72,11 @@ By default, at the start of each turn, a player can take *2* of any of the follo
 
 So a player can draw 2 cards, play 2 cards from her hand, or play 1 card and draw 1 card. There is no hand limit. Playing Event cards and Personnel cards both count as "play a card" Actions.
 
+When playing a Personnel card, the player may either generate an Event card (its normal ability) **or** use it to initiate a Conference bid (see [Conference](#conference)).
+
 ## Personnel cards
 
-Personnel cards can be played multiple times; after a personnel card is played, it goes to a player’s discard pile. After a player has played all of the cards in her draw pile, the cards in the discard pile are shuffled and then placed in the draw pile.
+Personnel cards can be played multiple times; after a personnel card is played, it goes to a player’s discard pile. After a player has played all of the cards in her draw pile, the cards in the discard pile are shuffled and then placed in the draw pile. Any Personnel card can also be discarded to initiate a Conference bid instead of generating an Event (see [Conference](#conference)).
 
 **Each player starts with 4 cards in her hand:**
 
@@ -129,7 +131,9 @@ A player wins by acquiring **4 Seats**. Seats are earned by purchasing and playi
 
 ## Mandate
 
-Once it is drawn from the Politics deck, the Mandate card permanently occupies the 4-Coin slot of the Politics market until a Player purchases this card. It cannot be Bribed or otherwise removed; it can only be purchased and then it enters the player's hand. A player may only acquire a Mandate as the **first Action** of their turn. Playing a Mandate adds a **Promotion** card and a **Seat** card to the player's discard pile and **ends their turn**.
+Mandate cards are interleaved into the Politics deck on a schedule: the first Mandate appears after 5 regular Politics cards, then after 4, then 3, then 2, and every 2 cards thereafter. When a Mandate is drawn from the deck to fill a market slot, it occupies the 4-Coin slot, with the other cards pushed to cheaper positions, if needed. If a Mandate is drawn but one is already visible in the market, the duplicate is moved to the bottom of the Politics draw deck and the next card is drawn instead.
+
+A Mandate cannot be Bribed or otherwise removed from the market; it can only be purchased. A player may only acquire a Mandate as the **first Action** of their turn. Playing a Mandate adds a **Promotion** card and a **Seat** card to the player's discard pile and **ends their turn**.
 
 The cost of a Mandate is based on the player's type plus their current number of Seats:
 
@@ -164,16 +168,18 @@ Card Row:   [ ]  |  [ ]  |  [ ]  |  [ ]
 3. Fixer
 4. Advocate
 
-Instead of playing a Personnel card to generate an Event, a player can do the following:
-1. Discard a Personnel card.
-2. Select a Personnel card from the Conference.
-3. Bid at least 1 Coin on the selected Personnel card.
-4. Going clockwise, each player may either:
-    a. Pass permanently, or
-    b. Raise the bid by at least 1 Coin, Vote, Wood, or Ore token. A player can bid any combination of these resources.
-    Note: A player cannot bid more than once in a bidding round.
-5. The highest bidder pays Resources to the Bank; any Wood/Ore resources used in bidding is not added to the resource track.
-6. The winning player adds the Personnel card to the top of their discard pile.
+Instead of playing a Personnel card to generate an Event, a player can initiate a Conference bid:
+
+1. Select a Personnel card from the Conference row.
+2. Select a Personnel card from your hand to discard. It goes to your discard pile regardless of who wins the bid.
+3. Set an opening bid of at least 1 Coin.
+4. Going clockwise, each other player gets exactly **1 chance** to either:
+    a. **Pass** permanently, or
+    b. **Counter-bid** by matching the entire current bid and adding exactly 1 additional resource of any type (Coin, Wood, Ore, or Vote).
+5. The highest bidder (the last player who didn't pass, or the initiating player if everyone passes) pays all bid resources to the Bank. Wood and Ore used in bidding are **not** added to the Resource market.
+6. The winning player adds the Conference Personnel card to their discard pile.
+
+Counter-bids accumulate: if the opening bid is 3 Coins and the next player adds 1 Wood, the bid becomes "3 Coins + 1 Wood." The following player must then match all of that and add 1 more resource. Choosing a resource type that opponents lack can lock them out of bidding, making resource diversity strategically important.
 
 At the end of a full round (each player has had a turn), the Conference cards are replaced. After a Player has purchased a Personnel card, that card is not replaced until the end of the round.
 
@@ -257,7 +263,7 @@ The Politics market represents a row of 4 Event cards that can be acquired throu
 
 The Event cards are managed differently depending on whether the Bureaucrat player is present:
 a. **With Bureaucrat:** At the end of the Bureaucrat's turn and after the Politics card market has been replenished, the Bureaucrat player can change the order of the cards according to the Bureaucrat's wishes.
-b. **Without Bureaucrat**: The order of the cards in the Politics market remains fixes.
+b. **Without Bureaucrat**: The order of the cards in the Politics market remains fixed.
 
 ## Purchasing Politics Cards
 
@@ -271,10 +277,26 @@ To purchase:
 
 - If a player other than the Bureaucrat paid 3 or 4 Coins for a Politics card, the Bureaucrat gains 1 Vote.
 
-Below are examples of various Event cards that can enter the Politics market:
-1. Bribe: Pay 1 Coin and remove 1 card from the Politics market.
-2. Zoning: Place a Zoning marker on a Sand or Field hex adjacent to one of your buildings. Only you may build on that hex.
-3. Urban Planning: Place an additional Resort, Industrial Zone, or Infrastructure on a hex where you already have one. That hex generates double production during Procurement.
-4. Dividends: Gain 1 Coin per Building you control.
-5. NGO Backing: Chieftain gains 1 Coin per Village.
-6. Propaganda: Pay 1 Coin and remove 1 Vote from the Bureaucrat.
+The following Event cards can appear in the Politics market:
+
+1. **Bribe**: Pay 1 Coin and remove 1 non-Mandate card from the Politics market.
+2. **Zoning**: Place a Zoning marker on a Sand or Field hex adjacent to one of your buildings. Only you may build on that hex.
+3. **Urban Planning**: Pay 1 Wood, 1 Ore, and 1 Coin to place an additional building on a hex you already control. That hex generates double production during Procurement.
+4. **Dividends**: Gain 1 Coin per Industrial Zone, Resort, Village, or Infrastructure you control.
+5. **NGO Backing**: Chieftain gains 1 Coin per Village.
+6. **Propaganda**: Pay 1–3 Coins and collect 1–3 Votes from other players, taking a maximum of 1 Vote per player.
+7. **Conservation**: Place a Conservation token on any Forest hex. That hex cannot be converted or zoned; only a Reserve may be placed on it.
+8. **Local Elections**: Chieftain gains 1 Vote per Village.
+9. **Land Claims**: Until your next turn, buildings cannot be placed adjacent to Reserves.
+10. **Subsidy**: Gain 1 Coin per Reserve you control.
+11. **Boycotting**: Choose a player. Their buildings adjacent to your Reserves and Villages do not produce resources on their next Procurement.
+12. **Protests**: Choose a player. They lose Votes equal to the number of Villages you control, up to a maximum of 3 Votes.
+13. **Taxation**: Choose one of your Reserves. Gain 1 Coin per opponent building adjacent to that Reserve.
+14. **Levy**: Choose a player. They lose up to 2 Coins.
+15. **Expropriation**: The Industrialist adds 1–3 Wood or Ore (any mix) to the Resource market and receives 1 Coin.
+16. **Graft**: Exchange 1 Coin for 1 Vote or 1 Vote for 1 Coin with another player.
+17. **Reorganization**: Pick two: Trash a Personnel card from your hand; take an additional action; draw a card.
+18. **Import**: Acquire 1 Wood or 1 Ore for 1 Coin. This resource does not come from the Resource market.
+19. **Export**: Sell 1–3 Wood or Ore (any mix) for an equal number of Coins. Sold resources do not return to the Resource market.
+20. **Logging**: Convert a Forest hex to a Field hex. Take 1 Wood from the Bank.
+21. **Forestry**: Convert an empty Field hex to a Forest hex.

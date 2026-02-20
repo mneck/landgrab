@@ -3,6 +3,7 @@ import { HexMap } from "./components/HexMap";
 import { PlayerPanel } from "./components/PlayerPanel";
 import { GameActions } from "./components/GameActions";
 import { ConferenceRow } from "./components/ConferenceRow";
+import { RulebookView } from "./components/RulebookView";
 import { PoliticsRow } from "./components/PoliticsRow";
 import { ResourceMarket } from "./components/ResourceMarket";
 import { CARD_INFO } from "./data/cardData";
@@ -168,6 +169,7 @@ function App() {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [procurementChoosing, setProcurementChoosing] = useState(false);
   const [auction, setAuction] = useState<AuctionState | null>(null);
+  const [rulebookOpen, setRulebookOpen] = useState(false);
 
   function startGame(playerTypes: PlayerType[]) {
     setGame(createInitialGameState(playerTypes));
@@ -1994,9 +1996,21 @@ function App() {
         </div>
       )}
       <header className="game-header">
-        <h1>Landgrab</h1>
-        <p className="subtitle">Strategy prototype</p>
+        <div>
+          <h1>Landgrab</h1>
+          <p className="subtitle">Strategy prototype</p>
+        </div>
+        <button
+          type="button"
+          className="game-header__rules-btn"
+          onClick={() => setRulebookOpen(true)}
+        >
+          Rules
+        </button>
       </header>
+      {rulebookOpen && (
+        <RulebookView onClose={() => setRulebookOpen(false)} />
+      )}
 
       <main className="game-main">
         <div className="game-content">

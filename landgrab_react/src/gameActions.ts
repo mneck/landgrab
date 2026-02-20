@@ -132,6 +132,7 @@ export function runProcurement(g: GameState, playerType: string): GameState {
 
 /**
  * Shift non-null cards left and refill from deck.
+ * Mandate always occupies the 4-Coin slot (index 3), pushing other cards cheaper.
  * If a Mandate is drawn but one is already visible, it goes to the bottom of the deck.
  */
 export function refillPoliticsSlots(
@@ -150,6 +151,15 @@ export function refillPoliticsSlots(
     }
     filled.push(card);
     safety = nextDeck.length;
+  }
+  const nonMandate = filled.filter((c) => c !== "Mandate");
+  const hasMandate = filled.includes("Mandate");
+  if (hasMandate) {
+    while (nonMandate.length < 3) nonMandate.push(null as unknown as PoliticsCard);
+    return {
+      politics: [nonMandate[0] ?? null, nonMandate[1] ?? null, nonMandate[2] ?? null, "Mandate"],
+      politicsDeck: nextDeck,
+    };
   }
   return {
     politics: [filled[0] ?? null, filled[1] ?? null, filled[2] ?? null, filled[3] ?? null],

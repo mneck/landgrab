@@ -153,6 +153,10 @@
 .game-header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .game-header h1 {
@@ -610,4 +614,184 @@
 .resource-track__count {
   font-size: 1rem;
   color: var(--accent);
+}
+
+/* ── Rulebook overlay ── */
+
+.rulebook-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.rulebook-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.rulebook-panel {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.rulebook-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rulebook-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.rulebook-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.rulebook-close:hover {
+  color: var(--text);
+}
+
+.rulebook-content {
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.rulebook-loading,
+.rulebook-error {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.rulebook-error {
+  color: #f87171;
+}
+
+.rulebook-markdown {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.rulebook-markdown h1 {
+  font-size: 1.5rem;
+  margin: 1rem 0 0.5rem;
+  color: var(--accent);
+}
+
+.rulebook-markdown h1:first-child {
+  margin-top: 0;
+}
+
+.rulebook-markdown h2 {
+  font-size: 1.2rem;
+  margin: 1.25rem 0 0.5rem;
+  color: var(--text);
+}
+
+.rulebook-markdown h3 {
+  font-size: 1rem;
+  margin: 1rem 0 0.35rem;
+  color: var(--text-muted);
+}
+
+.rulebook-markdown p {
+  margin: 0.5rem 0;
+}
+
+.rulebook-markdown ul,
+.rulebook-markdown ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.rulebook-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1rem 0;
+}
+
+.rulebook-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.rulebook-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.rulebook-markdown th,
+.rulebook-markdown td {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.rulebook-markdown th {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rulebook-markdown code,
+.rulebook-markdown pre {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+
+.rulebook-markdown pre {
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.rulebook-markdown code {
+  padding: 0.15rem 0.35rem;
+}
+
+.rulebook-markdown strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.game-header__rules-btn {
+  margin-left: auto;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.game-header__rules-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
 }

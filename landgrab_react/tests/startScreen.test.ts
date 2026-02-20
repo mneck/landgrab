@@ -156,7 +156,8 @@ describe("refillPoliticsSlots — Mandate duplicate rule", () => {
     const deck: PoliticsCard[] = ["Mandate", "Build", "Procurement"];
     const slots: (PoliticsCard | null)[] = ["Mandate", "Bribe", "Zoning", null];
     const { politics, politicsDeck } = refillPoliticsSlots(slots, deck);
-    expect(politics[3]).toBe("Build");
+    expect(politics[3]).toBe("Mandate");
+    expect(politics[2]).toBe("Build");
     expect(politicsDeck).toContain("Mandate");
   });
 
