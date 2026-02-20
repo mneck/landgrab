@@ -21,6 +21,7 @@ export type PlacementMode =
   | "logging"
   | "forestry"
   | "taxation"
+  | "conservation"
   | null;
 
 export function getCharterBuilding(playerType: string): BuildingType {
@@ -133,6 +134,45 @@ export function countReserves(tiles: GameState["tiles"], playerType: string): nu
   return Object.values(tiles).filter(
     (t) => t.building === "Reserve" && t.buildingOwner === playerType
   ).length;
+}
+
+export function canPlaceConservation(
+  tiles: GameState["tiles"],
+  hex: HexCoord
+): boolean {
+  const key = hexKey(hex);
+  const tile = tiles[key];
+  if (!tile || tile.type !== "Forest" || tile.building || tile.hasConservation)
+    return false;
+  return true;
+}
+
+/** Chieftain Presence Score = Reserves + Villages adjacent to any Reserve */
+export function calculatePresenceScore(tiles: GameState["tiles"]): number {
+  let score = 0;
+  const reserves: HexCoord[] = [];
+  for (const t of Object.values(tiles)) {
+    if (t.building === "Reserve" && t.buildingOwner === "Chieftain") {
+      score += 1;
+      reserves.push(t.hex);
+    }
+  }
+  const countedVillages = new Set<string>();
+  for (const rHex of reserves) {
+    for (const nb of hexNeighbors(rHex)) {
+      const k = hexKey(nb);
+      const nt = tiles[k];
+      if (
+        nt?.building === "Village" &&
+        nt.buildingOwner === "Chieftain" &&
+        !countedVillages.has(k)
+      ) {
+        countedVillages.add(k);
+        score += 1;
+      }
+    }
+  }
+  return score;
 }
 
 /** Reveal adjacent Fog hexes around a target hex, returning updated tiles */

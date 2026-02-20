@@ -1,4 +1,4 @@
-import type { GameState, PlayerType, PoliticsCard, PoliticsSlot } from "./types/game";
+import type { GameState, PlayerType, ResourceTrack, PoliticsCard, PoliticsSlot } from "./types/game";
 import { hexKey, hexNeighbors } from "./utils/hexGrid";
 import { POLITICS_COSTS } from "./data/cardRules";
 
@@ -127,14 +127,37 @@ export function runProcurement(g: GameState, playerType: string): GameState {
       g.boycottEffect?.targetPlayerIndex === g.currentPlayerIndex
         ? undefined
         : g.boycottEffect,
-    embargoTargetPlayer:
-      g.embargoTargetPlayer === g.currentPlayerIndex
-        ? undefined
-        : g.embargoTargetPlayer,
   };
 }
 
-/** Purchase a Politics card from slot, refill market, apply Bureaucrat vote if applicable */
+/**
+ * Shift non-null cards left and refill from deck.
+ * If a Mandate is drawn but one is already visible, it goes to the bottom of the deck.
+ */
+export function refillPoliticsSlots(
+  slots: (PoliticsCard | null)[],
+  deck: PoliticsCard[]
+): { politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot]; politicsDeck: PoliticsCard[] } {
+  const filled = slots.filter((c): c is PoliticsCard => c !== null);
+  const nextDeck = [...deck];
+  let safety = nextDeck.length;
+  while (filled.length < 4 && nextDeck.length > 0 && safety > 0) {
+    const card = nextDeck.shift()!;
+    if (card === "Mandate" && filled.includes("Mandate")) {
+      nextDeck.push(card);
+      safety--;
+      continue;
+    }
+    filled.push(card);
+    safety = nextDeck.length;
+  }
+  return {
+    politics: [filled[0] ?? null, filled[1] ?? null, filled[2] ?? null, filled[3] ?? null],
+    politicsDeck: nextDeck,
+  };
+}
+
+/** Purchase a non-Mandate Politics card from any slot; Mandate uses its own handler */
 export function purchasePoliticsCard(
   g: GameState,
   slotIndex: number,
@@ -143,21 +166,11 @@ export function purchasePoliticsCard(
   const cost = POLITICS_COSTS[slotIndex];
   const player = g.players[playerIndex];
   const card = g.politics[slotIndex];
-  if (!card || player.resources.coins < cost) return g;
+  if (!card || card === "Mandate" || player.resources.coins < cost) return g;
 
-  const newPolitics = [...g.politics] as (PoliticsCard | null)[];
-  newPolitics[slotIndex] = null;
-  const filtered = newPolitics.filter((c): c is PoliticsCard => c !== null);
-  let nextDeck = [...g.politicsDeck];
-  while (filtered.length < 4 && nextDeck.length > 0) {
-    filtered.push(nextDeck.shift()!);
-  }
-  const finalSlots: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
-    filtered[0] ?? null,
-    filtered[1] ?? null,
-    filtered[2] ?? null,
-    filtered[3] ?? null,
-  ];
+  const rawSlots = [...g.politics] as (PoliticsCard | null)[];
+  rawSlots[slotIndex] = null;
+  const { politics: finalSlots, politicsDeck: nextDeck } = refillPoliticsSlots(rawSlots, g.politicsDeck);
 
   let newPlayers = g.players.map((p, i) =>
     i === playerIndex
@@ -195,25 +208,62 @@ export function purchasePoliticsCard(
   };
 }
 
-/** Shift politics market left and refill from deck (used by Bribe) */
+/** Remove a non-Mandate card from a politics slot and refill (used by Bribe) */
 export function removePoliticsSlot(
   g: GameState,
   slotIndex: number
 ): { politics: typeof g.politics; politicsDeck: PoliticsCard[] } {
-  const newPolitics = [...g.politics] as (PoliticsCard | null)[];
-  newPolitics[slotIndex] = null;
-  const filtered = newPolitics.filter((c): c is PoliticsCard => c !== null);
-  let nextDeck = [...g.politicsDeck];
-  while (filtered.length < 4 && nextDeck.length > 0) {
-    filtered.push(nextDeck.shift()!);
+  const card = g.politics[slotIndex];
+  if (!card || card === "Mandate") return { politics: g.politics, politicsDeck: [...g.politicsDeck] };
+  const rawSlots = [...g.politics] as (PoliticsCard | null)[];
+  rawSlots[slotIndex] = null;
+  return refillPoliticsSlots(rawSlots, g.politicsDeck);
+}
+
+/** Add resources to a market track, filling cheapest empty slots first. Returns updated track. */
+export function addToMarket(market: ResourceTrack, count: number): ResourceTrack {
+  const m = [...market] as ResourceTrack;
+  let remaining = count;
+  for (let i = 0; i < 4 && remaining > 0; i++) {
+    if (m[i] === 0) { m[i] = 1; remaining--; }
   }
-  return {
-    politics: [
-      filtered[0] ?? null,
-      filtered[1] ?? null,
-      filtered[2] ?? null,
-      filtered[3] ?? null,
-    ],
-    politicsDeck: nextDeck,
-  };
+  return m;
+}
+
+/** Buy cheapest available resources from a market track. Returns null if not enough available. */
+export function buyFromMarket(
+  track: ResourceTrack,
+  count: number
+): { newTrack: ResourceTrack; totalCost: number } | null {
+  const newTrack = [...track] as ResourceTrack;
+  let totalCost = 0;
+  let bought = 0;
+  for (let i = 0; i < 4 && bought < count; i++) {
+    if (newTrack[i] > 0) {
+      newTrack[i] = 0;
+      totalCost += i + 1;
+      bought++;
+    }
+  }
+  if (bought < count) return null;
+  return { newTrack, totalCost };
+}
+
+/** Sell resources to highest-priced empty slots first (working downward). Returns null if not enough empty slots. */
+export function sellToMarket(
+  track: ResourceTrack,
+  count: number
+): { newTrack: ResourceTrack; totalGain: number } | null {
+  const newTrack = [...track] as ResourceTrack;
+  let totalGain = 0;
+  let sold = 0;
+  for (let i = 3; i >= 0 && sold < count; i--) {
+    if (newTrack[i] === 0) {
+      newTrack[i] = 1;
+      totalGain += i + 1;
+      sold++;
+    }
+  }
+  if (sold < count) return null;
+  return { newTrack, totalGain };
 }

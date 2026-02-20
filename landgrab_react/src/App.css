@@ -9,6 +9,140 @@
   --accent-dim: #d97706;
 }
 
+/* ── Start Screen ── */
+
+.start-screen {
+  min-height: 100vh;
+  background: var(--bg-dark);
+  color: var(--text);
+  font-family: "Georgia", "Palatino", serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-screen__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  padding: 2rem;
+}
+
+.start-screen__title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0;
+  color: var(--accent);
+  text-shadow: 0 2px 12px rgba(245, 158, 11, 0.25);
+}
+
+.start-screen__subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.start-screen__btn {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.start-screen__btn:hover {
+  transform: translateY(-2px);
+}
+
+.start-screen__btn--primary {
+  background: var(--accent);
+  color: var(--bg-dark);
+  padding: 0.85rem 3rem;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+}
+
+.start-screen__btn--primary:hover {
+  background: var(--accent-dim);
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.4);
+}
+
+.start-screen__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.start-screen__option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 1.25rem 1rem;
+  background: var(--bg-card);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: var(--text);
+}
+
+.start-screen__option-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.start-screen__option-icons {
+  font-size: 1.6rem;
+  letter-spacing: 0.3em;
+}
+
+.start-screen__option-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.start-screen__option-detail {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.start-screen__back {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.start-screen__back:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Victory Banner ── */
+
+.victory-banner {
+  text-align: center;
+  padding: 1rem;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.15));
+  color: var(--accent);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid var(--accent);
+}
+
 .game-container {
   min-height: 100vh;
   background: var(--bg-dark);
@@ -333,6 +467,16 @@
   cursor: not-allowed;
 }
 
+.procurement-section {
+  margin: 0.25rem 0 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-dim, #999);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 0.25rem;
+}
+
 /* Markets section: Conference | Politics | Resource Market - span map width */
 .markets-section {
   display: grid;
@@ -390,6 +534,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.market-slot--clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: outline 0.15s;
+}
+.market-slot--clickable:hover {
+  outline: 2px solid var(--accent);
+}
+
+.market-slot--highlight {
+  outline: 2px solid var(--accent);
+  border-radius: 4px;
 }
 
 .market-slot__empty {

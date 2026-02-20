@@ -23,13 +23,17 @@ export type EventCard =
   | "Procurement"
   | "Expedition"
   | "Reserve"
-  | "Contact";
+  | "Contact"
+  | "Mandate"
+  | "Promotion"
+  | "Seat";
 
-/** Politics row: 4 Event cards at costs 1–4 Coins (core events + politics-specific) */
+/** Politics row: slots 0-2 cost 1–3 Coins; slot 3 is always Mandate */
 export type PoliticsCard =
   | EventCard
   | "Bribe"
   | "Zoning"
+  | "Conservation"
   | "UrbanPlanning"
   | "Dividends"
   | "NGOBacking"
@@ -47,7 +51,7 @@ export type PoliticsCard =
   | "Protests"
   | "Taxation"
   | "Levy"
-  | "Embargo";
+  | "Expropriation";
 export type PoliticsSlot = PoliticsCard | null;
 
 /** Hand can hold personnel + all event/politics cards */
@@ -62,6 +66,8 @@ export interface Tile {
   zoningOwner?: PlayerType;
   /** Urban Planning: hex has extra building; double production in Procurement */
   hasUrbanPlanning?: boolean;
+  /** Conservation: hex cannot be converted or zoned; only Reserve may be placed */
+  hasConservation?: boolean;
 }
 
 export interface Player {
@@ -75,7 +81,7 @@ export interface Player {
     coins: number;
     votes: number;
   };
-  victoryProgress: number; // coins, VP, votes, or reserves depending on type
+  seats: number;
 }
 
 /** Conference row: 4 Personnel cards at costs 1–4 Coins */
@@ -112,8 +118,8 @@ export interface GameState {
     boycotterType: PlayerType;
     targetPlayerIndex: number;
   };
-  /** Embargo: target player cannot use Resource market on their next Procurement */
-  embargoTargetPlayer?: number;
+  /** Set when a player reaches 4 Seats */
+  winner?: PlayerType;
 }
 
 function shuffle<T>(array: T[]): T[] {
@@ -177,6 +183,24 @@ export function generateIsland(
   return tiles;
 }
 
+/**
+ * Interleave Mandate cards into a shuffled politics deck.
+ * Gaps before each Mandate: 5, 4, 3, 2, then 2 repeating.
+ */
+function buildPoliticsDeck(shuffled: PoliticsCard[]): PoliticsCard[] {
+  const result: PoliticsCard[] = [];
+  let srcIdx = 0;
+  const gaps = [5, 4, 3, 2];
+  for (let gapNum = 0; srcIdx < shuffled.length; gapNum++) {
+    const gap = gapNum < gaps.length ? gaps[gapNum] : 2;
+    for (let j = 0; j < gap && srcIdx < shuffled.length; j++) {
+      result.push(shuffled[srcIdx++]);
+    }
+    result.push("Mandate");
+  }
+  return result;
+}
+
 export function createInitialGameState(
   playerTypes: PlayerType[] = ["Hotelier", "Industrialist"]
 ): GameState {
@@ -192,7 +216,7 @@ export function createInitialGameState(
     discardPile: [],
     drawPile: [],
     resources: { wood: 0, ore: 0, coins: 0, votes: 0 },
-    victoryProgress: 0,
+    seats: 0,
   }));
 
   const conferenceDeck: PersonnelCard[] = shuffle([
@@ -230,6 +254,7 @@ export function createInitialGameState(
     "Contact",
     "Bribe",
     "Zoning",
+    "Conservation",
     "UrbanPlanning",
     "Dividends",
     "NGOBacking",
@@ -247,9 +272,9 @@ export function createInitialGameState(
     "Protests",
     "Taxation",
     "Levy",
-    "Embargo",
+    "Expropriation",
   ];
-  const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
+  const politicsDeck = buildPoliticsDeck(shuffle([...politicsPool, ...politicsPool]));
   const politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
     politicsDeck.shift() ?? null,
     politicsDeck.shift() ?? null,

@@ -109,7 +109,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Procurement: {
     title: "Procurement",
     flavor: "Let's make a deal.",
-    description: "Buy/sell resources or cards or generate resources from your buildings.",
+    description: "Choose one: Buy/sell resources of one type from the Resource market; Buy 1 card from the Politics cards; or generate resources from your buildings.",
     icon: "🧾",
     image: "",
     category: "event",

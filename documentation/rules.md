@@ -111,8 +111,9 @@ Personnel cards are used to generate Event cards, which are immediately added to
 2. **Procurement [generated from Liaison]**
     
     Take one of the following actions:
-    - Acquire 1-4 Wood **or** 1-4 Ore resources from the Market, or sell 1-4 Wood **or** 1-4 Ore resources to the market. Market mechanics are explained in the [Resource Market](#resource-market) section.
-    - Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies:
+    - **Resource Market:** Acquire 1-4 Wood **or** 1-4 Ore resources from the Market, or sell 1-4 Wood **or** 1-4 Ore resources to the market. Market mechanics are explained in the [Resource Market](#resource-market) section.
+    - **Politics Market:** Buy 1 card from the Politics market by paying its Coin cost. See [Purchasing Politics Cards](#purchasing-politics-cards).
+    - **Generate Resources:** Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies:
         - Each Resort yields Coins for the Hotelier, generating 1 Coin per each adjacent Mountain, Forest, and Water hex; 1 additional Coin is generated for each Resort if that Resort is on a Sand hex and also adjacent to a Water hex. A Resort cannot generate coins from any hex occupied by a Reserve.
         - Each Industrial Zone yields Resources for the Industrialist, generating 1 Wood for each adjacent Forest and 1 Ore for each adjacent Mountain. An Industrial Zone cannot generate coins from any hex occupied by a Reserve.
         - Each Infrastructure yields Votes for the Bureaucrat, generating 1 Vote for each building that is adjacent to an Infrastructure hex. An Infrastructure cannot generate coins from any hex occupied by a Reserve.
@@ -213,7 +214,7 @@ Wood:    ●   |   ●   |   ●   |   ●
     - Example: The Hotelier plays Procurement as their second Action. They want to purchase all 4 Ore resources from the Resource track, so they pay 10 Coins (1 + 2 + 3 + 4 Coins) to acquire 4 Ore resources. This removes all Ore resources from the Market track and ends the player's turn, so a new Ore resource is added to the 4-Coin column, and the next player has the option to play Procurement to acquire that Ore resource for 4 Coins.
 
 - When a player sells a resource using a Procurement Event card:
-    - They gain Coins equal to the Coin number of the empty columns to which resources have been allotted; those resources are added to the Resource Market track.
+    - Resources are placed into the highest-priced empty slot first, working downward. The player gains Coins equal to the sum of the slot prices filled.
     - Example: The Industrialist starts her turn. At the start of her turn, the Resource tracks are as empty as they can be:
 
 Price:   1   |   2   |   3   |   4

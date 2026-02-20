@@ -13,6 +13,23 @@ export interface ProcurementPurchaseOption {
   onPurchase: () => void;
 }
 
+export interface MandateOption {
+  label: string;
+  onPurchase: () => void;
+  disabled: boolean;
+}
+
+export interface ProcurementExtraOption {
+  label: string;
+  onAction: () => void;
+  disabled?: boolean;
+}
+
+export interface AuctionUI {
+  lines: string[];
+  buttons: { label: string; onClick: () => void; disabled?: boolean }[];
+}
+
 interface GameActionsProps {
   currentPlayerType: string;
   actionsRemaining: number;
@@ -31,8 +48,13 @@ interface GameActionsProps {
   /** When choosing Procurement: generate vs purchase Politics card */
   procurementChoosing?: boolean;
   procurementPurchaseOptions?: ProcurementPurchaseOption[];
+  procurementResourceOptions?: ProcurementExtraOption[];
   onProcurementGenerate?: () => void;
   onProcurementCancel?: () => void;
+  /** When choosing Procurement: option to buy Mandate */
+  mandateOption?: MandateOption;
+  /** Conference auction UI */
+  auctionUI?: AuctionUI;
 }
 
 export function GameActions({
@@ -50,8 +72,11 @@ export function GameActions({
   onBuildChoice,
   procurementChoosing,
   procurementPurchaseOptions = [],
+  procurementResourceOptions = [],
   onProcurementGenerate,
   onProcurementCancel,
+  mandateOption,
+  auctionUI,
 }: GameActionsProps) {
   return (
     <div className="game-actions">
@@ -62,7 +87,25 @@ export function GameActions({
         Actions: <strong>{actionsRemaining}</strong>
       </div>
       <div className="action-buttons">
-        {procurementChoosing ? (
+        {auctionUI ? (
+          <>
+            {auctionUI.lines.map((line, i) => (
+              <p key={i} className="card-detail__description">
+                {line}
+              </p>
+            ))}
+            {auctionUI.buttons.map((btn, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={btn.onClick}
+                disabled={btn.disabled}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </>
+        ) : procurementChoosing ? (
           <>
             <p className="card-detail__description">
               Procurement: choose one
@@ -71,6 +114,24 @@ export function GameActions({
               <button type="button" onClick={onProcurementGenerate}>
                 Generate resources
               </button>
+            )}
+            {procurementResourceOptions.length > 0 && (
+              <>
+                <p className="procurement-section">Resource Market</p>
+                {procurementResourceOptions.map((opt, i) => (
+                  <button
+                    key={`res-${i}`}
+                    type="button"
+                    onClick={opt.onAction}
+                    disabled={opt.disabled}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </>
+            )}
+            {(procurementPurchaseOptions.length > 0 || mandateOption) && (
+              <p className="procurement-section">Politics Market</p>
             )}
             {procurementPurchaseOptions.map(({ slotIndex, cost, card, onPurchase }) => (
               <button
@@ -81,6 +142,15 @@ export function GameActions({
                 Buy {card} ({cost} 💰)
               </button>
             ))}
+            {mandateOption && (
+              <button
+                type="button"
+                onClick={mandateOption.onPurchase}
+                disabled={mandateOption.disabled}
+              >
+                {mandateOption.label}
+              </button>
+            )}
             {onProcurementCancel && (
               <button type="button" onClick={onProcurementCancel}>
                 Cancel

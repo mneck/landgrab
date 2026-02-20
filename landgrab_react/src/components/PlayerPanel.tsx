@@ -25,6 +25,7 @@ export function PlayerPanel({
         <span title="Ore">⚙️ {player.resources.ore}</span>
         <span title="Coins">💰 {player.resources.coins}</span>
         <span title="Votes">🗳️ {player.resources.votes}</span>
+        <span title="Seats">💺 {player.seats}/4</span>
       </div>
       <div className="hand">
         <span className="label">Hand:</span>
