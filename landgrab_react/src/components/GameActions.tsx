@@ -6,6 +6,13 @@ export interface PlayOption {
   disabled?: boolean;
 }
 
+export interface ProcurementPurchaseOption {
+  slotIndex: number;
+  cost: number;
+  card: string;
+  onPurchase: () => void;
+}
+
 interface GameActionsProps {
   currentPlayerType: string;
   actionsRemaining: number;
@@ -21,6 +28,11 @@ interface GameActionsProps {
   /** When in Build mode, show these building type options */
   buildOptions?: BuildingType[];
   onBuildChoice?: (building: BuildingType) => void;
+  /** When choosing Procurement: generate vs purchase Politics card */
+  procurementChoosing?: boolean;
+  procurementPurchaseOptions?: ProcurementPurchaseOption[];
+  onProcurementGenerate?: () => void;
+  onProcurementCancel?: () => void;
 }
 
 export function GameActions({
@@ -36,6 +48,10 @@ export function GameActions({
   onEndTurn,
   buildOptions,
   onBuildChoice,
+  procurementChoosing,
+  procurementPurchaseOptions = [],
+  onProcurementGenerate,
+  onProcurementCancel,
 }: GameActionsProps) {
   return (
     <div className="game-actions">
@@ -46,7 +62,32 @@ export function GameActions({
         Actions: <strong>{actionsRemaining}</strong>
       </div>
       <div className="action-buttons">
-        {placementMode ? (
+        {procurementChoosing ? (
+          <>
+            <p className="card-detail__description">
+              Procurement: choose one
+            </p>
+            {onProcurementGenerate && (
+              <button type="button" onClick={onProcurementGenerate}>
+                Generate resources
+              </button>
+            )}
+            {procurementPurchaseOptions.map(({ slotIndex, cost, card, onPurchase }) => (
+              <button
+                key={slotIndex}
+                type="button"
+                onClick={onPurchase}
+              >
+                Buy {card} ({cost} 💰)
+              </button>
+            ))}
+            {onProcurementCancel && (
+              <button type="button" onClick={onProcurementCancel}>
+                Cancel
+              </button>
+            )}
+          </>
+        ) : placementMode ? (
           <>
             {buildOptions && buildOptions.length > 0 && onBuildChoice ? (
               buildOptions.map((b) => (

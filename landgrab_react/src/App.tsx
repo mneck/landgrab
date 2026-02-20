@@ -6,12 +6,38 @@ import { ConferenceRow } from "./components/ConferenceRow";
 import { PoliticsRow } from "./components/PoliticsRow";
 import { ResourceMarket } from "./components/ResourceMarket";
 import { CARD_INFO } from "./data/cardData";
+import {
+  PERSONNEL_TO_EVENT,
+  ELDER_EVENT_OPTIONS,
+  BROKER_EVENT_OPTIONS,
+  FORESTER_EVENT_OPTIONS,
+  PERSONNEL_CARDS,
+  POLITICS_COSTS,
+} from "./data/cardRules";
+import {
+  pickRevealedTileType,
+  getCharterBuilding,
+  canPlaceCharter,
+  canPlaceBuild,
+  canPlaceReserve,
+  countReserves,
+  revealAdjacentFog,
+  BUILD_OPTIONS,
+} from "./gameRules";
+import type { PlacementMode } from "./gameRules";
+import {
+  shuffle,
+  runProcurement,
+  purchasePoliticsCard,
+  removePoliticsSlot,
+} from "./gameActions";
 import type {
   GameState,
   BuildingType,
   CardType,
   PersonnelCard,
   EventCard,
+  PoliticsCard,
 } from "./types/game";
 import type { HexCoord } from "./utils/hexGrid";
 import {
@@ -19,227 +45,8 @@ import {
   decrementActionsRemaining,
 } from "./types/game";
 import { hexDistance, hexKey, hexNeighbors } from "./utils/hexGrid";
-import type { TileType } from "./types/game";
-
-const REVEALED_TERRAIN_TYPES: TileType[] = ["Field", "Mountain", "Forest", "Sand", "Water"];
-
-function pickRevealedTileType(hex: HexCoord): TileType {
-  const idx = (hex.q * 7 + hex.r * 13) % REVEALED_TERRAIN_TYPES.length;
-  return REVEALED_TERRAIN_TYPES[Math.abs(idx)];
-}
 
 import "./App.css";
-
-type PlacementMode =
-  | "charter"
-  | "expedition"
-  | "contact"
-  | "reserve"
-  | "build"
-  | null;
-
-function getCharterBuilding(playerType: string): BuildingType {
-  switch (playerType) {
-    case "Hotelier":
-      return "Resort";
-    case "Industrialist":
-      return "IndustrialZone";
-    case "Bureaucrat":
-      return "Infrastructure";
-    case "Chieftain":
-      return "Village";
-    default:
-      return "Village";
-  }
-}
-
-function canPlaceCharter(
-  tiles: GameState["tiles"],
-  hex: HexCoord,
-  _playerType: string,
-  building: BuildingType
-): boolean {
-  const key = hexKey(hex);
-  const tile = tiles[key];
-  if (!tile) return false;
-
-  // No building on or adjacent to Fog (Charter/Build); Village on Fog is Contact-only
-  if (tile.type === "Fog") return false;
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
-    if (nt?.type === "Fog") return false;
-  }
-
-  switch (building) {
-    case "Village":
-      return ["Field", "Sand", "Forest", "Mountain"].includes(tile.type);
-    case "Resort":
-    case "IndustrialZone":
-    case "Infrastructure":
-      return ["Field", "Sand"].includes(tile.type);
-    default:
-      return false;
-  }
-}
-
-function hasAdjacent(
-  tiles: GameState["tiles"],
-  hex: HexCoord,
-  buildingTypes: BuildingType[]
-): boolean {
-  for (const neighbor of hexNeighbors(hex)) {
-    const t = tiles[hexKey(neighbor)];
-    if (t?.building && buildingTypes.includes(t.building)) return true;
-  }
-  return false;
-}
-
-const BUILD_ADJACENCY: Record<string, BuildingType[]> = {
-  Industrialist: ["Farm", "IndustrialZone", "Infrastructure"],
-  Hotelier: ["Resort", "Housing", "Infrastructure"],
-  Bureaucrat: ["Village", "Farm", "Housing", "IndustrialZone", "Resort", "CivicOffice"],
-};
-
-const BUILD_OPTIONS: Record<string, BuildingType[]> = {
-  Industrialist: ["Farm", "IndustrialZone"],
-  Hotelier: ["Housing", "Resort"],
-  Bureaucrat: ["CivicOffice", "Infrastructure"],
-};
-
-function canPlaceBuild(
-  tiles: GameState["tiles"],
-  hex: HexCoord,
-  playerType: string,
-  _building: BuildingType
-): boolean {
-  const key = hexKey(hex);
-  const tile = tiles[key];
-  if (!tile || tile.building) return false;
-  if (!["Field", "Sand"].includes(tile.type)) return false;
-
-  const adj = BUILD_ADJACENCY[playerType];
-  if (!adj || !hasAdjacent(tiles, hex, adj)) return false;
-
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
-    if (nt?.type === "Fog") return false;
-  }
-  return true;
-}
-
-function canPlaceReserve(
-  tiles: GameState["tiles"],
-  hex: HexCoord
-): boolean {
-  const key = hexKey(hex);
-  const tile = tiles[key];
-  if (!tile || tile.building) return false;
-  if (!["Field", "Sand", "Forest", "Mountain"].includes(tile.type)) return false;
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
-    if (nt?.type === "Fog") return false;
-  }
-  return hasAdjacent(tiles, hex, ["Village", "Reserve"]);
-}
-
-function countReserves(tiles: GameState["tiles"], playerType: string): number {
-  return Object.values(tiles).filter(
-    (t) => t.building === "Reserve" && t.buildingOwner === playerType
-  ).length;
-}
-
-/** Personnel cards add an event card to hand and go to discard */
-const PERSONNEL_TO_EVENT: Record<PersonnelCard, EventCard | null> = {
-  Builder: "Build",
-  Elder: null, // Elder adds Contact OR Reserve (player chooses)
-  Liaison: "Procurement",
-  Explorer: "Expedition",
-};
-
-/** Elder choice: add Contact (convert Fog + Village) or Reserve */
-const ELDER_EVENT_OPTIONS: EventCard[] = ["Contact", "Reserve"];
-
-const PERSONNEL_CARDS: PersonnelCard[] = [
-  "Builder",
-  "Elder",
-  "Liaison",
-  "Explorer",
-];
-
-function shuffle<T>(array: T[]): T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-function runProcurement(g: GameState, playerType: string): GameState {
-  const tiles = g.tiles;
-  const res = { ...g.players[g.currentPlayerIndex].resources };
-
-  if (playerType === "Hotelier") {
-    for (const t of Object.values(tiles)) {
-      if (t.building === "Resort" && t.buildingOwner === "Hotelier") {
-        for (const nb of hexNeighbors(t.hex)) {
-          const nt = tiles[hexKey(nb)];
-          if (nt && ["Forest", "Water", "Mountain"].includes(nt.type))
-            res.coins += 1;
-        }
-      }
-    }
-  } else if (playerType === "Industrialist") {
-    for (const t of Object.values(tiles)) {
-      if (t.building === "IndustrialZone" && t.buildingOwner === "Industrialist") {
-        for (const nb of hexNeighbors(t.hex)) {
-          const nt = tiles[hexKey(nb)];
-          if (nt?.type === "Forest") res.wood += 1;
-          if (nt?.type === "Mountain") res.ore += 1;
-        }
-      }
-    }
-  } else if (playerType === "Bureaucrat") {
-    const countedHexes = new Set<string>();
-    for (const t of Object.values(tiles)) {
-      if (t.building === "Infrastructure" && t.buildingOwner === "Bureaucrat") {
-        for (const nb of hexNeighbors(t.hex)) {
-          const k = hexKey(nb);
-          const nt = tiles[k];
-          if (
-            nt?.building &&
-            ["Resort", "Village", "IndustrialZone", "Farm", "Housing"].includes(
-              nt.building
-            ) &&
-            !countedHexes.has(k)
-          ) {
-            countedHexes.add(k);
-            res.votes += 1;
-          }
-        }
-      }
-    }
-  } else if (playerType === "Chieftain") {
-    for (const t of Object.values(tiles)) {
-      if (t.building === "Reserve" && t.buildingOwner === "Chieftain") {
-        let adjOtherBuilding = false;
-        for (const nb of hexNeighbors(t.hex)) {
-          const nt = tiles[hexKey(nb)];
-          if (nt?.buildingOwner && nt.buildingOwner !== "Chieftain")
-            adjOtherBuilding = true;
-        }
-        if (!adjOtherBuilding) res.coins += 1;
-      }
-    }
-  }
-
-  return {
-    ...g,
-    players: g.players.map((p, i) =>
-      i === g.currentPlayerIndex ? { ...p, resources: res } : p
-    ),
-  };
-}
 
 function App() {
   const [game, setGame] = useState<GameState>(() =>
@@ -247,11 +54,12 @@ function App() {
   );
   const [selectedHex, setSelectedHex] = useState<HexCoord | null>(null);
   const [placementMode, setPlacementMode] = useState<PlacementMode>(null);
-  const [pendingEventCard, setPendingEventCard] = useState<EventCard | null>(null);
+  const [pendingEventCard, setPendingEventCard] = useState<EventCard | PoliticsCard | null>(null);
   const [buildBuildingChoice, setBuildBuildingChoice] = useState<
     BuildingType | null
   >(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [procurementChoosing, setProcurementChoosing] = useState(false);
 
   const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -264,20 +72,7 @@ function App() {
       const tile = game.tiles[key];
       if (tile?.building) return;
 
-      // Reveal adjacent Fog hexes per Charter rules
-      const newTiles = { ...game.tiles };
-      const center = { q: 0, r: 0 };
-      for (const neighbor of hexNeighbors(hex)) {
-        const nk = hexKey(neighbor);
-        const nt = newTiles[nk];
-        if (nt?.type === "Fog") {
-          const isOuterFogRing = hexDistance(neighbor, center) === game.fogRadius;
-          newTiles[nk] = {
-            ...nt,
-            type: isOuterFogRing ? "Field" : pickRevealedTileType(neighbor),
-          };
-        }
-      }
+      const newTiles = revealAdjacentFog(game.tiles, hex, game.fogRadius);
       newTiles[key] = {
         ...tile!,
         building,
@@ -308,19 +103,7 @@ function App() {
       const tile = game.tiles[key];
       if (!tile || tile.type === "Fog") return;
 
-      const center = { q: 0, r: 0 };
-      const newTiles = { ...game.tiles };
-      for (const neighbor of hexNeighbors(hex)) {
-        const nk = hexKey(neighbor);
-        const nt = newTiles[nk];
-        if (nt?.type === "Fog") {
-          const isOuterFogRing = hexDistance(neighbor, center) === game.fogRadius;
-          newTiles[nk] = {
-            ...nt,
-            type: isOuterFogRing ? "Field" : pickRevealedTileType(neighbor),
-          };
-        }
-      }
+      const newTiles = revealAdjacentFog(game.tiles, hex, game.fogRadius);
 
       setGame((g) => ({
         ...g,
@@ -344,8 +127,7 @@ function App() {
       const tile = game.tiles[key];
       if (!tile || tile.type !== "Fog") return;
 
-      const center = { q: 0, r: 0 };
-      const isOuterFogRing = hexDistance(hex, center) === game.fogRadius;
+      const isOuterFogRing = hexDistance(hex, { q: 0, r: 0 }) === game.fogRadius;
       const newTiles = { ...game.tiles };
       newTiles[key] = {
         ...tile,
@@ -418,7 +200,7 @@ function App() {
     ) {
       if (
         currentPlayer.type === "Chieftain" ||
-        !canPlaceBuild(game.tiles, hex, currentPlayer.type, buildBuildingChoice)
+        !canPlaceBuild(game.tiles, hex, currentPlayer.type, buildBuildingChoice, game.landClaimsUntilPlayer != null)
       )
         return;
 
@@ -461,6 +243,149 @@ function App() {
       return;
     }
 
+    if (placementMode === "zoning" && pendingEventCard === "Zoning") {
+      const key = hexKey(hex);
+      const tile = game.tiles[key];
+      if (!tile || tile.building || !["Sand", "Field"].includes(tile.type))
+        return;
+      if (tile.zoningOwner) return;
+      // Must be adjacent to current player's building
+      let adjacentToMyBuilding = false;
+      for (const nb of hexNeighbors(hex)) {
+        const nt = game.tiles[hexKey(nb)];
+        if (nt?.buildingOwner === currentPlayer.type) adjacentToMyBuilding = true;
+      }
+      if (!adjacentToMyBuilding) return;
+
+      setGame((g) => ({
+        ...g,
+        tiles: {
+          ...g.tiles,
+          [key]: {
+            ...tile!,
+            zoningOwner: currentPlayer.type,
+          },
+        },
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? { ...p, hand: p.hand.filter((c) => c !== "Zoning") }
+            : p
+        ),
+        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+      }));
+      setPlacementMode(null);
+      setPendingEventCard(null);
+      setSelectedCard(null);
+      return;
+    }
+
+    if (placementMode === "urbanplanning" && pendingEventCard === "UrbanPlanning") {
+      const key = hexKey(hex);
+      const tile = game.tiles[key];
+      if (!tile || !tile.building || tile.buildingOwner !== currentPlayer.type)
+        return;
+      if (tile.hasUrbanPlanning) return;
+      // Must be Resort, Industrial Zone, or Infrastructure per rules
+      if (!["Resort", "IndustrialZone", "Infrastructure"].includes(tile.building))
+        return;
+
+      setGame((g) => ({
+        ...g,
+        tiles: {
+          ...g.tiles,
+          [key]: {
+            ...tile!,
+            hasUrbanPlanning: true,
+          },
+        },
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? { ...p, hand: p.hand.filter((c) => c !== "UrbanPlanning") }
+            : p
+        ),
+        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+      }));
+      setPlacementMode(null);
+      setPendingEventCard(null);
+      setSelectedCard(null);
+      return;
+    }
+
+    if (placementMode === "taxation" && pendingEventCard === "Taxation") {
+      const key = hexKey(hex);
+      const tile = game.tiles[key];
+      if (!tile || tile.building !== "Reserve" || tile.buildingOwner !== currentPlayer.type)
+        return;
+
+      let coins = 0;
+      for (const nb of hexNeighbors(hex)) {
+        const nt = game.tiles[hexKey(nb)];
+        if (nt?.buildingOwner && nt.buildingOwner !== currentPlayer.type && nt.building)
+          coins += 1;
+      }
+
+      setGame((g) => ({
+        ...g,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...p,
+                hand: p.hand.filter((c) => c !== "Taxation"),
+                resources: { ...p.resources, coins: p.resources.coins + coins },
+              }
+            : p
+        ),
+        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+      }));
+      setPlacementMode(null);
+      setPendingEventCard(null);
+      setSelectedCard(null);
+      return;
+    }
+
+    if (placementMode === "logging" && pendingEventCard === "Logging") {
+      const key = hexKey(hex);
+      const tile = game.tiles[key];
+      if (!tile || tile.type !== "Forest") return;
+
+      setGame((g) => ({
+        ...g,
+        tiles: { ...g.tiles, [key]: { ...tile, type: "Field" as const } },
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? { ...p, hand: p.hand.filter((c) => c !== "Logging") }
+            : p
+        ),
+        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+      }));
+      setPlacementMode(null);
+      setPendingEventCard(null);
+      setSelectedCard(null);
+      return;
+    }
+
+    if (placementMode === "forestry" && pendingEventCard === "Forestry") {
+      const key = hexKey(hex);
+      const tile = game.tiles[key];
+      if (!tile || tile.type !== "Field") return;
+      if (tile.building) return;
+
+      setGame((g) => ({
+        ...g,
+        tiles: { ...g.tiles, [key]: { ...tile, type: "Forest" as const } },
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? { ...p, hand: p.hand.filter((c) => c !== "Forestry") }
+            : p
+        ),
+        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+      }));
+      setPlacementMode(null);
+      setPendingEventCard(null);
+      setSelectedCard(null);
+      return;
+    }
+
     setSelectedHex(hex);
   }
 
@@ -480,7 +405,7 @@ function App() {
     setPlacementMode("charter");
   }
 
-  function handlePlayPersonnel(card: PersonnelCard, eventCard?: EventCard) {
+  function handlePlayPersonnel(card: PersonnelCard, eventCard?: EventCard | PoliticsCard) {
     if (!currentPlayer.hand.includes(card) || game.actionsRemaining < 1) return;
     const resolvedEvent =
       eventCard ?? PERSONNEL_TO_EVENT[card];
@@ -500,24 +425,13 @@ function App() {
     }));
   }
 
-  function handlePlayEventCard(card: EventCard) {
+  function handlePlayEventCard(card: EventCard | PoliticsCard) {
     if (!currentPlayer.hand.includes(card) || game.actionsRemaining < 1) return;
     if (card === "Charter") return; // Charter has its own handler
 
     if (card === "Procurement") {
-      consumeAction((g) =>
-        runProcurement(
-          {
-            ...g,
-            players: g.players.map((p, i) =>
-              i === g.currentPlayerIndex
-                ? { ...p, hand: p.hand.filter((c) => c !== card) }
-                : p
-            ),
-          },
-          currentPlayer.type
-        )
-      );
+      setProcurementChoosing(true);
+      setSelectedCard(null);
       return;
     }
 
@@ -552,6 +466,565 @@ function App() {
       setBuildBuildingChoice(null);
       return;
     }
+
+    /* Politics cards */
+    if (card === "Bribe") {
+      if (currentPlayer.resources.coins < 1) return;
+      const firstSlotWithCard = game.politics.findIndex((c) => c !== null);
+      if (firstSlotWithCard < 0) return;
+      consumeAction((g) => {
+        const { politics, politicsDeck } = removePoliticsSlot(g, firstSlotWithCard);
+        return {
+          ...g,
+          politics,
+          politicsDeck,
+          players: g.players.map((p, i) =>
+            i === g.currentPlayerIndex
+              ? {
+                  ...p,
+                  hand: p.hand.filter((c) => c !== "Bribe"),
+                  resources: { ...p.resources, coins: p.resources.coins - 1 },
+                }
+              : p
+          ),
+        };
+      });
+      return;
+    }
+
+    if (card === "Zoning") {
+      setPendingEventCard("Zoning");
+      setPlacementMode("zoning");
+      return;
+    }
+
+    if (card === "UrbanPlanning") {
+      setPendingEventCard("UrbanPlanning");
+      setPlacementMode("urbanplanning");
+      return;
+    }
+
+    if (card === "Dividends") {
+      let coins = 0;
+      for (const t of Object.values(game.tiles)) {
+        if (
+          t.buildingOwner === currentPlayer.type &&
+          ["IndustrialZone", "Resort", "Infrastructure"].includes(t.building ?? "")
+        )
+          coins += 1;
+      }
+      consumeAction((g) => ({
+        ...g,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...p,
+                hand: p.hand.filter((c) => c !== "Dividends"),
+                resources: {
+                  ...p.resources,
+                  coins: p.resources.coins + coins,
+                },
+              }
+            : p
+        ),
+      }));
+      return;
+    }
+
+    if (card === "NGOBacking") {
+      if (currentPlayer.type !== "Chieftain") return;
+      const villages = Object.values(game.tiles).filter(
+        (t) => t.building === "Village" && t.buildingOwner === "Chieftain"
+      ).length;
+      consumeAction((g) => ({
+        ...g,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...p,
+                hand: p.hand.filter((c) => c !== "NGOBacking"),
+                resources: {
+                  ...p.resources,
+                  coins: p.resources.coins + villages,
+                },
+              }
+            : p
+        ),
+      }));
+      return;
+    }
+
+    if (card === "Propaganda") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Graft") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "LocalElections") {
+      if (currentPlayer.type !== "Chieftain") return;
+      const villages = Object.values(game.tiles).filter(
+        (t) => t.building === "Village" && t.buildingOwner === "Chieftain"
+      ).length;
+      consumeAction((g) => ({
+        ...g,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...p,
+                hand: p.hand.filter((c) => c !== "LocalElections"),
+                resources: {
+                  ...p.resources,
+                  votes: p.resources.votes + villages,
+                },
+              }
+            : p
+        ),
+      }));
+      return;
+    }
+
+    if (card === "Subsidy") {
+      const reserves = countReserves(game.tiles, currentPlayer.type);
+      consumeAction((g) => ({
+        ...g,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...p,
+                hand: p.hand.filter((c) => c !== "Subsidy"),
+                resources: {
+                  ...p.resources,
+                  coins: p.resources.coins + reserves,
+                },
+              }
+            : p
+        ),
+      }));
+      return;
+    }
+
+    if (card === "Logging") {
+      setPendingEventCard("Logging");
+      setPlacementMode("logging");
+      return;
+    }
+
+    if (card === "Forestry") {
+      setPendingEventCard("Forestry");
+      setPlacementMode("forestry");
+      return;
+    }
+
+    if (card === "LandClaims") {
+      consumeAction((g) => ({
+        ...g,
+        landClaimsUntilPlayer: g.currentPlayerIndex,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? { ...p, hand: p.hand.filter((c) => c !== "LandClaims") }
+            : p
+        ),
+      }));
+      return;
+    }
+
+    if (card === "Taxation") {
+      setPendingEventCard("Taxation");
+      setPlacementMode("taxation");
+      return;
+    }
+
+    if (card === "Boycotting") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Protests") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Levy") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Embargo") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Reorganization") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Import") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+
+    if (card === "Export") {
+      // Handled via getPlayOptionsForCard (multi-option)
+      return;
+    }
+  }
+
+  function handlePlayPropaganda(coinsToPay: number) {
+    if (
+      !currentPlayer.hand.includes("Propaganda") ||
+      game.actionsRemaining < 1 ||
+      currentPlayer.resources.coins < coinsToPay
+    )
+      return;
+    consumeAction((g) => {
+      let remaining = coinsToPay;
+      const newPlayers = g.players.map((p, i) => {
+        if (i === g.currentPlayerIndex) return p; // updated below
+        if (remaining <= 0 || p.resources.votes < 1) return p;
+        remaining -= 1;
+        return {
+          ...p,
+          resources: { ...p.resources, votes: p.resources.votes - 1 },
+        };
+      });
+      const votesCollected = coinsToPay - remaining;
+      return {
+        ...g,
+        players: newPlayers.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? {
+                ...p,
+                hand: p.hand.filter((c) => c !== "Propaganda"),
+                resources: {
+                  ...p.resources,
+                  coins: p.resources.coins - coinsToPay,
+                  votes: p.resources.votes + votesCollected,
+                },
+              }
+            : p
+        ),
+      };
+    });
+  }
+
+  function handlePlayGraft(
+    targetPlayerIndex: number,
+    direction: "coinForVote" | "voteForCoin"
+  ) {
+    if (
+      !currentPlayer.hand.includes("Graft") ||
+      game.actionsRemaining < 1
+    )
+      return;
+    const target = game.players[targetPlayerIndex];
+    if (direction === "coinForVote") {
+      if (currentPlayer.resources.coins < 1 || target.resources.votes < 1) return;
+    } else {
+      if (currentPlayer.resources.votes < 1 || target.resources.coins < 1) return;
+    }
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) => {
+        if (i === g.currentPlayerIndex) {
+          return {
+            ...p,
+            hand: p.hand.filter((c) => c !== "Graft"),
+            resources:
+              direction === "coinForVote"
+                ? {
+                    ...p.resources,
+                    coins: p.resources.coins - 1,
+                    votes: p.resources.votes + 1,
+                  }
+                : {
+                    ...p.resources,
+                    coins: p.resources.coins + 1,
+                    votes: p.resources.votes - 1,
+                  },
+          };
+        }
+        if (i === targetPlayerIndex) {
+          return {
+            ...p,
+            resources:
+              direction === "coinForVote"
+                ? {
+                    ...p.resources,
+                    coins: p.resources.coins + 1,
+                    votes: p.resources.votes - 1,
+                  }
+                : {
+                    ...p.resources,
+                    coins: p.resources.coins - 1,
+                    votes: p.resources.votes + 1,
+                  },
+          };
+        }
+        return p;
+      }),
+    }));
+  }
+
+  function handlePlayLevy(targetPlayerIndex: number) {
+    if (
+      !currentPlayer.hand.includes("Levy") ||
+      game.actionsRemaining < 1
+    )
+      return;
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) => {
+        if (i === g.currentPlayerIndex) {
+          return { ...p, hand: p.hand.filter((c) => c !== "Levy") };
+        }
+        if (i === targetPlayerIndex) {
+          return {
+            ...p,
+            resources: {
+              ...p.resources,
+              coins: Math.max(0, p.resources.coins - 2),
+            },
+          };
+        }
+        return p;
+      }),
+    }));
+  }
+
+  function handlePlayEmbargo(targetPlayerIndex: number) {
+    if (
+      !currentPlayer.hand.includes("Embargo") ||
+      game.actionsRemaining < 1
+    )
+      return;
+    consumeAction((g) => ({
+      ...g,
+      embargoTargetPlayer: targetPlayerIndex,
+      players: g.players.map((p, i) =>
+        i === g.currentPlayerIndex
+          ? { ...p, hand: p.hand.filter((c) => c !== "Embargo") }
+          : p
+      ),
+    }));
+  }
+
+  function handlePlayBoycotting(targetPlayerIndex: number) {
+    if (
+      !currentPlayer.hand.includes("Boycotting") ||
+      game.actionsRemaining < 1
+    )
+      return;
+    consumeAction((g) => ({
+      ...g,
+      boycottEffect: {
+        boycotterType: currentPlayer.type,
+        targetPlayerIndex,
+      },
+      players: g.players.map((p, i) =>
+        i === g.currentPlayerIndex
+          ? { ...p, hand: p.hand.filter((c) => c !== "Boycotting") }
+          : p
+      ),
+    }));
+  }
+
+  function handlePlayProtests(targetPlayerIndex: number) {
+    if (
+      !currentPlayer.hand.includes("Protests") ||
+      game.actionsRemaining < 1
+    )
+      return;
+    const villages = Object.values(game.tiles).filter(
+      (t) => t.building === "Village" && t.buildingOwner === currentPlayer.type
+    ).length;
+    const voteLoss = Math.min(villages, 3);
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) => {
+        if (i === g.currentPlayerIndex) {
+          return { ...p, hand: p.hand.filter((c) => c !== "Protests") };
+        }
+        if (i === targetPlayerIndex) {
+          return {
+            ...p,
+            resources: {
+              ...p.resources,
+              votes: Math.max(0, p.resources.votes - voteLoss),
+            },
+          };
+        }
+        return p;
+      }),
+    }));
+  }
+
+  function handlePlayImport(resource: "wood" | "ore") {
+    if (
+      !currentPlayer.hand.includes("Import") ||
+      game.actionsRemaining < 1 ||
+      currentPlayer.resources.coins < 1
+    )
+      return;
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) =>
+        i === g.currentPlayerIndex
+          ? {
+              ...p,
+              hand: p.hand.filter((c) => c !== "Import"),
+              resources: {
+                ...p.resources,
+                coins: p.resources.coins - 1,
+                [resource]: p.resources[resource] + 1,
+              },
+            }
+          : p
+      ),
+    }));
+  }
+
+  function handlePlayExport(woodToSell: number, oreToSell: number) {
+    const total = woodToSell + oreToSell;
+    if (
+      !currentPlayer.hand.includes("Export") ||
+      game.actionsRemaining < 1 ||
+      total < 1 ||
+      total > 3 ||
+      currentPlayer.resources.wood < woodToSell ||
+      currentPlayer.resources.ore < oreToSell
+    )
+      return;
+    consumeAction((g) => ({
+      ...g,
+      players: g.players.map((p, i) =>
+        i === g.currentPlayerIndex
+          ? {
+              ...p,
+              hand: p.hand.filter((c) => c !== "Export"),
+              resources: {
+                ...p.resources,
+                wood: p.resources.wood - woodToSell,
+                ore: p.resources.ore - oreToSell,
+                coins: p.resources.coins + total,
+              },
+            }
+          : p
+      ),
+    }));
+  }
+
+  function handlePlayReorganization(
+    option1: "trash" | "action" | "draw",
+    option2: "trash" | "action" | "draw",
+    trashCard?: PersonnelCard
+  ) {
+    if (
+      !currentPlayer.hand.includes("Reorganization") ||
+      game.actionsRemaining < 1
+    )
+      return;
+    consumeAction((g) => {
+      let newState = {
+        ...g,
+        players: g.players.map((p, i) =>
+          i === g.currentPlayerIndex
+            ? { ...p, hand: p.hand.filter((c) => c !== "Reorganization") }
+            : p
+        ),
+      };
+      const opts = [option1, option2];
+      for (const opt of opts) {
+        if (opt === "trash" && trashCard) {
+          newState = {
+            ...newState,
+            players: newState.players.map((p, i) =>
+              i === g.currentPlayerIndex
+                ? { ...p, hand: p.hand.filter((c) => c !== trashCard) }
+                : p
+            ),
+          };
+        } else if (opt === "action") {
+          newState = {
+            ...newState,
+            actionsRemaining: newState.actionsRemaining + 1,
+          };
+        } else if (opt === "draw") {
+          const p = newState.players[g.currentPlayerIndex];
+          let newDraw = [...p.drawPile];
+          let newDiscard = [...p.discardPile];
+          if (newDraw.length === 0 && newDiscard.length > 0) {
+            newDraw = shuffle(newDiscard);
+            newDiscard = [];
+          }
+          if (newDraw.length > 0) {
+            const drawn = newDraw.shift()!;
+            newState = {
+              ...newState,
+              players: newState.players.map((pl, i) =>
+                i === g.currentPlayerIndex
+                  ? {
+                      ...pl,
+                      hand: [...pl.hand, drawn],
+                      drawPile: newDraw,
+                      discardPile: newDiscard,
+                    }
+                  : pl
+              ),
+            };
+          }
+        }
+      }
+      return newState;
+    });
+  }
+
+  function handleProcurementGenerate() {
+    if (!currentPlayer.hand.includes("Procurement") || game.actionsRemaining < 1)
+      return;
+    consumeAction((g) =>
+      runProcurement(
+        {
+          ...g,
+          players: g.players.map((p, i) =>
+            i === g.currentPlayerIndex
+              ? { ...p, hand: p.hand.filter((c) => c !== "Procurement") }
+              : p
+          ),
+        },
+        currentPlayer.type
+      )
+    );
+    setProcurementChoosing(false);
+    setSelectedCard(null);
+  }
+
+  function handleProcurementPurchase(slotIndex: number) {
+    if (!currentPlayer.hand.includes("Procurement") || game.actionsRemaining < 1)
+      return;
+    const cost = POLITICS_COSTS[slotIndex];
+    const card = game.politics[slotIndex];
+    if (!card || currentPlayer.resources.coins < cost) return;
+    consumeAction((g) =>
+      purchasePoliticsCard(
+        {
+          ...g,
+          players: g.players.map((p, i) =>
+            i === g.currentPlayerIndex
+              ? { ...p, hand: p.hand.filter((c) => c !== "Procurement") }
+              : p
+          ),
+        },
+        slotIndex,
+        g.currentPlayerIndex
+      )
+    );
+    setProcurementChoosing(false);
+    setSelectedCard(null);
   }
 
   function getPlayOptionsForCard(card: string): {
@@ -587,6 +1060,28 @@ function App() {
             disabled: !hasActions,
           });
         }
+      } else if (personnel === "Broker") {
+        for (const eventCard of BROKER_EVENT_OPTIONS) {
+          playOptions.push({
+            label: eventCard,
+            onPlay: () => {
+              handlePlayPersonnel(personnel, eventCard);
+              setSelectedCard(null);
+            },
+            disabled: !hasActions,
+          });
+        }
+      } else if (personnel === "Forester") {
+        for (const eventCard of FORESTER_EVENT_OPTIONS) {
+          playOptions.push({
+            label: eventCard,
+            onPlay: () => {
+              handlePlayPersonnel(personnel, eventCard);
+              setSelectedCard(null);
+            },
+            disabled: !hasActions,
+          });
+        }
       } else {
         playOptions.push({
           label: card,
@@ -595,6 +1090,202 @@ function App() {
             setSelectedCard(null);
           },
           disabled: !hasActions,
+        });
+      }
+    } else if (card === "Import") {
+      const canAfford = currentPlayer.resources.coins >= 1;
+      playOptions.push({
+        label: "Import 1 🪵 (pay 1 💰)",
+        onPlay: () => { handlePlayImport("wood"); setSelectedCard(null); },
+        disabled: !hasActions || !canAfford,
+      });
+      playOptions.push({
+        label: "Import 1 ⛏️ (pay 1 💰)",
+        onPlay: () => { handlePlayImport("ore"); setSelectedCard(null); },
+        disabled: !hasActions || !canAfford,
+      });
+    } else if (card === "Export") {
+      const w = currentPlayer.resources.wood;
+      const o = currentPlayer.resources.ore;
+      const combos: [number, number][] = [];
+      for (let wSell = 0; wSell <= Math.min(3, w); wSell++) {
+        for (let oSell = 0; oSell <= Math.min(3 - wSell, o); oSell++) {
+          const total = wSell + oSell;
+          if (total >= 1 && total <= 3) combos.push([wSell, oSell]);
+        }
+      }
+      for (const [ws, os] of combos) {
+        const parts: string[] = [];
+        if (ws > 0) parts.push(`${ws} 🪵`);
+        if (os > 0) parts.push(`${os} ⛏️`);
+        playOptions.push({
+          label: `Sell ${parts.join(" + ")} → ${ws + os} 💰`,
+          onPlay: () => { handlePlayExport(ws, os); setSelectedCard(null); },
+          disabled: !hasActions,
+        });
+      }
+      if (combos.length === 0) {
+        playOptions.push({ label: "No resources to sell", onPlay: () => {}, disabled: true });
+      }
+    } else if (card === "Reorganization") {
+      const personnelInHand = currentPlayer.hand.filter((c) =>
+        PERSONNEL_CARDS.includes(c as PersonnelCard)
+      ) as PersonnelCard[];
+      const hasDraw =
+        currentPlayer.drawPile.length > 0 || currentPlayer.discardPile.length > 0;
+      for (const pc of personnelInHand) {
+        playOptions.push({
+          label: `Trash ${pc} + Extra Action`,
+          onPlay: () => {
+            handlePlayReorganization("trash", "action", pc);
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+        if (hasDraw) {
+          playOptions.push({
+            label: `Trash ${pc} + Draw Card`,
+            onPlay: () => {
+              handlePlayReorganization("trash", "draw", pc);
+              setSelectedCard(null);
+            },
+            disabled: !hasActions,
+          });
+        }
+      }
+      if (hasDraw) {
+        playOptions.push({
+          label: "Extra Action + Draw Card",
+          onPlay: () => {
+            handlePlayReorganization("action", "draw");
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+      }
+      if (playOptions.length === 0) {
+        playOptions.push({
+          label: "Extra Action × 2",
+          onPlay: () => {
+            handlePlayReorganization("action", "action");
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+      }
+    } else if (card === "Propaganda") {
+      const otherPlayersWithVotes = game.players.filter(
+        (p, i) => i !== game.currentPlayerIndex && p.resources.votes > 0
+      ).length;
+      const maxSpend = Math.min(3, currentPlayer.resources.coins, otherPlayersWithVotes);
+      for (let n = 1; n <= maxSpend; n++) {
+        const coins = n;
+        playOptions.push({
+          label: `Pay ${coins} 💰 → take ${coins} 🗳️`,
+          onPlay: () => {
+            handlePlayPropaganda(coins);
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+      }
+      if (maxSpend === 0) {
+        playOptions.push({
+          label: "No valid targets",
+          onPlay: () => {},
+          disabled: true,
+        });
+      }
+    } else if (card === "Graft") {
+      game.players.forEach((target, ti) => {
+        if (ti === game.currentPlayerIndex) return;
+        if (currentPlayer.resources.coins >= 1 && target.resources.votes >= 1) {
+          playOptions.push({
+            label: `Give 1 💰 to ${target.type}, take 1 🗳️`,
+            onPlay: () => {
+              handlePlayGraft(ti, "coinForVote");
+              setSelectedCard(null);
+            },
+            disabled: !hasActions,
+          });
+        }
+        if (currentPlayer.resources.votes >= 1 && target.resources.coins >= 1) {
+          playOptions.push({
+            label: `Give 1 🗳️ to ${target.type}, take 1 💰`,
+            onPlay: () => {
+              handlePlayGraft(ti, "voteForCoin");
+              setSelectedCard(null);
+            },
+            disabled: !hasActions,
+          });
+        }
+      });
+      if (playOptions.length === 0) {
+        playOptions.push({
+          label: "No valid exchanges",
+          onPlay: () => {},
+          disabled: true,
+        });
+      }
+    } else if (card === "Levy") {
+      game.players.forEach((target, ti) => {
+        if (ti === game.currentPlayerIndex) return;
+        const loss = Math.min(2, target.resources.coins);
+        playOptions.push({
+          label: `Levy ${target.type} (−${loss} 💰)`,
+          onPlay: () => {
+            handlePlayLevy(ti);
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+      });
+    } else if (card === "Embargo") {
+      game.players.forEach((target, ti) => {
+        if (ti === game.currentPlayerIndex) return;
+        playOptions.push({
+          label: `Embargo ${target.type}`,
+          onPlay: () => {
+            handlePlayEmbargo(ti);
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+      });
+    } else if (card === "Boycotting") {
+      game.players.forEach((target, ti) => {
+        if (ti === game.currentPlayerIndex) return;
+        playOptions.push({
+          label: `Boycott ${target.type}`,
+          onPlay: () => {
+            handlePlayBoycotting(ti);
+            setSelectedCard(null);
+          },
+          disabled: !hasActions,
+        });
+      });
+    } else if (card === "Protests") {
+      const villages = Object.values(game.tiles).filter(
+        (t) => t.building === "Village" && t.buildingOwner === currentPlayer.type
+      ).length;
+      const voteLoss = Math.min(villages, 3);
+      game.players.forEach((target, ti) => {
+        if (ti === game.currentPlayerIndex) return;
+        const actualLoss = Math.min(voteLoss, target.resources.votes);
+        playOptions.push({
+          label: `Protest ${target.type} (−${actualLoss} 🗳️)`,
+          onPlay: () => {
+            handlePlayProtests(ti);
+            setSelectedCard(null);
+          },
+          disabled: !hasActions || voteLoss === 0,
+        });
+      });
+      if (villages === 0) {
+        playOptions.push({
+          label: "No Villages — no effect",
+          onPlay: () => {},
+          disabled: true,
         });
       }
     } else {
@@ -650,14 +1341,22 @@ function App() {
   }
 
   function handleEndTurn() {
-    setGame((g) => ({
-      ...g,
-      currentPlayerIndex: (g.currentPlayerIndex + 1) % g.players.length,
-      actionsRemaining: 2,
-    }));
+    setGame((g) => {
+      const nextPlayer = (g.currentPlayerIndex + 1) % g.players.length;
+      return {
+        ...g,
+        currentPlayerIndex: nextPlayer,
+        actionsRemaining: 2,
+        landClaimsUntilPlayer:
+          g.landClaimsUntilPlayer === nextPlayer
+            ? undefined
+            : g.landClaimsUntilPlayer,
+      };
+    });
     setPlacementMode(null);
     setSelectedHex(null);
     setSelectedCard(null);
+    setProcurementChoosing(false);
   }
 
   return (
@@ -724,6 +1423,31 @@ function App() {
                   : undefined
               }
               onBuildChoice={setBuildBuildingChoice}
+              procurementChoosing={procurementChoosing}
+              procurementPurchaseOptions={
+                procurementChoosing
+                  ? game.politics
+                      .map((card, i) =>
+                        card && currentPlayer.resources.coins >= POLITICS_COSTS[i]
+                          ? {
+                              slotIndex: i,
+                              cost: POLITICS_COSTS[i],
+                              card,
+                              onPurchase: () => handleProcurementPurchase(i),
+                            }
+                          : null
+                      )
+                      .filter((o): o is NonNullable<typeof o> => o !== null)
+                  : []
+              }
+              onProcurementGenerate={
+                procurementChoosing ? handleProcurementGenerate : undefined
+              }
+              onProcurementCancel={
+                procurementChoosing
+                  ? () => setProcurementChoosing(false)
+                  : undefined
+              }
             />
           </aside>
             <section className="map-section">
@@ -760,6 +1484,31 @@ function App() {
                 {buildBuildingChoice
                   ? `Click a valid hex to place your ${buildBuildingChoice}`
                   : "Choose a building type first"}
+              </p>
+            )}
+            {placementMode === "zoning" && (
+              <p className="placement-hint">
+                Click a Sand or Field hex adjacent to your building to place Zoning
+              </p>
+            )}
+            {placementMode === "urbanplanning" && (
+              <p className="placement-hint">
+                Click your Resort, Industrial Zone, or Infrastructure to add Urban Planning (double production)
+              </p>
+            )}
+            {placementMode === "taxation" && (
+              <p className="placement-hint">
+                Click one of your Reserves to collect taxes from adjacent opponent buildings
+              </p>
+            )}
+            {placementMode === "logging" && (
+              <p className="placement-hint">
+                Click a Forest hex to convert it to Field
+              </p>
+            )}
+            {placementMode === "forestry" && (
+              <p className="placement-hint">
+                Click an empty Field hex to convert it to Forest
               </p>
             )}
           </section>

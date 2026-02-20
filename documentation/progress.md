@@ -86,15 +86,78 @@
 
 ---
 
+## 4. Victory Mechanic: Mandate / Promotion / Seat
+
+### Design Discussion (Feb 2026)
+
+**Current mechanic:**
+
+- **Mandate** (10 resources, any mix) — purchased from the 4-Coin Politics slot on the first action of a turn. Played immediately. Adds Promotion + Seat to discard pile. Ends your turn.
+- **Promotion** — fires immediately when drawn. Discards entire hand. Adds Dividends to discard pile.
+- **Seat** — play to gain 1 Seat. 4 Seats wins the game.
+- **Dividends** updated to include Villages, so Chieftain also benefits from accumulating Dividends cards.
+
+**Settled design decisions:**
+
+1. **Promotion's forced trigger is intentional friction.** Players with Promotions in their deck have an incentive to play everything in hand before drawing, adding strategic tension that other players don't face. "More responsibility means bigger consequences for mistakes."
+2. **Mandate cannot be Bribed or removed by Events.** Mandates only appear in the Politics track after the first ~10 Event cards cycle through the market.
+3. **Interaction window is pre-purchase.** Once a Mandate enters the track, the game shifts focus to preventing any player from accumulating 10 resources — via Boycotting, Protests, Land Claims, etc. No direct counterplay once a Seat is in someone's deck.
+4. **Dividends accumulation is intended.** Each Mandate cycle seeds more Dividends into a player's deck, making subsequent cycles slightly easier — a snowball reward for reaching the threshold.
+
+**Asymmetric Mandate costs (working design):**
+
+Each faction pays for Mandate using their signature resource, with escalating cost per Seat:
+
+| Faction | Mandate cost | Currency | Totals across 4 Seats |
+|---------|-------------|----------|----------------------|
+| Industrialist | 10 + Seat# | Wood/Ore (any mix, spent) | 10 + 11 + 12 + 13 = 46 |
+| Hotelier | 10 + Seat# | Coins (spent) | 10 + 11 + 12 + 13 = 46 |
+| Bureaucrat | 10 + Seat# | Votes (spent) | 10 + 11 + 12 + 13 = 46 |
+| Chieftain | TBD + Seat# | Presence Score (threshold, not spent) | TBD |
+
+**Chieftain Presence Score:**
+
+The Chieftain's Mandate cost is a board-state threshold, not a resource payment. Their people have always been on this island — the land isn't property to be traded. Victory comes from demonstrating an unbreakable presence.
+
+```
+Presence Score =
+  +1 per Reserve
+  +1 per Village adjacent to at least one Reserve (each Village counted once)
+```
+
+Design properties:
+- A Reserve placed between 3 Villages contributes 4 to the score (1 + 3 adjacent Villages)
+- Rewards natural Village-Reserve clustering into "heartland" territories
+- Nothing is removed from the map — the Chieftain's board state is a requirement, not a payment
+- Contact lets the Chieftain expand into Fog without Expedition, giving unique expansion speed
+- Exact threshold numbers (base + Seat#) to be determined through playtesting
+
+**Balancing levers:**
+
+- **Bureaucrat passive income**: non-Bureaucrat Politics purchases at 3-4 cost give the Bureaucrat 1 Vote. Bureaucrat also controls Politics pricing. Expansion to 2-4 cost considered but deferred to playtesting.
+- **Disruption cards targeting Hotelier/Industrialist**: Levy (drain 2 Coins from a player) and Embargo (block Resource market trades on next Procurement) added to balance against Boycotting/Protests which primarily pressure Votes.
+- **Duplicate Event cards**: the Politics deck can contain more than 1 copy of a given Event card for balancing purposes (e.g., extra copies of Levy or Dividends to shift the meta).
+
+**Status:** Asymmetric costs are the working design. Card data added for Mandate, Promotion, Seat, Levy, Embargo. Levy and Embargo have game logic. Mandate/Promotion/Seat logic not yet implemented.
+
+---
+
 ## File Reference
 
 | Path | Purpose |
 |------|---------|
 | `landgrab_react/src/types/game.ts` | Game types, `generateIsland`, `createInitialGameState` |
 | `landgrab_react/src/utils/hexGrid.ts` | Hex math, pixel conversion, shape generation |
-| `landgrab_react/src/App.tsx` | Game state, Charter placement, turn handling |
+| `landgrab_react/src/App.tsx` | Game state, all card handlers, turn handling, UI |
+| `landgrab_react/src/gameRules.ts` | Pure validation: placement rules, adjacency, fog reveal |
+| `landgrab_react/src/gameActions.ts` | Pure state transforms: Procurement, Politics market, shuffle |
+| `landgrab_react/src/data/cardData.ts` | Card display data: title, flavor, description, icon, category |
+| `landgrab_react/src/data/cardRules.ts` | Card constants: Personnel→Event mappings, multi-option lists, costs |
 | `landgrab_react/src/components/HexMap.tsx` | Map container, click handling |
 | `landgrab_react/src/components/HexTile.tsx` | Tile rendering, terrain + building assets |
 | `landgrab_react/src/components/PlayerPanel.tsx` | Player display |
-| `landgrab_react/src/components/GameActions.tsx` | Action buttons |
+| `landgrab_react/src/components/GameActions.tsx` | Action buttons, Procurement choice UI |
+| `landgrab_react/src/components/ConferenceRow.tsx` | Conference market display |
+| `landgrab_react/src/components/PoliticsRow.tsx` | Politics market display |
+| `landgrab_react/src/components/ResourceMarket.tsx` | Wood/Ore market display |
 | `documentation/Rules.md` | Game rules reference |

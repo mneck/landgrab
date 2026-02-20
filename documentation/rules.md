@@ -14,12 +14,12 @@ adjacency refers to any hex sharing a border.
 ### The Hotelier
 > From paradise to parking lots!
 > 
-1. **The Hotelier** wins by collecting Coins. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when a **Procurement** event card is played; each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex. The Hotelier starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. The Hotelier may not build more Resorts than Housing.
+1. **The Hotelier** accumulates Coins to purchase Mandates and earn Seats. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when a **Procurement** event card is played; each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex. The Hotelier starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. The Hotelier may not build more Resorts than Housing.
 
 ### The Industrialist
 > You see a forest? I see Ikea furniture.
 > 
-2. **The Industrialist** wins by collecting and exporting Wood and Ore. When a **Procurement** event card is played, each Industrial Zone produces:
+2. **The Industrialist** accumulates Wood and Ore to purchase Mandates and earn Seats. When a **Procurement** event card is played, each Industrial Zone produces:
 - 1 Wood per adjacent Forest hex
 - 1 Ore per adjacent Mountain hex
 The Industrialist starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card; they can build **Industrial Zone** and **Farm** buildings. The Industrialist may not build more Industrial Zones than Farms. Industrial Zones and Farms can only be built on Sand and Field Hexes, and must be built adjacent to Infrastructure, Industrial Zone, and Farm Buildings that have already been placed.
@@ -27,12 +27,12 @@ The Industrialist starts with the Personnel cards **Builder, Liaison, Explorer**
 ### The Bureaucrat
 > You'll need a permit for that.
 > 
-3. **The Bureaucrat** wins by collecting Votes. The Bureaucrat gains Votes by playing a **Procurement** event card, which generates one Vote for each Resort, Village, Industrial Zone, Farm, or Housing adjacent to Infrastructure; the same hex is only counted once for voting (e.g. if a Farm is adjacent to 2-3 Infrastructure hexes, only 1 vote is generated). The Bureaucrat starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card.; the Bureaucrat can build **Infrastructure** and **Civic Office** buildings. The Bureaucrat may not build more Infrastructure than Civic Offices, and Infrastructure and Civic Offices can only be built on Sand and Field hexes, and must be built adjacent to Village, Farm, Housing, Industrial Zone, Resort, or Civic Office Buildings that have already been placed.
+3. **The Bureaucrat** accumulates Votes to purchase Mandates and earn Seats. The Bureaucrat gains Votes by playing a **Procurement** event card, which generates one Vote for each Resort, Village, Industrial Zone, Farm, or Housing adjacent to Infrastructure; the same hex is only counted once for voting (e.g. if a Farm is adjacent to 2-3 Infrastructure hexes, only 1 vote is generated). The Bureaucrat starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card.; the Bureaucrat can build **Infrastructure** and **Civic Office** buildings. The Bureaucrat may not build more Infrastructure than Civic Offices, and Infrastructure and Civic Offices can only be built on Sand and Field hexes, and must be built adjacent to Village, Farm, Housing, Industrial Zone, Resort, or Civic Office Buildings that have already been placed.
 
 ### The Chieftain
 > Go away.
 > 
-4. The Chieftain wins by building Reserves on the map and keeping those areas undeveloped. A Hex is secured by placing a **Reserve** (an empty brown ring) on a Mountain, Field, Sand, or Forest hex, which prevents the Hotelier and Industrialist players from being able to receive Coins or Wood/Ore resources from that hex, and prevents other players from building on the Reserve hex. The Chieftain starts with the **Elder, Liaison, Explorer** Personnel cards and the **Charter** Event card. The Chieftain can build **Villages** and **Reserves**; Reserves must be placed adjacent to Villages or other Reserves.
+4. The Chieftain builds Reserves and Villages to increase their **Presence Score**, which is used to purchase Mandates and earn Seats. Presence Score equals the number of Reserves plus Villages adjacent to a Reserve. A Hex is secured by placing a **Reserve** (an empty brown ring) on a Mountain, Field, Sand, or Forest hex, which prevents the Hotelier and Industrialist players from being able to receive Coins or Wood/Ore resources from that hex, and prevents other players from building on the Reserve hex. The Chieftain starts with the **Elder, Liaison, Explorer** Personnel cards and the **Charter** Event card. The Chieftain can build **Villages** and **Reserves**; Reserves must be placed adjacent to Villages or other Reserves.
 
 # Setup
 
@@ -52,16 +52,16 @@ The game takes place on an island. **Fog** covers the interior of the island—t
 
 Players have several types of tokens, which are separate from the Personnel and Event cards that comprise each player’s deck:
 
-### 🪵 **Wood**
+### 🪵 Wood
 Produced by the Industrialist's Industrial Zones (using Procurement Event cards). Used for building and exporting. 1 Wood is generated during Procurement for each Forest adjacent to each Industrial Zone.
 
-### **⚙️** Ore
+### ⚙️ Ore
 Produced by the Industrialist's Industrial Zones (using **Procurement** Event cards). Used for building and exporting. 1 Ore is generated during Procurement for each Mountain adjacent to each Industrial Zone.
 
 ### 💰 Coins
 Collected by the Hotelier when **Procurement** is played; each Resort produces 1 Coin per adjacent Forest, Water, and Mountain hex. Used by all players in the Conference/card market for purchasing cards, resources, and taking other actions.
 
-### 🗳️ **Votes**
+### 🗳️ Votes
 Collected by the Bureaucrat when a **Procurement** card is played; each Infrastructure produces 1 vote per adjacent Industrial Zone, Resort, Village, Farm, and Housing hex (a single hex cannot be counted twice to generate Votes, e.g. a Farm with 2 adjacent Infrastructure tiles will only generate 1 vote).
 
 # Cards
@@ -112,21 +112,40 @@ Personnel cards are used to generate Event cards, which are immediately added to
     
     Take one of the following actions:
     - Acquire 1-4 Wood **or** 1-4 Ore resources from the Market, or sell 1-4 Wood **or** 1-4 Ore resources to the market. Market mechanics are explained in the [Resource Market](#resource-market) section.
-    - Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies.
-- Chieftain generates 1 coin per Reserve that is not adjacent to any other player's building.
+    - Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies:
+        - Each Resort yields Coins for the Hotelier, generating 1 Coin per each adjacent Mountain, Forest, and Water hex; 1 additional Coin is generated for each Resort if that Resort is on a Sand hex and also adjacent to a Water hex. A Resort cannot generate coins from any hex occupied by a Reserve.
+        - Each Industrial Zone yields Resources for the Industrialist, generating 1 Wood for each adjacent Forest and 1 Ore for each adjacent Mountain. An Industrial Zone cannot generate coins from any hex occupied by a Reserve.
+        - Each Infrastructure yields Votes for the Bureaucrat, generating 1 Vote for each building that is adjacent to an Infrastructure hex. An Infrastructure cannot generate coins from any hex occupied by a Reserve.
+        - Chieftain generates 1 coin per Reserve that is not adjacent to any other player's building.
     
 3. **Expedition [generated from Explorer]**
     
     Select any non-Fog tile. Any Fog tiles adjacent to that tile will turn into either a Mountain, Forest, Field, Sand, or Water tile.
 
-# Victory Thresholds
+# Victory Conditions
 
-| Player Type   | Victory Threshold | Notes |
-|---------------|-------------------|-------|
-| Hotelier      | 12 Coins          | 3–4 Resorts generating 2–3 Coins each per Procurement |
-| Industrialist | 10 VP from exports| 1 VP per Wood or Ore exported |
-| Bureaucrat    | 10 Votes          | Depends on adjacent buildings; scales with other players' development |
-| Chieftain     | 6 Reserves        | Escalating cost (1+2+...+6 = 21 Coins total) |
+A player wins by acquiring **4 Seats**. Seats are earned by purchasing and playing **Mandate** cards from the Politics market.
+
+## Mandate
+
+Once it is drawn from the Politics deck, the Mandate card permanently occupies the 4-Coin slot of the Politics market until a Player purchases this card. It cannot be Bribed or otherwise removed; it can only be purchased and then it enters the player's hand. A player may only acquire a Mandate as the **first Action** of their turn. Playing a Mandate adds a **Promotion** card and a **Seat** card to the player's discard pile and **ends their turn**.
+
+The cost of a Mandate is based on the player's type plus their current number of Seats:
+
+| Player Type   | Mandate Cost | Notes |
+|---------------|-------------|-------|
+| Hotelier      | 10 Coins + Seat# | Seat# = number of Seats already held |
+| Industrialist | 10 Wood/Ore + Seat# | Any mix of Wood and Ore |
+| Bureaucrat    | 10 Votes + Seat# | |
+| Chieftain     | Presence Score ≥ 10 + Seat# | Presence Score = Reserves + Villages adjacent to a Reserve |
+
+## Promotion
+
+When a Promotion card is added to a player's hand, it is played immediately. The player discards their hand and adds a Dividends card to their discard pile.
+
+## Seat
+
+Play to gain 1 Seat. Acquire 4 Seats to win the game.
 
 # Conference
 
@@ -134,13 +153,15 @@ This is where Personnel cards are auctioned. The "flavor" idea here is that a me
 
 ## Conference Setup
 
-Cost:    1   |   2   |   3   |   4
--------------------------------------
-Card:   [ ]  |  [ ]  |  [ ]  |  [ ]
+Card Row:   [ ]  |  [ ]  |  [ ]  |  [ ]
 
 ## Conference Setup and Mechanics
 
-4 Personnel cards are laid out in a row.
+4 Personnel cards are laid out in a row. At the start of the game, the following 4 cards are in the Conference row:
+1. Broker
+2. Forester
+3. Fixer
+4. Advocate
 
 Instead of playing a Personnel card to generate an Event, a player can do the following:
 1. Discard a Personnel card.
@@ -148,22 +169,22 @@ Instead of playing a Personnel card to generate an Event, a player can do the fo
 3. Bid at least 1 Coin on the selected Personnel card.
 4. Going clockwise, each player may either:
     a. Pass permanently, or
-    b. Raise the bid by at least 1 Coin.
+    b. Raise the bid by at least 1 Coin, Vote, Wood, or Ore token. A player can bid any combination of these resources.
     Note: A player cannot bid more than once in a bidding round.
-5. The highest bidder pays Coins to the Bank.
+5. The highest bidder pays Resources to the Bank; any Wood/Ore resources used in bidding is not added to the resource track.
 6. The winning player adds the Personnel card to the top of their discard pile.
 
-At the end of the Bureaucrat's turn, the Personnel cards in the Conference are replaced.
+At the end of a full round (each player has had a turn), the Conference cards are replaced. After a Player has purchased a Personnel card, that card is not replaced until the end of the round.
 
 Examples of Personnel cards that can be added to the Conference row:
 - Forester: generates a Logging or Forestry Event card of the player's choice:
     - Logging: replace a Forest hex with a Field hex 
     - Forestry: replace a Field hex with a Forest hex 
 - Consultant: generates "Reorganization" Event:     
-    - Reorganization: Draw or play an additional card after playing this. Trash a Personnel card from your deck.  
+    - Reorganization: Pick 2: Draw a card; take an action; trash a Personnel card from your hand.
 - Broker: Add to your hand an Import or Export Event card of your choice:
-    - Import: Import a Wood or Ore resource for 1 Coin 
-    - Export: Export any number of Wood or Ore resources for an equal amount of Coins.
+    - Import: Acquire 1 Wood or 1 Ore resource for 1 Coin; this resource does not come from the Resource market track.
+    - Export: Export any mix of 1–3 Wood or Ore for equal Coins. These exported resources do not return to the market track.
 
 # Resource Market
 
@@ -225,6 +246,12 @@ Cost:    1   |   2   |   3   |   4
 -------------------------------------
 Card:   [ ]  |  [ ]  |  [ ]  |  [ ]
 
+The four starting Politics cards are: 
+1. Graft;
+2. Import;
+3. Import;
+4. Logging.
+
 The Politics market represents a row of 4 Event cards that can be acquired through Procurement. An Event card from the Politics market costs either 1, 2, 3, or 4 Coins. After a player has acquired an Event card from the Politics market and that player's turn ends, the remaining cards are shifted to the left, and a new card is revealed from the deck to occupy the rightmost 4-Coin column.
 
 The Event cards are managed differently depending on whether the Bureaucrat player is present:
@@ -243,7 +270,7 @@ To purchase:
 
 - If a player other than the Bureaucrat paid 3 or 4 Coins for a Politics card, the Bureaucrat gains 1 Vote.
 
-Below are examples of various Politics cards that can enter the Politics market:
+Below are examples of various Event cards that can enter the Politics market:
 1. Bribe: Pay 1 Coin and remove 1 card from the Politics market.
 2. Zoning: Place a Zoning marker on a Sand or Field hex adjacent to one of your buildings. Only you may build on that hex.
 3. Urban Planning: Place an additional Resort, Industrial Zone, or Infrastructure on a hex where you already have one. That hex generates double production during Procurement.

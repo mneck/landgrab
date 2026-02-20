@@ -15,7 +15,7 @@ export type BuildingType =
   | "CivicOffice"
   | "Reserve";
 
-export type PersonnelCard = "Builder" | "Elder" | "Liaison" | "Explorer";
+export type PersonnelCard = "Builder" | "Elder" | "Liaison" | "Explorer" | "Fixer" | "Broker" | "Forester" | "Consultant" | "Advocate";
 
 export type EventCard =
   | "Charter"
@@ -25,13 +25,43 @@ export type EventCard =
   | "Reserve"
   | "Contact";
 
-export type CardType = PersonnelCard | EventCard;
+/** Politics row: 4 Event cards at costs 1–4 Coins (core events + politics-specific) */
+export type PoliticsCard =
+  | EventCard
+  | "Bribe"
+  | "Zoning"
+  | "UrbanPlanning"
+  | "Dividends"
+  | "NGOBacking"
+  | "Propaganda"
+  | "Graft"
+  | "LocalElections"
+  | "Reorganization"
+  | "Import"
+  | "Export"
+  | "Logging"
+  | "Forestry"
+  | "LandClaims"
+  | "Subsidy"
+  | "Boycotting"
+  | "Protests"
+  | "Taxation"
+  | "Levy"
+  | "Embargo";
+export type PoliticsSlot = PoliticsCard | null;
+
+/** Hand can hold personnel + all event/politics cards */
+export type CardType = PersonnelCard | PoliticsCard;
 
 export interface Tile {
   hex: HexCoord;
   type: TileType;
   building?: BuildingType;
   buildingOwner?: PlayerType;
+  /** Zoning: only zoningOwner can build here */
+  zoningOwner?: PlayerType;
+  /** Urban Planning: hex has extra building; double production in Procurement */
+  hasUrbanPlanning?: boolean;
 }
 
 export interface Player {
@@ -50,17 +80,6 @@ export interface Player {
 
 /** Conference row: 4 Personnel cards at costs 1–4 Coins */
 export type ConferenceSlot = PersonnelCard | null;
-
-/** Politics row: 4 Event cards at costs 1–4 Coins (core events + politics-specific) */
-export type PoliticsCard =
-  | EventCard
-  | "Bribe"
-  | "Zoning"
-  | "UrbanPlanning"
-  | "Dividends"
-  | "NGOBacking"
-  | "Propaganda";
-export type PoliticsSlot = PoliticsCard | null;
 
 /** Resource market: 4 price slots (1–4 Coins), each slot holds count of that resource */
 export type ResourceTrack = [number, number, number, number];
@@ -86,6 +105,15 @@ export interface GameState {
   /** Wood and Ore market tracks; each has 4 slots for prices 1–4 */
   woodMarket: ResourceTrack;
   oreMarket: ResourceTrack;
+  /** LandClaims: player index whose next turn clears the effect */
+  landClaimsUntilPlayer?: number;
+  /** Boycotting: buildings adjacent to boycotter's Reserves/Villages skip production */
+  boycottEffect?: {
+    boycotterType: PlayerType;
+    targetPlayerIndex: number;
+  };
+  /** Embargo: target player cannot use Resource market on their next Procurement */
+  embargoTargetPlayer?: number;
 }
 
 function shuffle<T>(array: T[]): T[] {
@@ -172,10 +200,20 @@ export function createInitialGameState(
     "Liaison",
     "Explorer",
     "Elder",
+    "Fixer",
+    "Broker",
+    "Forester",
+    "Consultant",
+    "Advocate",
     "Builder",
     "Liaison",
     "Explorer",
     "Elder",
+    "Fixer",
+    "Broker",
+    "Forester",
+    "Consultant",
+    "Advocate",
   ]);
   const conference: [ConferenceSlot, ConferenceSlot, ConferenceSlot, ConferenceSlot] = [
     conferenceDeck.shift() ?? null,
@@ -196,6 +234,20 @@ export function createInitialGameState(
     "Dividends",
     "NGOBacking",
     "Propaganda",
+    "Graft",
+    "LocalElections",
+    "Reorganization",
+    "Import",
+    "Export",
+    "Logging",
+    "Forestry",
+    "LandClaims",
+    "Subsidy",
+    "Boycotting",
+    "Protests",
+    "Taxation",
+    "Levy",
+    "Embargo",
   ];
   const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
   const politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
