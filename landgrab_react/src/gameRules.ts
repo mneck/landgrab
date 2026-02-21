@@ -39,6 +39,7 @@ export function getCharterBuilding(playerType: string): BuildingType {
   }
 }
 
+/** Charter ignores the usual rule that buildings cannot be placed adjacent to Fog; adjacent Fog is revealed when placed. */
 export function canPlaceCharter(
   tiles: GameState["tiles"],
   hex: HexCoord,
@@ -50,10 +51,7 @@ export function canPlaceCharter(
   if (!tile) return false;
 
   if (tile.type === "Fog") return false;
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
-    if (nt?.type === "Fog") return false;
-  }
+  /* Intentionally do not check for adjacent Fog — Charter may be placed next to Fog; adjacent Fog is revealed on place. */
 
   switch (building) {
     case "Village":

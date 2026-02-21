@@ -26,7 +26,7 @@ function TrackRow({
           <div key={price} className="resource-track__slot">
             <span className="resource-track__price">{price} 💰</span>
             <span className="resource-track__count" title={`${track[i]} available`}>
-              {track[i] > 0 ? "●".repeat(Math.min(track[i], 4)) : "—"}
+              {track[i] > 0 ? icon.repeat(Math.min(track[i], 4)) : "—"}
             </span>
           </div>
         ))}

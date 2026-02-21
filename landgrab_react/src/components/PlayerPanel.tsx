@@ -1,5 +1,6 @@
 import type { Player } from "../types/game";
 import { Card } from "./Card";
+import { CARD_INFO } from "../data/cardData";
 
 interface PlayerPanelProps {
   player: Player;
@@ -16,7 +17,7 @@ export function PlayerPanel({
 }: PlayerPanelProps) {
   return (
     <div
-      className={`player-panel ${isCurrent ? "current" : ""}`}
+      className={`player-panel ${isCurrent ? "current" : "player-panel--compact"}`}
       data-player={player.type}
     >
       <h3>{player.type}</h3>
@@ -29,28 +30,38 @@ export function PlayerPanel({
       </div>
       <div className="hand">
         <span className="label">Hand:</span>
-        <div className="cards">
-          {player.hand.map((card, i) => {
-            const isSelected = selectedCard === card;
-            const clickable = isCurrent && onCardClick;
-            return (
-              <div
-                key={`${card}-${i}`}
-                className={`card-wrapper ${clickable ? "card-wrapper--clickable" : ""} ${isSelected ? "card-wrapper--selected" : ""}`}
-                onClick={() => clickable && onCardClick?.(card)}
-                onKeyDown={(e) =>
-                  clickable &&
-                  (e.key === "Enter" || e.key === " ") &&
-                  onCardClick?.(card)
-                }
-                role={clickable ? "button" : undefined}
-                tabIndex={clickable ? 0 : undefined}
-              >
-                <Card card={card} compact />
-              </div>
-            );
-          })}
-        </div>
+        {isCurrent ? (
+          <div className="cards">
+            {player.hand.map((card, i) => {
+              const isSelected = selectedCard === card;
+              const clickable = onCardClick;
+              return (
+                <div
+                  key={`${card}-${i}`}
+                  className={`card-wrapper ${clickable ? "card-wrapper--clickable" : ""} ${isSelected ? "card-wrapper--selected" : ""}`}
+                  onClick={() => clickable && onCardClick?.(card)}
+                  onKeyDown={(e) =>
+                    clickable &&
+                    (e.key === "Enter" || e.key === " ") &&
+                    onCardClick?.(card)
+                  }
+                  role={clickable ? "button" : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                >
+                  <Card card={card} compact />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="cards cards--labels">
+            {player.hand.map((card, i) => (
+              <span key={`${card}-${i}`} className="card-label">
+                {CARD_INFO[card]?.title ?? card}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

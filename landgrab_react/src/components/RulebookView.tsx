@@ -1,25 +1,24 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import rulebookContentImport from "../content/PlayerRuleBook.md?raw";
 
 interface RulebookViewProps {
   onClose: () => void;
 }
 
-const RULEBOOK_URL = "/PlayerRuleBook.md";
-
 export function RulebookView({ onClose }: RulebookViewProps) {
-  const [content, setContent] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [content, setContent] = useState<string>(() => {
+    const raw = typeof rulebookContentImport === "string" ? rulebookContentImport : "";
+    return raw.trim() || "";
+  });
 
   useEffect(() => {
-    fetch(RULEBOOK_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load rulebook: ${res.status}`);
-        return res.text();
-      })
-      .then(setContent)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load rulebook"));
-  }, []);
+    if (content) return;
+    fetch("/PlayerRuleBook.md")
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.statusText))))
+      .then((text) => setContent(text.trim()))
+      .catch(() => setContent("*Rulebook could not be loaded.*"));
+  }, [content]);
 
   return (
     <div className="rulebook-overlay" role="dialog" aria-label="Player Rulebook">
@@ -32,17 +31,18 @@ export function RulebookView({ onClose }: RulebookViewProps) {
           </button>
         </div>
         <div className="rulebook-content">
-          {error && <p className="rulebook-error">{error}</p>}
-          {content === null && !error && <p className="rulebook-loading">Loading…</p>}
-          {content && (
-            <ReactMarkdown
-              className="rulebook-markdown"
-              components={{
-                table: ({ children }) => <div className="rulebook-table-wrap"><table>{children}</table></div>,
-              }}
-            >
-              {content}
-            </ReactMarkdown>
+          {content ? (
+            <div className="rulebook-markdown">
+              <ReactMarkdown
+                components={{
+                  table: ({ children }) => <div className="rulebook-table-wrap"><table>{children}</table></div>,
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <p className="rulebook-loading">Loading rulebook…</p>
           )}
         </div>
       </div>

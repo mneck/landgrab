@@ -1,5 +1,5 @@
 import type { HexCoord } from "../utils/hexGrid";
-import { hexDistance, hexKey, makeHexagonalShape } from "../utils/hexGrid";
+import { hexDistance, hexKey, hexNeighbors, makeHexagonalShape } from "../utils/hexGrid";
 
 export type PlayerType = "Hotelier" | "Industrialist" | "Bureaucrat" | "Chieftain";
 
@@ -164,6 +164,14 @@ export function generateIsland(
     }
   }
 
+  /** True if this hex is Water (coastline or outer ring) */
+  function isWaterHex(h: HexCoord): boolean {
+    const d = hexDistance(h, center);
+    if (d > coastlineDist) return true;
+    if (d === coastlineDist) return coastlineTypes.get(hexKey(h)) === "Water";
+    return false;
+  }
+
   const tiles: Record<string, Tile> = {};
   for (const hex of hexes) {
     const dist = hexDistance(hex, center);
@@ -172,7 +180,8 @@ export function generateIsland(
     if (dist < fogRadius) {
       type = "Fog";
     } else if (dist === fogRadius) {
-      type = "Field";
+      const adjacentToWater = hexNeighbors(hex).some((nb) => isWaterHex(nb));
+      type = adjacentToWater ? "Field" : "Fog";
     } else if (dist === coastlineDist) {
       type = coastlineTypes.get(k) ?? "Field";
     } else {
@@ -219,39 +228,37 @@ export function createInitialGameState(
     seats: 0,
   }));
 
-  const conferenceDeck: PersonnelCard[] = shuffle([
-    "Builder",
-    "Liaison",
-    "Explorer",
-    "Elder",
-    "Fixer",
-    "Broker",
-    "Forester",
-    "Consultant",
-    "Advocate",
-    "Builder",
-    "Liaison",
-    "Explorer",
-    "Elder",
-    "Fixer",
-    "Broker",
-    "Forester",
-    "Consultant",
-    "Advocate",
-  ]);
+  /* Conference: first 4 always Broker, Forester, Fixer, Advocate; deck has no Liaison, Builder, Explorer */
   const conference: [ConferenceSlot, ConferenceSlot, ConferenceSlot, ConferenceSlot] = [
-    conferenceDeck.shift() ?? null,
-    conferenceDeck.shift() ?? null,
-    conferenceDeck.shift() ?? null,
-    conferenceDeck.shift() ?? null,
+    "Broker",
+    "Forester",
+    "Fixer",
+    "Advocate",
   ];
+  const conferenceDeckPool: PersonnelCard[] = [
+    "Elder",
+    "Fixer",
+    "Broker",
+    "Forester",
+    "Consultant",
+    "Advocate",
+    "Elder",
+    "Fixer",
+    "Broker",
+    "Forester",
+    "Consultant",
+    "Advocate",
+  ];
+  const conferenceDeck: PersonnelCard[] = shuffle(conferenceDeckPool);
 
+  /* Politics: first 4 always Graft, Import, Import, Logging; deck excludes Procurement, Build, Reserve, Contact, Expedition */
+  const politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
+    "Graft",
+    "Import",
+    "Import",
+    "Logging",
+  ];
   const politicsPool: PoliticsCard[] = [
-    "Build",
-    "Procurement",
-    "Expedition",
-    "Reserve",
-    "Contact",
     "Bribe",
     "Zoning",
     "Conservation",
@@ -275,12 +282,6 @@ export function createInitialGameState(
     "Expropriation",
   ];
   const politicsDeck = buildPoliticsDeck(shuffle([...politicsPool, ...politicsPool]));
-  const politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
-    politicsDeck.shift() ?? null,
-    politicsDeck.shift() ?? null,
-    politicsDeck.shift() ?? null,
-    politicsDeck.shift() ?? null,
-  ];
 
   return {
     mapRadius,

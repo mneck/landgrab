@@ -1,8 +1,6 @@
 import type { PersonnelCard } from "../types/game";
 import { Card } from "./Card";
 
-const COSTS = [1, 2, 3, 4] as const;
-
 interface ConferenceRowProps {
   slots: [
     PersonnelCard | null,
@@ -20,16 +18,9 @@ export function ConferenceRow({ slots, onCardClick, highlightSlot }: ConferenceR
       <h3 className="market-row__title">Conference</h3>
       <p className="market-row__subtitle">
         {onCardClick
-          ? "Click a card to start a bid"
-          : "Personnel cards (bid via Personnel card)"}
+          ? "Click a card to see what it does"
+          : "Personnel cards (bid with any Personnel + 1+ Coins)"}
       </p>
-      <div className="market-row__header">
-        {COSTS.map((c) => (
-          <span key={c} className="market-slot__cost">
-            {c} 💰
-          </span>
-        ))}
-      </div>
       <div className="market-row__slots">
         {slots.map((card, i) => (
           <div

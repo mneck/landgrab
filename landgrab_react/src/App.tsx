@@ -170,6 +170,9 @@ function App() {
   const [procurementChoosing, setProcurementChoosing] = useState(false);
   const [auction, setAuction] = useState<AuctionState | null>(null);
   const [rulebookOpen, setRulebookOpen] = useState(false);
+  const [selectedMarketSlot, setSelectedMarketSlot] = useState<
+    { row: "politics"; slotIndex: number } | { row: "conference"; slotIndex: number } | null
+  >(null);
 
   function startGame(playerTypes: PlayerType[]) {
     setGame(createInitialGameState(playerTypes));
@@ -180,6 +183,7 @@ function App() {
     setSelectedCard(null);
     setProcurementChoosing(false);
     setAuction(null);
+    setSelectedMarketSlot(null);
     setScreen("game");
   }
 
@@ -2015,17 +2019,33 @@ function App() {
       <main className="game-main">
         <div className="game-content">
         <aside className="players-sidebar">
-          {game.players.map((player, i) => (
-            <PlayerPanel
-              key={player.type}
-              player={player}
-              isCurrent={i === game.currentPlayerIndex}
-              selectedCard={i === game.currentPlayerIndex ? selectedCard : null}
-              onCardClick={
-                i === game.currentPlayerIndex ? handleCardClick : undefined
-              }
-            />
-          ))}
+          {(() => {
+            const cur = game.currentPlayerIndex;
+            const reordered = [
+              ...game.players.slice(cur),
+              ...game.players.slice(0, cur),
+            ];
+            return reordered.map((player, displayIndex) => {
+              const originalIndex = (cur + displayIndex) % game.players.length;
+              return (
+                <PlayerPanel
+                  key={player.type}
+                  player={player}
+                  isCurrent={displayIndex === 0}
+                  selectedCard={
+                    originalIndex === game.currentPlayerIndex
+                      ? selectedCard
+                      : null
+                  }
+                  onCardClick={
+                    originalIndex === game.currentPlayerIndex
+                      ? handleCardClick
+                      : undefined
+                  }
+                />
+              );
+            });
+          })()}
         </aside>
 
         <div className="map-and-markets">
@@ -2162,8 +2182,7 @@ function App() {
             />
             {placementMode === "charter" && (
               <p className="placement-hint">
-                Click a valid hex to place your{" "}
-                {getCharterBuilding(currentPlayer.type)}
+                Place your <strong>{getCharterBuilding(currentPlayer.type)}</strong>. Charter ignores the rule that buildings cannot be placed adjacent to Fog; any adjacent Fog tiles will be revealed when you place.
               </p>
             )}
             {placementMode === "expedition" && (
@@ -2223,18 +2242,109 @@ function App() {
           </div>
 
           <section className="markets-section">
+            {selectedMarketSlot && (() => {
+              const card =
+                selectedMarketSlot.row === "politics"
+                  ? game.politics[selectedMarketSlot.slotIndex]
+                  : game.conference[selectedMarketSlot.slotIndex];
+              const info = card ? CARD_INFO[card] : null;
+              const canStartBid =
+                selectedMarketSlot.row === "conference" &&
+                card &&
+                !auction &&
+                !procurementChoosing &&
+                game.actionsRemaining > 0 &&
+                currentPlayer.hand.some((c) =>
+                  PERSONNEL_CARDS.includes(c as PersonnelCard)
+                ) &&
+                currentPlayer.resources.coins >= 1;
+              const generatedEvents: string[] =
+                selectedMarketSlot.row === "conference" && card && PERSONNEL_CARDS.includes(card as PersonnelCard)
+                  ? (() => {
+                      const single = PERSONNEL_TO_EVENT[card as PersonnelCard];
+                      if (single) return [single];
+                      if (card === "Broker") return [...BROKER_EVENT_OPTIONS];
+                      if (card === "Forester") return [...FORESTER_EVENT_OPTIONS];
+                      if (card === "Elder") return [...ELDER_EVENT_OPTIONS];
+                      return [];
+                    })()
+                  : [];
+              return (
+                <div className="market-card-detail" style={{ gridColumn: "1 / -1" }}>
+                  {info ? (
+                    <>
+                      <div className="market-card-detail__header">
+                        <span className="market-card-detail__title">
+                          {info.icon} {info.title}
+                        </span>
+                        <button
+                          type="button"
+                          className="market-card-detail__close"
+                          onClick={() => setSelectedMarketSlot(null)}
+                          aria-label="Close"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <p className="market-card-detail__description">
+                        {info.description}
+                      </p>
+                      {generatedEvents.length > 0 && (
+                        <div className="market-card-detail__generates">
+                          <span className="market-card-detail__generates-label">
+                            {generatedEvents.length === 1 ? "Adds to hand:" : "Adds one to hand (your choice):"}
+                          </span>
+                          {generatedEvents.map((eventId) => {
+                            const eventInfo = CARD_INFO[eventId];
+                            return eventInfo ? (
+                              <div key={eventId} className="market-card-detail__event">
+                                <span className="market-card-detail__event-title">
+                                  {eventInfo.icon} {eventInfo.title}
+                                </span>
+                                <p className="market-card-detail__event-description">
+                                  {eventInfo.description}
+                                </p>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      {canStartBid && (
+                        <button
+                          type="button"
+                          className="market-card-detail__action"
+                          onClick={() => {
+                            handleConferenceCardClick(selectedMarketSlot.slotIndex);
+                            setSelectedMarketSlot(null);
+                          }}
+                        >
+                          Start bid
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMarketSlot(null)}
+                    >
+                      Close
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
             <ConferenceRow
               slots={game.conference}
-              onCardClick={
-                !auction && !procurementChoosing && game.actionsRemaining > 0 &&
-                currentPlayer.hand.some((c) => PERSONNEL_CARDS.includes(c as PersonnelCard)) &&
-                currentPlayer.resources.coins >= 1
-                  ? handleConferenceCardClick
-                  : undefined
+              onCardClick={(slotIndex) => setSelectedMarketSlot({ row: "conference", slotIndex })}
+              highlightSlot={
+                auction ? auction.conferenceSlot : selectedMarketSlot?.row === "conference" ? selectedMarketSlot.slotIndex : undefined
               }
-              highlightSlot={auction ? auction.conferenceSlot : undefined}
             />
-            <PoliticsRow slots={game.politics} />
+            <PoliticsRow
+              slots={game.politics}
+              onCardClick={(slotIndex: number) => setSelectedMarketSlot({ row: "politics", slotIndex })}
+              selectedSlot={selectedMarketSlot?.row === "politics" ? selectedMarketSlot.slotIndex : undefined}
+            />
             <ResourceMarket
               woodMarket={game.woodMarket}
               oreMarket={game.oreMarket}

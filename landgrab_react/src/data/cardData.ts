@@ -93,7 +93,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
     title: "Charter",
     flavor: "",
     description:
-      "Place a Village, Infrastructure, Resort, or Industrial Zone according to your player type. Reveal adjacent Fog hexes.",
+      "Place your starting building (Village, Resort, Industrial Zone, or Infrastructure by player type) on any valid hex. Ignores the rule that buildings cannot be placed adjacent to Fog; any adjacent Fog tiles are revealed when you place.",
     icon: "📜",
     image: "",
     category: "event",
