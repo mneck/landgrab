@@ -926,8 +926,15 @@
   font-weight: 600;
 }
 
-.game-header__rules-btn {
+.game-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-left: auto;
+}
+
+.game-header__btn,
+.game-header__rules-btn {
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
   background: rgba(255, 255, 255, 0.08);
@@ -937,6 +944,7 @@
   cursor: pointer;
 }
 
+.game-header__btn:hover,
 .game-header__rules-btn:hover {
   background: rgba(255, 255, 255, 0.12);
 }

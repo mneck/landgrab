@@ -54,6 +54,7 @@ import {
   decrementActionsRemaining,
 } from "./types/game";
 import { hexDistance, hexKey, hexNeighbors } from "./utils/hexGrid";
+import { saveGameState, loadGameState } from "./saveGame";
 
 import "./App.css";
 
@@ -156,9 +157,11 @@ const PLAYER_DESCRIPTIONS: Record<PlayerType, { tagline: string; icon: string }>
 };
 
 function App() {
-  const [screen, setScreen] = useState<Screen>("title");
+  const [screen, setScreen] = useState<Screen>(() =>
+    loadGameState() ? "game" : "title"
+  );
   const [game, setGame] = useState<GameState>(() =>
-    createInitialGameState(["Hotelier", "Industrialist"])
+    loadGameState() ?? createInitialGameState(["Hotelier", "Industrialist"])
   );
   const [selectedHex, setSelectedHex] = useState<HexCoord | null>(null);
   const [placementMode, setPlacementMode] = useState<PlacementMode>(null);
@@ -2004,13 +2007,22 @@ function App() {
           <h1>Landgrab</h1>
           <p className="subtitle">Strategy prototype</p>
         </div>
-        <button
-          type="button"
-          className="game-header__rules-btn"
-          onClick={() => setRulebookOpen(true)}
-        >
-          Rules
-        </button>
+        <div className="game-header__actions">
+          <button
+            type="button"
+            className="game-header__btn"
+            onClick={() => saveGameState(game)}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="game-header__rules-btn"
+            onClick={() => setRulebookOpen(true)}
+          >
+            Rules
+          </button>
+        </div>
       </header>
       {rulebookOpen && (
         <RulebookView onClose={() => setRulebookOpen(false)} />
