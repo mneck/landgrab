@@ -35,7 +35,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Liaison: {
     title: "Liaison",
     flavor: "",
-    description: "Add a Procurement card to your hand.",
+    description: "Add two Procurement cards to your hand.",
     icon: "👩🏻‍💼",
     image: "",
     category: "personnel",
@@ -236,7 +236,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
     flavor: "",
     description:
       "Sell 1 to 3 Wood or Ore (any mix) for an equal number of Coins. Sold resources are not added to the Resource market.",
-    icon: "📤",
+    icon: "➡️",
     image: "",
     category: "event",
   },
@@ -274,7 +274,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   },
   Boycotting: {
     title: "Boycotting",
-    flavor: "No business as usual.",
+    flavor: "",
     description: "Choose a player. Their buildings adjacent to your Reserves and Villages do not produce resources on their next Procurement.",
     icon: "✊",
     image: "",
@@ -331,7 +331,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Seat: {
     title: "Seat",
     flavor: "",
-    description: "Play to gain 1 Seat. Acquire 4 Seats to win the game.",
+    description: "Play to gain 1 Seat. Acquire 3 Seats to win the game.",
     icon: "💺",
     image: "",
     category: "event",

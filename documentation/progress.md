@@ -46,7 +46,7 @@
 ### Not Yet Implemented
 
 - **Draw card action** – Second action type (draw vs. play)
-- **Personnel → Event flow** – Builder→Build, Liaison→Procurement, Explorer→Expedition, Elder→Village/Reserve
+- **Personnel → Event flow** – Builder→Build, Liaison→2×Procurement, Explorer→Expedition, Elder→Village/Reserve
 - **Build event** – Cost 1 Wood, 1 Ore, 1 Coin; adjacency rules; no Fog-adjacent placement
 - **Procurement event** – Market buy/sell (1–4 Wood/Ore) OR resource generation:
   - Resort: 1 Coin per adjacent Forest, Water, Mountain
@@ -65,7 +65,7 @@
 ### Phase 1: Core Turn Loop and Card Play
 
 1. **Add Draw action** – Allow "Draw a card" as an action (alongside "Play a card"). Define a draw pile / discard pile model.
-2. **Wire up Personnel cards** – Builder, Liaison, Explorer put Build, Procurement, Expedition into hand (and go to discard). Elder has dual options.
+2. **Wire up Personnel cards** – Builder, Liaison, Explorer put Build, 2×Procurement, Expedition into hand (and go to discard). Elder has dual options.
 3. **Implement Expedition** – UI to select a non-Fog hex; reveal all adjacent Fog hexes with random revealed types.
 
 ### Phase 2: Build and Procurement
@@ -94,7 +94,7 @@
 
 - **Mandate** (10 resources, any mix) — purchased from the 4-Coin Politics slot on the first action of a turn. Played immediately. Adds Promotion + Seat to discard pile. Ends your turn.
 - **Promotion** — fires immediately when drawn. Discards entire hand. Adds Dividends to discard pile.
-- **Seat** — play to gain 1 Seat. 4 Seats wins the game.
+- **Seat** — play to gain 1 Seat. 3 Seats wins the game.
 - **Dividends** updated to include Villages, so Chieftain also benefits from accumulating Dividends cards.
 
 **Settled design decisions:**
@@ -108,11 +108,11 @@
 
 Each faction pays for Mandate using their signature resource, with escalating cost per Seat:
 
-| Faction | Mandate cost | Currency | Totals across 4 Seats |
+| Faction | Mandate cost | Currency | Totals across 3 Seats |
 |---------|-------------|----------|----------------------|
-| Industrialist | 10 + Seat# | Wood/Ore (any mix, spent) | 10 + 11 + 12 + 13 = 46 |
-| Hotelier | 10 + Seat# | Coins (spent) | 10 + 11 + 12 + 13 = 46 |
-| Bureaucrat | 10 + Seat# | Votes (spent) | 10 + 11 + 12 + 13 = 46 |
+| Industrialist | 10 + Seat# | Wood/Ore (any mix, spent) | 10 + 11 + 12 = 33 |
+| Hotelier | 10 + Seat# | Coins (spent) | 10 + 11 + 12 = 33 |
+| Bureaucrat | 10 + Seat# | Votes (spent) | 10 + 11 + 12 = 33 |
 | Chieftain | TBD + Seat# | Presence Score (threshold, not spent) | TBD |
 
 **Chieftain Presence Score:**

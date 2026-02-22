@@ -18,7 +18,7 @@ const BUILDING_IMAGES: Record<string, string> = {
   Resort: assets.hexes.resort("resort_disc.png"),
   Housing: assets.hexes.resort("resort_homes_disc.png"),
   IndustrialZone: assets.hexes.industry("industry_disc.png"),
-  Farm: assets.hexes.industry("industry_home_disc.png"),
+  Farm: assets.hexes.industry("industry_farm_disc.png"),
   Infrastructure: assets.hexes.government("infrastructure_disc.png"),
   CivicOffice: assets.hexes.government("civic_offices_disc.png"),
   Reserve: assets.hexes.indigenous("reserve.png"),

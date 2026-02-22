@@ -118,9 +118,12 @@ export interface GameState {
     boycotterType: PlayerType;
     targetPlayerIndex: number;
   };
-  /** Set when a player reaches 4 Seats */
+  /** Set when a player reaches SEATS_TO_WIN */
   winner?: PlayerType;
 }
+
+/** Number of Seats required to win the game */
+export const SEATS_TO_WIN = 3;
 
 function shuffle<T>(array: T[]): T[] {
   const result = [...array];
@@ -220,11 +223,11 @@ export function createInitialGameState(
     type,
     hand:
       type === "Chieftain"
-        ? (["Elder", "Liaison", "Explorer", "Charter"] as CardType[])
-        : (["Builder", "Liaison", "Explorer", "Charter"] as CardType[]),
+        ? (["Elder", "Liaison", "Explorer", "Charter", "Import"] as CardType[])
+        : (["Builder", "Liaison", "Explorer", "Charter", "Import"] as CardType[]),
     discardPile: [],
     drawPile: [],
-    resources: { wood: 0, ore: 0, coins: 0, votes: 0 },
+    resources: { wood: 1, ore: 1, coins: 1, votes: 0 },
     seats: 0,
   }));
 

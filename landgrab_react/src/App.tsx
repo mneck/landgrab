@@ -52,21 +52,30 @@ import type { HexCoord } from "./utils/hexGrid";
 import {
   createInitialGameState,
   decrementActionsRemaining,
+  SEATS_TO_WIN,
 } from "./types/game";
 import { hexDistance, hexKey, hexNeighbors } from "./utils/hexGrid";
 import { saveGameState, loadGameState } from "./saveGame";
 
 import "./App.css";
 
+type ConferenceBid = { coins: number; wood: number; ore: number; votes: number };
+
 type AuctionState =
   | { phase: "selectPersonnel"; conferenceSlot: number }
-  | { phase: "setOpeningBid"; conferenceSlot: number; personnelCard: PersonnelCard }
+  | {
+      phase: "setOpeningBid";
+      conferenceSlot: number;
+      personnelCard: PersonnelCard;
+      /** Opening bid draft: minimum 1 Coin + optional Wood/Ore/Votes */
+      openingBid: ConferenceBid;
+    }
   | {
       phase: "counterBid";
       conferenceSlot: number;
       personnelCard: PersonnelCard;
       initiatingPlayerIndex: number;
-      currentBid: { coins: number; wood: number; ore: number; votes: number };
+      currentBid: ConferenceBid;
       currentWinnerIndex: number;
       pendingBidders: number[];
     };
@@ -145,6 +154,13 @@ function deductMandateCost(player: Player, _tiles: GameState["tiles"]): Player["
       break;
   }
   return res;
+}
+
+/** Remove one instance of a card from the hand (for when multiple copies can be present). */
+function removeOneFromHand(hand: CardType[], card: CardType): CardType[] {
+  const i = hand.indexOf(card);
+  if (i === -1) return hand;
+  return [...hand.slice(0, i), ...hand.slice(i + 1)];
 }
 
 type Screen = "title" | "pickPlayers" | "pick3rd" | "game";
@@ -436,32 +452,37 @@ function App() {
       const key = hexKey(hex);
       const tile = game.tiles[key]!;
 
-      setGame((g) => ({
-        ...g,
-        tiles: {
-          ...g.tiles,
-          [key]: {
-            ...tile,
-            building: buildBuildingChoice,
-            buildingOwner: g.players[g.currentPlayerIndex].type,
+      setGame((g) => {
+        const p = g.players[g.currentPlayerIndex]!;
+        const { wood: w, ore: o, coins: c } = p.resources;
+        if (w < 1 || o < 1 || c < 1) return g;
+        return {
+          ...g,
+          tiles: {
+            ...g.tiles,
+            [key]: {
+              ...tile,
+              building: buildBuildingChoice,
+              buildingOwner: p.type,
+            },
           },
-        },
-        players: g.players.map((p, i) =>
-          i === g.currentPlayerIndex
-            ? {
-                ...p,
-                hand: p.hand.filter((c) => c !== "Build"),
-                resources: {
-                  ...p.resources,
-                  wood: p.resources.wood - 1,
-                  ore: p.resources.ore - 1,
-                  coins: p.resources.coins - 1,
-                },
-              }
-            : p
-        ),
-        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
-      }));
+          players: g.players.map((pl, i) =>
+            i === g.currentPlayerIndex
+              ? {
+                  ...pl,
+                  hand: pl.hand.filter((c) => c !== "Build"),
+                  resources: {
+                    ...pl.resources,
+                    wood: pl.resources.wood - 1,
+                    ore: pl.resources.ore - 1,
+                    coins: pl.resources.coins - 1,
+                  },
+                }
+              : pl
+          ),
+          actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+        };
+      });
       setPlacementMode(null);
       setPendingEventCard(null);
       setBuildBuildingChoice(null);
@@ -516,31 +537,36 @@ function App() {
       const { wood, ore, coins } = currentPlayer.resources;
       if (wood < 1 || ore < 1 || coins < 1) return;
 
-      setGame((g) => ({
-        ...g,
-        tiles: {
-          ...g.tiles,
-          [key]: {
-            ...tile!,
-            hasUrbanPlanning: true,
+      setGame((g) => {
+        const p = g.players[g.currentPlayerIndex]!;
+        const { wood: w, ore: o, coins: c } = p.resources;
+        if (w < 1 || o < 1 || c < 1) return g;
+        return {
+          ...g,
+          tiles: {
+            ...g.tiles,
+            [key]: {
+              ...tile!,
+              hasUrbanPlanning: true,
+            },
           },
-        },
-        players: g.players.map((p, i) =>
-          i === g.currentPlayerIndex
-            ? {
-                ...p,
-                hand: p.hand.filter((c) => c !== "UrbanPlanning"),
-                resources: {
-                  ...p.resources,
-                  wood: p.resources.wood - 1,
-                  ore: p.resources.ore - 1,
-                  coins: p.resources.coins - 1,
-                },
-              }
-            : p
-        ),
-        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
-      }));
+          players: g.players.map((pl, i) =>
+            i === g.currentPlayerIndex
+              ? {
+                  ...pl,
+                  hand: pl.hand.filter((c) => c !== "UrbanPlanning"),
+                  resources: {
+                    ...pl.resources,
+                    wood: pl.resources.wood - 1,
+                    ore: pl.resources.ore - 1,
+                    coins: pl.resources.coins - 1,
+                  },
+                }
+              : pl
+          ),
+          actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+        };
+      });
       setPlacementMode(null);
       setPendingEventCard(null);
       setSelectedCard(null);
@@ -672,13 +698,15 @@ function App() {
       eventCard ?? PERSONNEL_TO_EVENT[card];
     if (!resolvedEvent) return;
 
+    const cardsToAdd =
+      card === "Liaison" ? [resolvedEvent, resolvedEvent] : [resolvedEvent];
     consumeAction((g) => ({
       ...g,
       players: g.players.map((p, i) =>
         i === g.currentPlayerIndex
           ? {
               ...p,
-              hand: [...p.hand.filter((c) => c !== card), resolvedEvent],
+              hand: [...p.hand.filter((c) => c !== card), ...cardsToAdd],
               discardPile: [...p.discardPile, card],
             }
           : p
@@ -887,7 +915,7 @@ function App() {
         return {
           ...g,
           players: newPlayers,
-          winner: newSeats >= 4 ? currentPlayer.type : g.winner,
+          winner: newSeats >= SEATS_TO_WIN ? currentPlayer.type : g.winner,
         };
       });
       return;
@@ -1244,7 +1272,7 @@ function App() {
           i === g.currentPlayerIndex
             ? {
                 ...p,
-                hand: p.hand.filter((c) => c !== "Procurement"),
+                hand: removeOneFromHand(p.hand, "Procurement"),
                 discardPile: [
                   ...p.discardPile,
                   "Promotion" as CardType,
@@ -1335,7 +1363,7 @@ function App() {
           ...g,
           players: g.players.map((p, i) =>
             i === g.currentPlayerIndex
-              ? { ...p, hand: p.hand.filter((c) => c !== "Procurement") }
+              ? { ...p, hand: removeOneFromHand(p.hand, "Procurement") }
               : p
           ),
         },
@@ -1358,7 +1386,7 @@ function App() {
           ...g,
           players: g.players.map((p, i) =>
             i === g.currentPlayerIndex
-              ? { ...p, hand: p.hand.filter((c) => c !== "Procurement") }
+              ? { ...p, hand: removeOneFromHand(p.hand, "Procurement") }
               : p
           ),
         },
@@ -1382,7 +1410,7 @@ function App() {
         i === g.currentPlayerIndex
           ? {
               ...p,
-              hand: p.hand.filter((c) => c !== "Procurement"),
+              hand: removeOneFromHand(p.hand, "Procurement"),
               resources: {
                 ...p.resources,
                 [resource]: p.resources[resource as keyof typeof p.resources] + count,
@@ -1410,7 +1438,7 @@ function App() {
         i === g.currentPlayerIndex
           ? {
               ...p,
-              hand: p.hand.filter((c) => c !== "Procurement"),
+              hand: removeOneFromHand(p.hand, "Procurement"),
               resources: {
                 ...p.resources,
                 [resource]: p.resources[resource as keyof typeof p.resources] - count,
@@ -1437,9 +1465,17 @@ function App() {
     setSelectedCard(null);
   }
 
-  function handleAuctionOpeningBid(coins: number) {
+  function handleAuctionOpeningBid(bid: ConferenceBid) {
     if (!auction || auction.phase !== "setOpeningBid") return;
-    if (currentPlayer.resources.coins < coins) return;
+    if (bid.coins < 1) return;
+    const r = currentPlayer.resources;
+    if (
+      r.coins < bid.coins ||
+      r.wood < bid.wood ||
+      r.ore < bid.ore ||
+      r.votes < bid.votes
+    )
+      return;
     const pendingBidders: number[] = [];
     for (let offset = 1; offset < game.players.length; offset++) {
       pendingBidders.push(
@@ -1463,10 +1499,33 @@ function App() {
       conferenceSlot: auction.conferenceSlot,
       personnelCard: auction.personnelCard,
       initiatingPlayerIndex: game.currentPlayerIndex,
-      currentBid: { coins, wood: 0, ore: 0, votes: 0 },
+      currentBid: bid,
       currentWinnerIndex: game.currentPlayerIndex,
       pendingBidders,
     });
+  }
+
+  function handleSetOpeningBidAdd(resource: keyof ConferenceBid) {
+    if (!auction || auction.phase !== "setOpeningBid") return;
+    const draft = auction.openingBid;
+    const next = { ...draft, [resource]: draft[resource] + 1 };
+    const r = currentPlayer.resources;
+    if (
+      next.coins > r.coins ||
+      next.wood > r.wood ||
+      next.ore > r.ore ||
+      next.votes > r.votes
+    )
+      return;
+    setAuction({ ...auction, openingBid: next });
+  }
+
+  function handleSetOpeningBidSubtract(resource: keyof ConferenceBid) {
+    if (!auction || auction.phase !== "setOpeningBid") return;
+    const draft = auction.openingBid;
+    if (resource === "coins" && draft.coins <= 1) return;
+    const next = { ...draft, [resource]: Math.max(0, draft[resource] - 1) };
+    setAuction({ ...auction, openingBid: next });
   }
 
   function handleAuctionCounterBid(resourceType: "coins" | "wood" | "ore" | "votes") {
@@ -1832,6 +1891,7 @@ function App() {
           phase: "setOpeningBid",
           conferenceSlot: auction.conferenceSlot,
           personnelCard: card as PersonnelCard,
+          openingBid: { coins: 1, wood: 0, ore: 0, votes: 0 },
         });
       }
       return;
@@ -1938,6 +1998,7 @@ function App() {
                 phase: "setOpeningBid" as const,
                 conferenceSlot: auction.conferenceSlot,
                 personnelCard: card as PersonnelCard,
+                openingBid: { coins: 1, wood: 0, ore: 0, votes: 0 },
               }),
           })),
           { label: "Cancel", onClick: () => setAuction(null) },
@@ -1946,23 +2007,49 @@ function App() {
     }
 
     if (auction.phase === "setOpeningBid") {
-      const maxCoins = currentPlayer.resources.coins;
-      const coinButtons = [];
-      for (let n = 1; n <= Math.min(maxCoins, 10); n++) {
-        const amount = n;
-        coinButtons.push({
-          label: `${n} 💰`,
-          onClick: () => handleAuctionOpeningBid(amount),
-        });
-      }
+      const draft = auction.openingBid;
+      const r = currentPlayer.resources;
+      const canAdd = (key: keyof ConferenceBid) => draft[key] < r[key];
+      const canSub = (key: keyof ConferenceBid) =>
+        key === "coins" ? draft.coins > 1 : draft[key] > 0;
+      const resourceKeys: (keyof ConferenceBid)[] = ["coins", "wood", "ore", "votes"];
+      const icons: Record<keyof ConferenceBid, string> = {
+        coins: "💰",
+        wood: "🪵",
+        ore: "⚙️",
+        votes: "🗳️",
+      };
+      const line2 = `Opening bid: ${describeBid(draft)} (min 1 💰, add resources)`;
+      const addButtons = resourceKeys.map((key) => ({
+        label: `+1 ${icons[key]}`,
+        onClick: () => handleSetOpeningBidAdd(key),
+        disabled: !canAdd(key),
+      }));
+      const subButtons = resourceKeys.map((key) => ({
+        label: `−1 ${icons[key]}`,
+        onClick: () => handleSetOpeningBidSubtract(key),
+        disabled: !canSub(key),
+      }));
+      const canSubmit =
+        draft.coins >= 1 &&
+        r.coins >= draft.coins &&
+        r.wood >= draft.wood &&
+        r.ore >= draft.ore &&
+        r.votes >= draft.votes;
       return {
         lines: [
           `Conference Bid: ${confCardName}`,
           `Discarding: ${auction.personnelCard}`,
-          "Set your opening bid:",
+          line2,
         ],
         buttons: [
-          ...coinButtons,
+          ...addButtons,
+          ...subButtons,
+          {
+            label: "Submit opening bid",
+            onClick: () => handleAuctionOpeningBid(draft),
+            disabled: !canSubmit,
+          },
           { label: "Cancel", onClick: () => setAuction(null) },
         ],
       } satisfies AuctionUIType;
@@ -1999,7 +2086,7 @@ function App() {
     <div className="game-container">
       {game.winner && (
         <div className="victory-banner">
-          {game.winner} wins with 4 Seats!
+          {game.winner} wins with {SEATS_TO_WIN} Seats!
         </div>
       )}
       <header className="game-header">
@@ -2273,6 +2360,8 @@ function App() {
               const generatedEvents: string[] =
                 selectedMarketSlot.row === "conference" && card && PERSONNEL_CARDS.includes(card as PersonnelCard)
                   ? (() => {
+                      if (card === "Liaison")
+                        return ["Procurement", "Procurement"];
                       const single = PERSONNEL_TO_EVENT[card as PersonnelCard];
                       if (single) return [single];
                       if (card === "Broker") return [...BROKER_EVENT_OPTIONS];
@@ -2304,7 +2393,10 @@ function App() {
                       {generatedEvents.length > 0 && (
                         <div className="market-card-detail__generates">
                           <span className="market-card-detail__generates-label">
-                            {generatedEvents.length === 1 ? "Adds to hand:" : "Adds one to hand (your choice):"}
+                            {generatedEvents.length === 1 ||
+                            new Set(generatedEvents).size === 1
+                              ? "Adds to hand:"
+                              : "Adds one to hand (your choice):"}
                           </span>
                           {generatedEvents.map((eventId) => {
                             const eventInfo = CARD_INFO[eventId];

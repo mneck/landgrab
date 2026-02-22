@@ -86,7 +86,7 @@ Hotelier, Industrialist, and Bureaucrat start with: **Builder, Liaison, Explorer
     a. **Elder** (Chieftain only): Take one of two actions: 
      I. Convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex. 
      II. Add a **Reserve** event card to your hand.
-2. **Liaison**: Put a Procurement card in your hand; discard the Liaison.
+2. **Liaison**: Put two Procurement cards in your hand; discard the Liaison.
 3. **Explorer**: Put an Expedition card in your hand; discard the Explorer.
 4. **Charter**: An Event card: place a Village, Infrastructure, Resort, or Industrial Zone, depending on player type. The Village can be placed on a Fog, Field, Sand, Forest, or Mountain hex; the Infrastructure, Resort, and Industrial Zone can only be placed on Field or Sand hexes. Ignore building costs or the requirement to place a building adjacent to non-Fog tiles. Adjacent Fog hexes are revealed and become either Mountain, Forest, Field, or Sand hexes.
 
@@ -127,7 +127,7 @@ Personnel cards are used to generate Event cards, which are immediately added to
 
 # Victory Conditions
 
-A player wins by acquiring **4 Seats**. Seats are earned by purchasing and playing **Mandate** cards from the Politics market.
+A player wins by acquiring **3 Seats**. Seats are earned by purchasing and playing **Mandate** cards from the Politics market.
 
 ## Mandate
 
@@ -150,7 +150,7 @@ When a Promotion card is added to a player's hand, it is played immediately. The
 
 ## Seat
 
-Play to gain 1 Seat. Acquire 4 Seats to win the game.
+Play to gain 1 Seat. Acquire 3 Seats to win the game.
 
 # Conference
 

@@ -32,14 +32,14 @@ describe("createInitialGameState — player selection", () => {
         expect(state.players.map((p) => p.type)).toEqual(types);
       });
 
-      it("gives every player 4 starting cards in hand", () => {
+      it("gives every player 5 starting cards in hand", () => {
         for (const player of state.players) {
-          expect(player.hand).toHaveLength(4);
+          expect(player.hand).toHaveLength(5);
         }
       });
 
-      it("gives non-Chieftain players Builder, Liaison, Explorer, Charter", () => {
-        const expected: CardType[] = ["Builder", "Liaison", "Explorer", "Charter"];
+      it("gives non-Chieftain players Builder, Liaison, Explorer, Charter, Import", () => {
+        const expected: CardType[] = ["Builder", "Liaison", "Explorer", "Charter", "Import"];
         for (const player of state.players) {
           if (player.type !== "Chieftain") {
             expect(player.hand).toEqual(expected);
@@ -47,8 +47,8 @@ describe("createInitialGameState — player selection", () => {
         }
       });
 
-      it("gives the Chieftain Elder, Liaison, Explorer, Charter", () => {
-        const expected: CardType[] = ["Elder", "Liaison", "Explorer", "Charter"];
+      it("gives the Chieftain Elder, Liaison, Explorer, Charter, Import", () => {
+        const expected: CardType[] = ["Elder", "Liaison", "Explorer", "Charter", "Import"];
         for (const player of state.players) {
           if (player.type === "Chieftain") {
             expect(player.hand).toEqual(expected);
@@ -56,9 +56,9 @@ describe("createInitialGameState — player selection", () => {
         }
       });
 
-      it("starts every player with 0 resources", () => {
+      it("starts every player with 1 Wood, 1 Ore, 1 Coin, 0 Votes", () => {
         for (const player of state.players) {
-          expect(player.resources).toEqual({ wood: 0, ore: 0, coins: 0, votes: 0 });
+          expect(player.resources).toEqual({ wood: 1, ore: 1, coins: 1, votes: 0 });
         }
       });
 

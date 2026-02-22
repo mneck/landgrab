@@ -2,7 +2,7 @@
 
 ## Goal
 
-Be the first player to earn **4 Seats** by purchasing Mandate cards.
+Be the first player to earn **3 Seats** by purchasing Mandate cards.
 
 ---
 
@@ -29,7 +29,7 @@ Played from hand, then **discarded** (not trashed). They cycle back through your
 |------|-----------|-------|
 | **Builder** 👷🏼 | Build | Hotelier / Industrialist / Bureaucrat |
 | **Elder** 👲🏾 | Contact or Reserve | Chieftain only |
-| **Liaison** 👩🏻‍💼 | Procurement | |
+| **Liaison** 👩🏻‍💼 | 2× Procurement | |
 | **Explorer** 🧗‍♀️ | Expedition | |
 | **Fixer** 👨🏻‍💼 | Graft | Acquired from Conference |
 | **Broker** 🧑‍💼 | Import or Export | Acquired from Conference |
@@ -194,7 +194,7 @@ Empty Conference slots are refilled at the end of each round.
 |------|-------------|
 | **Mandate** | Must be your **first action**. Pay your type's cost (see table below). Adds Promotion + Seat to discard. **Ends your turn.** |
 | **Promotion** | Auto-plays when drawn. Discard your hand. Adds Dividends to discard. |
-| **Seat** | Play to gain 1 Seat. **4 Seats wins the game.** |
+| **Seat** | Play to gain 1 Seat. **3 Seats wins the game.** |
 
 ### Mandate Costs
 
