@@ -365,7 +365,6 @@ function App() {
               ? { ...p, hand: p.hand.filter((c) => c !== "Charter") }
               : p
           ),
-          actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
         };
       });
       setPlacementMode(null);
@@ -748,6 +747,8 @@ function App() {
   function handlePlayCharter() {
     if (!currentPlayer.hand.includes("Charter") || game.actionsRemaining < 1)
       return;
+    // Spend 1 action when Charter is played; placement itself is free
+    consumeAction((g) => g);
     setPlacementMode("charter");
   }
 
