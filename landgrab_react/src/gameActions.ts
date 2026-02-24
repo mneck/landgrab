@@ -1,6 +1,7 @@
 import type { GameState, PlayerType, ResourceTrack, PoliticsCard, PoliticsSlot } from "./types/game";
 import { hexKey, hexNeighbors } from "./utils/hexGrid";
-import { POLITICS_COSTS } from "./data/cardRules";
+import { POLITICS_COSTS, POLITICS_VOTE_COSTS } from "./data/cardRules";
+import { MANDATE_INTERVALS } from "./types/game";
 
 export function shuffle<T>(array: T[]): T[] {
   const result = [...array];
@@ -130,10 +131,48 @@ export function runProcurement(g: GameState, playerType: string): GameState {
   };
 }
 
+/** Count Fog hexes in tiles */
+export function countFog(tiles: GameState["tiles"]): number {
+  return Object.values(tiles).filter((t) => t.type === "Fog").length;
+}
+
+/** After revealing fog: update fogRevealed; if threshold crossed, set thresholdReached and insert Mandate into Slot 3. */
+export function checkFogThresholdAndInsertMandate(
+  g: GameState,
+  newTiles: GameState["tiles"]
+): GameState {
+  if (typeof g.totalFog !== "number") return { ...g, tiles: newTiles };
+  const currentFog = countFog(newTiles);
+  const fogRevealed = g.totalFog - currentFog;
+  let state: GameState = { ...g, tiles: newTiles, fogRevealed };
+  if (!state.thresholdReached && fogRevealed >= Math.floor(g.totalFog / 2) + 1) {
+    state = { ...state, thresholdReached: true };
+    state = insertMandateIntoSlot3(state);
+  }
+  return state;
+}
+
 /**
- * Shift non-null cards left and refill from deck.
- * Mandate always occupies the 4-Coin slot (index 3), pushing other cards cheaper.
- * If a Mandate is drawn but one is already visible, it goes to the bottom of the deck.
+ * Fill a single politics slot by drawing one card from the deck (used after purchase).
+ * Deck has no Mandate; Mandates are inserted by game rules.
+ */
+export function refillOnePoliticsSlot(
+  g: GameState,
+  slotIndex: number
+): { politics: typeof g.politics; politicsDeck: PoliticsCard[] } {
+  const nextDeck = [...g.politicsDeck];
+  const drawn = nextDeck.shift() ?? null;
+  const politics = [...g.politics] as (PoliticsSlot)[];
+  politics[slotIndex] = drawn;
+  return {
+    politics: [politics[0], politics[1], politics[2], politics[3]],
+    politicsDeck: nextDeck,
+  };
+}
+
+/**
+ * Shift non-null cards left and fill empty slots from deck (used by Bribe).
+ * Kept for compatibility; deck has no Mandate.
  */
 export function refillPoliticsSlots(
   slots: (PoliticsCard | null)[],
@@ -141,25 +180,8 @@ export function refillPoliticsSlots(
 ): { politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot]; politicsDeck: PoliticsCard[] } {
   const filled = slots.filter((c): c is PoliticsCard => c !== null);
   const nextDeck = [...deck];
-  let safety = nextDeck.length;
-  while (filled.length < 4 && nextDeck.length > 0 && safety > 0) {
-    const card = nextDeck.shift()!;
-    if (card === "Mandate" && filled.includes("Mandate")) {
-      nextDeck.push(card);
-      safety--;
-      continue;
-    }
-    filled.push(card);
-    safety = nextDeck.length;
-  }
-  const nonMandate = filled.filter((c) => c !== "Mandate");
-  const hasMandate = filled.includes("Mandate");
-  if (hasMandate) {
-    while (nonMandate.length < 3) nonMandate.push(null as unknown as PoliticsCard);
-    return {
-      politics: [nonMandate[0] ?? null, nonMandate[1] ?? null, nonMandate[2] ?? null, "Mandate"],
-      politicsDeck: nextDeck,
-    };
+  while (filled.length < 4 && nextDeck.length > 0) {
+    filled.push(nextDeck.shift()!);
   }
   return {
     politics: [filled[0] ?? null, filled[1] ?? null, filled[2] ?? null, filled[3] ?? null],
@@ -167,52 +189,97 @@ export function refillPoliticsSlots(
   };
 }
 
-/** Purchase a non-Mandate Politics card from any slot; Mandate uses its own handler */
+/** Insert Mandate into Slot 3; replace and discard current Slot 3 card. */
+export function insertMandateIntoSlot3(g: GameState): GameState {
+  const politics = [...g.politics] as [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot];
+  politics[3] = "Mandate";
+  return { ...g, politics };
+}
+
+function getMandateMilestone(intervalIndex: number): number {
+  if (intervalIndex < MANDATE_INTERVALS.length) {
+    return MANDATE_INTERVALS.slice(0, intervalIndex + 1).reduce((a, b) => a + b, 0);
+  }
+  return 10 + (intervalIndex - MANDATE_INTERVALS.length);
+}
+
+/** End-of-round rotation: remove Slot 0, shift left, draw 1 into Slot 3. Then check mandate schedule. */
+export function rotatePoliticsEndOfRound(g: GameState): GameState {
+  const [_, ...rest] = g.politics;
+  const nextDeck = [...g.politicsDeck];
+  const drawn = nextDeck.shift() ?? null;
+  let politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot] = [
+    rest[0] ?? null,
+    rest[1] ?? null,
+    rest[2] ?? null,
+    drawn,
+  ];
+  let state: GameState = {
+    ...g,
+    politics,
+    politicsDeck: nextDeck,
+  };
+  if (g.thresholdReached) {
+    state = {
+      ...state,
+      revealedPoliticsSinceThreshold: state.revealedPoliticsSinceThreshold + 1,
+    };
+    const milestone = getMandateMilestone(state.mandateIntervalIndex);
+    if (state.revealedPoliticsSinceThreshold >= milestone) {
+      state = insertMandateIntoSlot3(state);
+      state = { ...state, mandateIntervalIndex: state.mandateIntervalIndex + 1 };
+    }
+  }
+  return state;
+}
+
+/** Purchase a non-Mandate Politics card: pay coin + vote; votes go to Bureaucrat if present. Refill bought slot from deck. */
 export function purchasePoliticsCard(
   g: GameState,
   slotIndex: number,
   playerIndex: number
 ): GameState {
-  const cost = POLITICS_COSTS[slotIndex];
+  const coinCost = POLITICS_COSTS[slotIndex];
+  const voteCost = POLITICS_VOTE_COSTS[slotIndex];
   const player = g.players[playerIndex];
   const card = g.politics[slotIndex];
-  if (!card || card === "Mandate" || player.resources.coins < cost) return g;
+  if (!card || card === "Mandate") return g;
+  if (player.resources.coins < coinCost || player.resources.votes < voteCost) return g;
 
-  const rawSlots = [...g.politics] as (PoliticsCard | null)[];
-  rawSlots[slotIndex] = null;
-  const { politics: finalSlots, politicsDeck: nextDeck } = refillPoliticsSlots(rawSlots, g.politicsDeck);
+  const nextDeck = [...g.politicsDeck];
+  const drawn = nextDeck.shift() ?? null;
+  const politics = [...g.politics] as [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot];
+  politics[slotIndex] = drawn;
 
   let newPlayers = g.players.map((p, i) =>
     i === playerIndex
       ? {
           ...p,
           hand: [...p.hand, card],
-          resources: { ...p.resources, coins: p.resources.coins - cost },
+          resources: {
+            ...p.resources,
+            coins: p.resources.coins - coinCost,
+            votes: p.resources.votes - voteCost,
+          },
         }
       : p
   );
 
-  const buyerType = player.type;
-  if (buyerType !== "Bureaucrat" && (cost === 3 || cost === 4)) {
-    const bureaucratIdx = newPlayers.findIndex((p) => p.type === "Bureaucrat");
-    if (bureaucratIdx >= 0) {
-      newPlayers = newPlayers.map((p, i) =>
-        i === bureaucratIdx
-          ? {
-              ...p,
-              resources: {
-                ...p.resources,
-                votes: p.resources.votes + 1,
-              },
-            }
-          : p
-      );
-    }
+  const bureaucratIdx = newPlayers.findIndex((p) => p.type === "Bureaucrat");
+  if (voteCost > 0 && bureaucratIdx >= 0) {
+    newPlayers = newPlayers.map((p, i) =>
+      i === bureaucratIdx
+        ? {
+            ...p,
+            resources: { ...p.resources, votes: p.resources.votes + voteCost },
+          }
+        : p
+    );
   }
 
   return {
     ...g,
-    politics: finalSlots,
+    politics,
     politicsDeck: nextDeck,
     players: newPlayers,
   };

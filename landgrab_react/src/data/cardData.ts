@@ -18,7 +18,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Builder: {
     title: "Builder",
     flavor: "",
-    description: "Add a Build card to your hand.",
+    description: "Take the Build action (place a building). Card goes to your discard pile.",
     icon: "👷🏼",
     image: "",
     category: "personnel",
@@ -35,7 +35,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Liaison: {
     title: "Liaison",
     flavor: "",
-    description: "Add two Procurement cards to your hand.",
+    description: "Take 1 Procurement action (market, Politics, or generate resources). Card goes to your discard pile.",
     icon: "👩🏻‍💼",
     image: "",
     category: "personnel",
@@ -43,7 +43,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Explorer: {
     title: "Explorer",
     flavor: "",
-    description: "Add an Expedition card to your hand.",
+    description: "Take the Expedition action (reveal adjacent Fog). Card goes to your discard pile.",
     icon: "🧗‍♀️",
     image: "",
     category: "personnel",

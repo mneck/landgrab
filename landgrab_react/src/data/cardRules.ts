@@ -1,11 +1,11 @@
 import type { PersonnelCard, EventCard, PoliticsCard } from "../types/game";
 
-/** Personnel cards add an event card to hand and go to discard */
+/** Personnel cards that add an event card to hand when played; Builder/Liaison/Explorer take their action directly instead */
 export const PERSONNEL_TO_EVENT: Record<PersonnelCard, EventCard | PoliticsCard | null> = {
-  Builder: "Build",
+  Builder: null,
   Elder: null,
-  Liaison: "Procurement",
-  Explorer: "Expedition",
+  Liaison: null,
+  Explorer: null,
   Fixer: "Graft",
   Broker: null,
   Forester: null,
@@ -35,3 +35,5 @@ export const PERSONNEL_CARDS: PersonnelCard[] = [
 ];
 
 export const POLITICS_COSTS = [1, 2, 3, 4] as const;
+/** Vote cost per Politics slot: Slot 0 = 0, Slots 1–3 = 1 */
+export const POLITICS_VOTE_COSTS = [0, 1, 1, 1] as const;

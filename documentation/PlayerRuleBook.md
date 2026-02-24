@@ -27,10 +27,10 @@ Played from hand, then **discarded** (not trashed). They cycle back through your
 
 | Card | Generates | Notes |
 |------|-----------|-------|
-| **Builder** 👷🏼 | Build | Hotelier / Industrialist / Bureaucrat |
+| **Builder** 👷🏼 | Take Build action | Hotelier / Industrialist / Bureaucrat |
 | **Elder** 👲🏾 | Contact or Reserve | Chieftain only |
-| **Liaison** 👩🏻‍💼 | 2× Procurement | |
-| **Explorer** 🧗‍♀️ | Expedition | |
+| **Liaison** 👩🏻‍💼 | Take 1 Procurement action | |
+| **Explorer** 🧗‍♀️ | Take Expedition action | |
 | **Fixer** 👨🏻‍💼 | Graft | Acquired from Conference |
 | **Broker** 🧑‍💼 | Import or Export | Acquired from Conference |
 | **Forester** 👷🏿 | Logging or Forestry | Acquired from Conference |
@@ -71,19 +71,19 @@ Played from hand, then **trashed** (removed from the game permanently).
 
 ### Hotelier 🏨
 - **Builds:** Resort, Housing (Sand/Field hexes)
-- **Constraint:** Resorts ≤ Housing count
+- **Constraint:** After Charter, place 1 Housing then up to 2 Resorts per 1 Housing
 - **Procurement:** Each Resort earns 1 💰 per adjacent Forest/Water/Mountain. +1 💰 bonus if Resort is on Sand adjacent to Water.
 - **Mandate cost:** 10 💰 + Seat#
 
 ### Industrialist 🏭
 - **Builds:** Industrial Zone, Farm (Sand/Field hexes)
-- **Constraint:** Industrial Zones ≤ Farm count. Must build adjacent to Farm/Industrial Zone/Infrastructure.
+- **Constraint:** After Charter, place 1 Farm then up to 2 Industrial Zones per 1 Farm. Must build adjacent to Farm/Industrial Zone/Infrastructure.
 - **Procurement:** Each Industrial Zone earns 1 🪵 per adjacent Forest, 1 ⚙️ per adjacent Mountain.
 - **Mandate cost:** 10 🪵+⚙️ (any mix) + Seat#
 
 ### Bureaucrat 🏛️
 - **Builds:** Infrastructure, Civic Office (Sand/Field hexes)
-- **Constraint:** Infrastructure ≤ Civic Office count. Must build adjacent to Village/Farm/Housing/Industrial Zone/Resort/Civic Office.
+- **Constraint:** After Charter, place 1 Civic Office then up to 2 Infrastructure per 1 Civic Office. Must build adjacent to Village/Farm/Housing/Industrial Zone/Resort/Civic Office.
 - **Procurement:** Each Infrastructure earns 1 🗳️ per adjacent building (each hex counted once).
 - **Mandate cost:** 10 🗳️ + Seat#
 

@@ -97,7 +97,7 @@ describe("createInitialGameState — initial game state", () => {
 });
 
 describe("createInitialGameState — Politics deck Mandate schedule", () => {
-  it("does not place Mandate in the initial 4 politics slots (first Mandate is after 5 cards)", () => {
+  it("does not place Mandate in the initial 4 politics slots (Mandates are inserted by fog threshold and reveal schedule)", () => {
     for (let i = 0; i < 20; i++) {
       const state = createInitialGameState(["Hotelier", "Industrialist"]);
       for (const slot of state.politics) {
@@ -106,69 +106,32 @@ describe("createInitialGameState — Politics deck Mandate schedule", () => {
     }
   });
 
-  it("places the first Mandate after exactly 5 regular cards in the combined deck", () => {
-    for (let i = 0; i < 20; i++) {
-      const state = createInitialGameState(["Hotelier", "Industrialist"]);
-      const allCards = [...state.politics, ...state.politicsDeck];
-      const firstMandateIdx = allCards.indexOf("Mandate");
-      expect(firstMandateIdx).toBe(5);
-    }
-  });
-
-  it("spaces Mandates at 5, 4, 3, 2, 2… gaps in the full deck", () => {
-    for (let run = 0; run < 10; run++) {
-      const state = createInitialGameState(["Hotelier", "Industrialist"]);
-      const allCards = [...state.politics, ...state.politicsDeck];
-      const mandatePositions: number[] = [];
-      allCards.forEach((c, i) => { if (c === "Mandate") mandatePositions.push(i); });
-
-      expect(mandatePositions.length).toBeGreaterThanOrEqual(4);
-      const gaps: number[] = [];
-      let prev = -1;
-      for (const pos of mandatePositions) {
-        gaps.push(pos - prev - 1);
-        prev = pos;
-      }
-      expect(gaps[0]).toBe(5);
-      expect(gaps[1]).toBe(4);
-      expect(gaps[2]).toBe(3);
-      for (let g = 3; g < gaps.length; g++) {
-        expect(gaps[g]).toBe(2);
-      }
-    }
-  });
-
-  it("interleaves Mandate cards into the politics deck (deck contains Mandate)", () => {
+  it("politics deck has no Mandate (Mandates are inserted by game rules, not drawn)", () => {
     const state = createInitialGameState(["Hotelier", "Industrialist"]);
-    expect(state.politicsDeck).toContain("Mandate");
+    const allCards = [...state.politics, ...state.politicsDeck];
+    expect(allCards).not.toContain("Mandate");
+  });
+
+  it("has mandate-tracking state: totalFog, fogRevealed, thresholdReached, revealedPoliticsSinceThreshold, mandateIntervalIndex", () => {
+    const state = createInitialGameState(["Hotelier", "Industrialist"]);
+    expect(state.totalFog).toBeGreaterThan(0);
+    expect(state.fogRevealed).toBe(0);
+    expect(state.thresholdReached).toBe(false);
+    expect(state.revealedPoliticsSinceThreshold).toBe(0);
+    expect(state.mandateIntervalIndex).toBe(0);
   });
 });
 
-describe("refillPoliticsSlots — Mandate duplicate rule", () => {
-  it("places Mandate when none is already in the market", () => {
-    const deck: PoliticsCard[] = ["Mandate", "Build", "Procurement"];
-    const slots: (PoliticsCard | null)[] = ["Bribe", "Zoning", "Logging", null];
-    const { politics } = refillPoliticsSlots(slots, deck);
-    expect(politics).toContain("Mandate");
-  });
-
-  it("skips Mandate when one is already visible and draws the next card instead", () => {
-    const deck: PoliticsCard[] = ["Mandate", "Build", "Procurement"];
-    const slots: (PoliticsCard | null)[] = ["Mandate", "Bribe", "Zoning", null];
+describe("refillPoliticsSlots — fill empty slots from deck", () => {
+  it("fills one empty slot from deck (deck has no Mandate)", () => {
+    const deck: PoliticsCard[] = ["Build", "Procurement", "Bribe"];
+    const slots: (PoliticsCard | null)[] = ["Zoning", "Logging", "Graft", null];
     const { politics, politicsDeck } = refillPoliticsSlots(slots, deck);
-    expect(politics[3]).toBe("Mandate");
-    expect(politics[2]).toBe("Build");
-    expect(politicsDeck).toContain("Mandate");
+    expect(politics[3]).toBe("Build");
+    expect(politicsDeck).toHaveLength(2);
   });
 
-  it("puts the skipped Mandate at the bottom of the deck", () => {
-    const deck: PoliticsCard[] = ["Mandate", "Build"];
-    const slots: (PoliticsCard | null)[] = ["Mandate", "Bribe", "Zoning", null];
-    const { politicsDeck } = refillPoliticsSlots(slots, deck);
-    expect(politicsDeck[politicsDeck.length - 1]).toBe("Mandate");
-  });
-
-  it("never places two Mandates in the market simultaneously", () => {
+  it("never places two Mandates in the market simultaneously (initial state has no Mandate)", () => {
     for (let i = 0; i < 20; i++) {
       const state = createInitialGameState(["Hotelier", "Industrialist"]);
       const mandatesInMarket = state.politics.filter((c) => c === "Mandate").length;
@@ -185,9 +148,9 @@ describe("createInitialGameState — Conference market", () => {
     }
   });
 
-  it("draws conference cards from the conference deck (total = 18 - 4 = 14 remaining)", () => {
+  it("draws conference cards from the conference deck (full pool shuffled, 12 cards)", () => {
     const state = createInitialGameState(["Hotelier", "Industrialist"]);
-    expect(state.conferenceDeck).toHaveLength(14);
+    expect(state.conferenceDeck).toHaveLength(12);
   });
 });
 

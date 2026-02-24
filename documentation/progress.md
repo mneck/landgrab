@@ -46,7 +46,7 @@
 ### Not Yet Implemented
 
 - **Draw card action** – Second action type (draw vs. play)
-- **Personnel → Event flow** – Builder→Build, Liaison→2×Procurement, Explorer→Expedition, Elder→Village/Reserve
+- **Personnel → Event flow** – Builder/Liaison/Explorer take action when played (discard to pile); Elder→Village/Reserve
 - **Build event** – Cost 1 Wood, 1 Ore, 1 Coin; adjacency rules; no Fog-adjacent placement
 - **Procurement event** – Market buy/sell (1–4 Wood/Ore) OR resource generation:
   - Resort: 1 Coin per adjacent Forest, Water, Mountain
@@ -65,7 +65,7 @@
 ### Phase 1: Core Turn Loop and Card Play
 
 1. **Add Draw action** – Allow "Draw a card" as an action (alongside "Play a card"). Define a draw pile / discard pile model.
-2. **Wire up Personnel cards** – Builder, Liaison, Explorer put Build, 2×Procurement, Expedition into hand (and go to discard). Elder has dual options.
+2. **Wire up Personnel cards** – Builder, Liaison, Explorer take Build/Procurement/Expedition action when played (card to discard). Elder has dual options.
 3. **Implement Expedition** – UI to select a non-Fog hex; reveal all adjacent Fog hexes with random revealed types.
 
 ### Phase 2: Build and Procurement

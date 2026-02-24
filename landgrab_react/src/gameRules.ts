@@ -89,6 +89,45 @@ export const BUILD_OPTIONS: Record<string, BuildingType[]> = {
   Bureaucrat: ["CivicOffice", "Infrastructure"],
 };
 
+/** Production (IZ/Resort/Infrastructure) and support (Farm/Housing/CivicOffice) building types per player */
+const PRODUCTION_SUPPORT: Record<string, { production: BuildingType; support: BuildingType }> = {
+  Industrialist: { production: "IndustrialZone", support: "Farm" },
+  Hotelier: { production: "Resort", support: "Housing" },
+  Bureaucrat: { production: "Infrastructure", support: "CivicOffice" },
+};
+
+/** Count production and support buildings for a player. Charter places 1 production with 0 support. */
+export function countProductionAndSupport(
+  tiles: GameState["tiles"],
+  playerType: string
+): { production: number; support: number } {
+  const ps = PRODUCTION_SUPPORT[playerType];
+  if (!ps) return { production: 0, support: 0 };
+  let production = 0;
+  let support = 0;
+  for (const t of Object.values(tiles)) {
+    if (t.buildingOwner !== playerType) continue;
+    if (t.building === ps.production) production++;
+    else if (t.building === ps.support) support++;
+  }
+  return { production, support };
+}
+
+/** Allowed building types for Build action: 2 production per 1 support. Charter counts as first production; need 1 support before more production. */
+export function getAllowedBuildTypes(tiles: GameState["tiles"], playerType: string): BuildingType[] {
+  const options = BUILD_OPTIONS[playerType];
+  if (!options) return [];
+  const ps = PRODUCTION_SUPPORT[playerType];
+  if (!ps) return options;
+  const { production, support } = countProductionAndSupport(tiles, playerType);
+  const maxProduction = 2 * support + 1; // Charter = first production
+  return options.filter((b) => {
+    if (b === ps.support) return true;
+    if (b === ps.production) return production < maxProduction;
+    return true;
+  });
+}
+
 export function canPlaceBuild(
   tiles: GameState["tiles"],
   hex: HexCoord,

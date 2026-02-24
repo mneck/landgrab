@@ -35,3 +35,11 @@ export function loadGameState(): GameState | null {
     return null;
   }
 }
+
+export function clearGameState(): void {
+  try {
+    sessionStorage.removeItem(SAVE_KEY);
+  } catch (e) {
+    console.warn("Failed to clear game:", e);
+  }
+}

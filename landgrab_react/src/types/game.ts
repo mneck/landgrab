@@ -28,7 +28,7 @@ export type EventCard =
   | "Promotion"
   | "Seat";
 
-/** Politics row: slots 0-2 cost 1–3 Coins; slot 3 is always Mandate */
+/** Politics row: 4 slots with fixed coin (1–4) and vote (0,1,1,1) costs */
 export type PoliticsCard =
   | EventCard
   | "Bribe"
@@ -105,9 +105,21 @@ export interface GameState {
   /** Conference: 4 Personnel slots at costs 1–4 */
   conference: [ConferenceSlot, ConferenceSlot, ConferenceSlot, ConferenceSlot];
   conferenceDeck: PersonnelCard[];
-  /** Politics: 4 Event slots at costs 1–4 */
+  /** Politics: 4 Event slots; slot prices fixed by position (1–4 Coins, 0/1/1/1 Votes) */
   politics: [PoliticsSlot, PoliticsSlot, PoliticsSlot, PoliticsSlot];
   politicsDeck: PoliticsCard[];
+  /** Total Fog hexes at game start (for mandate threshold) */
+  totalFog: number;
+  /** Number of Fog hexes revealed so far */
+  fogRevealed: number;
+  /** True when fogRevealed >= floor(totalFog/2) + 1 (first mandate trigger) */
+  thresholdReached: boolean;
+  /** Count of Politics cards revealed into Slot 3 after threshold (end-of-round only) */
+  revealedPoliticsSinceThreshold: number;
+  /** Index into mandateIntervals for next mandate from reveal schedule */
+  mandateIntervalIndex: number;
+  /** After end-of-round rotation, Bureaucrat may pay 1 Vote to reorder; this is the pending reorder state */
+  bureaucratReorderPhase?: boolean;
   /** Wood and Ore market tracks; each has 4 slots for prices 1–4 */
   woodMarket: ResourceTrack;
   oreMarket: ResourceTrack;
@@ -195,29 +207,15 @@ export function generateIsland(
   return tiles;
 }
 
-/**
- * Interleave Mandate cards into a shuffled politics deck.
- * Gaps before each Mandate: 5, 4, 3, 2, then 2 repeating.
- */
-function buildPoliticsDeck(shuffled: PoliticsCard[]): PoliticsCard[] {
-  const result: PoliticsCard[] = [];
-  let srcIdx = 0;
-  const gaps = [5, 4, 3, 2];
-  for (let gapNum = 0; srcIdx < shuffled.length; gapNum++) {
-    const gap = gapNum < gaps.length ? gaps[gapNum] : 2;
-    for (let j = 0; j < gap && srcIdx < shuffled.length; j++) {
-      result.push(shuffled[srcIdx++]);
-    }
-    result.push("Mandate");
-  }
-  return result;
-}
+/** Mandate schedule after threshold: insert after 4, 3, 2, 1, 1, 1... reveals */
+export const MANDATE_INTERVALS = [4, 3, 2, 1] as const;
 
 export function createInitialGameState(
   playerTypes: PlayerType[] = ["Hotelier", "Industrialist"]
 ): GameState {
-  const mapRadius = 6;
-  const fogRadius = 4; // Fog covers interior; fogRadius+1 is the single coastline ring
+  // Map size scales with player count: 4 players = radius 6, 3 = 5, 2 = 4
+  const mapRadius = 2 + playerTypes.length;
+  const fogRadius = mapRadius - 2; // Fog covers interior; fogRadius+1 is the single coastline ring
 
   const players: Player[] = playerTypes.map((type) => ({
     type,
@@ -284,12 +282,14 @@ export function createInitialGameState(
     "Levy",
     "Expropriation",
   ];
-  const politicsDeck = buildPoliticsDeck(shuffle([...politicsPool, ...politicsPool]));
+  const tiles = generateIsland(mapRadius, fogRadius);
+  const totalFog = Object.values(tiles).filter((t) => t.type === "Fog").length;
+  const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
 
   return {
     mapRadius,
     fogRadius,
-    tiles: generateIsland(mapRadius, fogRadius),
+    tiles,
     players,
     currentPlayerIndex: 0,
     actionsRemaining: 2,
@@ -297,6 +297,11 @@ export function createInitialGameState(
     conferenceDeck,
     politics,
     politicsDeck,
+    totalFog,
+    fogRevealed: 0,
+    thresholdReached: false,
+    revealedPoliticsSinceThreshold: 0,
+    mandateIntervalIndex: 0,
     woodMarket: [0, 0, 1, 1],
     oreMarket: [0, 0, 1, 1],
   };

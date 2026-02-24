@@ -14,7 +14,7 @@ adjacency refers to any hex sharing a border.
 ### The Hotelier
 > From paradise to parking lots!
 > 
-1. **The Hotelier** accumulates Coins to purchase Mandates and earn Seats. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when a **Procurement** event card is played; each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex. The Hotelier starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. The Hotelier may not build more Resorts than Housing.
+1. **The Hotelier** accumulates Coins to purchase Mandates and earn Seats. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when a **Procurement** event card is played; each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex. The Hotelier starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. After placing with Charter, the Hotelier must place 1 Housing before placing another Resort; then up to 2 Resorts per 1 Housing (2 Resorts for every 1 Housing).
 
 ### The Industrialist
 > You see a forest? I see Ikea furniture.
@@ -22,12 +22,12 @@ adjacency refers to any hex sharing a border.
 2. **The Industrialist** accumulates Wood and Ore to purchase Mandates and earn Seats. When a **Procurement** event card is played, each Industrial Zone produces:
 - 1 Wood per adjacent Forest hex
 - 1 Ore per adjacent Mountain hex
-The Industrialist starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card; they can build **Industrial Zone** and **Farm** buildings. The Industrialist may not build more Industrial Zones than Farms. Industrial Zones and Farms can only be built on Sand and Field Hexes, and must be built adjacent to Infrastructure, Industrial Zone, and Farm Buildings that have already been placed.
+The Industrialist starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card; they can build **Industrial Zone** and **Farm** buildings. After placing with Charter, the Industrialist must place 1 Farm before placing another Industrial Zone; then up to 2 Industrial Zones per 1 Farm. Industrial Zones and Farms can only be built on Sand and Field Hexes, and must be built adjacent to Infrastructure, Industrial Zone, and Farm Buildings that have already been placed.
 
 ### The Bureaucrat
 > You'll need a permit for that.
 > 
-3. **The Bureaucrat** accumulates Votes to purchase Mandates and earn Seats. The Bureaucrat gains Votes by playing a **Procurement** event card, which generates one Vote for each Resort, Village, Industrial Zone, Farm, or Housing adjacent to Infrastructure; the same hex is only counted once for voting (e.g. if a Farm is adjacent to 2-3 Infrastructure hexes, only 1 vote is generated). The Bureaucrat starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card.; the Bureaucrat can build **Infrastructure** and **Civic Office** buildings. The Bureaucrat may not build more Infrastructure than Civic Offices, and Infrastructure and Civic Offices can only be built on Sand and Field hexes, and must be built adjacent to Village, Farm, Housing, Industrial Zone, Resort, or Civic Office Buildings that have already been placed.
+3. **The Bureaucrat** accumulates Votes to purchase Mandates and earn Seats. The Bureaucrat gains Votes by playing a **Procurement** event card, which generates one Vote for each Resort, Village, Industrial Zone, Farm, or Housing adjacent to Infrastructure; the same hex is only counted once for voting (e.g. if a Farm is adjacent to 2-3 Infrastructure hexes, only 1 vote is generated). The Bureaucrat starts with the Personnel cards **Builder, Liaison, Explorer** and the **Charter** Event card.; the Bureaucrat can build **Infrastructure** and **Civic Office** buildings. After placing with Charter, the Bureaucrat must place 1 Civic Office before placing another Infrastructure; then up to 2 Infrastructure per 1 Civic Office. Infrastructure and Civic Offices can only be built on Sand and Field hexes, and must be built adjacent to Village, Farm, Housing, Industrial Zone, Resort, or Civic Office Buildings that have already been placed.
 
 ### The Chieftain
 > Go away.
@@ -82,12 +82,12 @@ Personnel cards can be played multiple times; after a personnel card is played, 
 
 Hotelier, Industrialist, and Bureaucrat start with: **Builder, Liaison, Explorer.** The Chieftain starts with: **Elder, Liaison, Explorer.** Each player also starts with a **Charter** Event card.
 
-1. **Builder**: Put a Build card in your hand; discard the Builder. 
+1. **Builder**: Take the Build action (place a building); discard the Builder to your discard pile. 
     a. **Elder** (Chieftain only): Take one of two actions: 
      I. Convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex. 
      II. Add a **Reserve** event card to your hand.
-2. **Liaison**: Put two Procurement cards in your hand; discard the Liaison.
-3. **Explorer**: Put an Expedition card in your hand; discard the Explorer.
+2. **Liaison**: Take 1 Procurement action (market, Politics, or generate resources); discard the Liaison to your discard pile.
+3. **Explorer**: Take the Expedition action (reveal adjacent Fog); discard the Explorer to your discard pile.
 4. **Charter**: An Event card: place a Village, Infrastructure, Resort, or Industrial Zone, depending on player type. The Village can be placed on a Fog, Field, Sand, Forest, or Mountain hex; the Infrastructure, Resort, and Industrial Zone can only be placed on Field or Sand hexes. Ignore building costs or the requirement to place a building adjacent to non-Fog tiles. Adjacent Fog hexes are revealed and become either Mountain, Forest, Field, or Sand hexes.
 
 ## Event cards

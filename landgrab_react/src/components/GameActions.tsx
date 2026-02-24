@@ -9,6 +9,7 @@ export interface PlayOption {
 export interface ProcurementPurchaseOption {
   slotIndex: number;
   cost: number;
+  voteCost: number;
   card: string;
   onPurchase: () => void;
 }
@@ -133,13 +134,13 @@ export function GameActions({
             {(procurementPurchaseOptions.length > 0 || mandateOption) && (
               <p className="procurement-section">Politics Market</p>
             )}
-            {procurementPurchaseOptions.map(({ slotIndex, cost, card, onPurchase }) => (
+            {procurementPurchaseOptions.map(({ slotIndex, cost, voteCost, card, onPurchase }) => (
               <button
                 key={slotIndex}
                 type="button"
                 onClick={onPurchase}
               >
-                Buy {card} ({cost} 💰)
+                Buy {card} ({cost} 💰{voteCost > 0 ? `, ${voteCost} 🗳️` : ""})
               </button>
             ))}
             {mandateOption && (

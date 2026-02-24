@@ -5,6 +5,7 @@ import { GameActions } from "./components/GameActions";
 import { ConferenceRow } from "./components/ConferenceRow";
 import { RulebookView } from "./components/RulebookView";
 import { PoliticsRow } from "./components/PoliticsRow";
+import { Card } from "./components/Card";
 import { ResourceMarket } from "./components/ResourceMarket";
 import { CARD_INFO } from "./data/cardData";
 import {
@@ -14,6 +15,7 @@ import {
   FORESTER_EVENT_OPTIONS,
   PERSONNEL_CARDS,
   POLITICS_COSTS,
+  POLITICS_VOTE_COSTS,
 } from "./data/cardRules";
 import {
   pickRevealedTileType,
@@ -25,7 +27,7 @@ import {
   calculatePresenceScore,
   countReserves,
   revealAdjacentFog,
-  BUILD_OPTIONS,
+  getAllowedBuildTypes,
 } from "./gameRules";
 import type { PlacementMode } from "./gameRules";
 import {
@@ -33,7 +35,8 @@ import {
   runProcurement,
   purchasePoliticsCard,
   removePoliticsSlot,
-  refillPoliticsSlots,
+  checkFogThresholdAndInsertMandate,
+  rotatePoliticsEndOfRound,
   addToMarket,
   buyFromMarket,
   sellToMarket,
@@ -55,7 +58,7 @@ import {
   SEATS_TO_WIN,
 } from "./types/game";
 import { hexDistance, hexKey, hexNeighbors } from "./utils/hexGrid";
-import { saveGameState, loadGameState } from "./saveGame";
+import { saveGameState, loadGameState, clearGameState } from "./saveGame";
 
 import "./App.css";
 
@@ -120,15 +123,16 @@ function getMandateCost(_playerType: string, seats: number): number {
 
 function canAffordMandate(player: Player, tiles: GameState["tiles"]): boolean {
   const cost = getMandateCost(player.type, player.seats);
+  const slot3Vote = 1;
   switch (player.type) {
     case "Hotelier":
-      return player.resources.coins >= cost;
+      return player.resources.coins >= cost && player.resources.votes >= slot3Vote;
     case "Industrialist":
-      return player.resources.wood + player.resources.ore >= cost;
+      return player.resources.wood + player.resources.ore >= cost && player.resources.votes >= slot3Vote;
     case "Bureaucrat":
-      return player.resources.votes >= cost;
+      return player.resources.votes >= cost + slot3Vote;
     case "Chieftain":
-      return calculatePresenceScore(tiles) >= cost;
+      return calculatePresenceScore(tiles) >= cost && player.resources.votes >= slot3Vote;
     default:
       return false;
   }
@@ -137,20 +141,24 @@ function canAffordMandate(player: Player, tiles: GameState["tiles"]): boolean {
 function deductMandateCost(player: Player, _tiles: GameState["tiles"]): Player["resources"] {
   const cost = getMandateCost(player.type, player.seats);
   const res = { ...player.resources };
+  const slot3Vote = 1;
   switch (player.type) {
     case "Hotelier":
       res.coins -= cost;
+      res.votes -= slot3Vote;
       break;
     case "Industrialist": {
       const woodDeduct = Math.min(res.wood, cost);
       res.wood -= woodDeduct;
       res.ore -= cost - woodDeduct;
+      res.votes -= slot3Vote;
       break;
     }
     case "Bureaucrat":
-      res.votes -= cost;
+      res.votes -= cost + slot3Vote;
       break;
     case "Chieftain":
+      res.votes -= slot3Vote;
       break;
   }
   return res;
@@ -187,11 +195,18 @@ function App() {
   >(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [procurementChoosing, setProcurementChoosing] = useState(false);
+  /** When open: did we get here by playing a Procurement card or by playing Liaison? */
+  const [procurementSource, setProcurementSource] = useState<"card" | "liaison" | null>(null);
+  /** If a personnel card (Builder/Liaison/Explorer) is powering a pending action, track it so we can discard only on success. */
+  const [pendingPersonnelSource, setPendingPersonnelSource] = useState<PersonnelCard | null>(null);
   const [auction, setAuction] = useState<AuctionState | null>(null);
   const [rulebookOpen, setRulebookOpen] = useState(false);
   const [selectedMarketSlot, setSelectedMarketSlot] = useState<
     { row: "politics"; slotIndex: number } | { row: "conference"; slotIndex: number } | null
   >(null);
+
+  const [reorderInProgress, setReorderInProgress] = useState(false);
+  const [pendingReorder, setPendingReorder] = useState<GameState["politics"] | null>(null);
 
   function startGame(playerTypes: PlayerType[]) {
     setGame(createInitialGameState(playerTypes));
@@ -201,9 +216,29 @@ function App() {
     setBuildBuildingChoice(null);
     setSelectedCard(null);
     setProcurementChoosing(false);
+    setProcurementSource(null);
     setAuction(null);
     setSelectedMarketSlot(null);
+    setReorderInProgress(false);
+    setPendingReorder(null);
     setScreen("game");
+  }
+
+  function handleQuit() {
+    clearGameState();
+    setScreen("title");
+    setSelectedHex(null);
+    setPlacementMode(null);
+    setPendingEventCard(null);
+    setBuildBuildingChoice(null);
+    setSelectedCard(null);
+    setProcurementChoosing(false);
+    setProcurementSource(null);
+    setPendingPersonnelSource(null);
+    setAuction(null);
+    setSelectedMarketSlot(null);
+    setReorderInProgress(false);
+    setPendingReorder(null);
   }
 
   if (screen !== "game") {
@@ -321,19 +356,18 @@ function App() {
         buildingOwner: currentPlayer.type,
       };
 
-      setGame((g) => ({
-        ...g,
-        tiles: newTiles,
-        players: g.players.map((p, i) =>
-          i === g.currentPlayerIndex
-            ? {
-                ...p,
-                hand: p.hand.filter((c) => c !== "Charter"),
-              }
-            : p
-        ),
-        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
-      }));
+      setGame((g) => {
+        const afterFog = checkFogThresholdAndInsertMandate(g, newTiles);
+        return {
+          ...afterFog,
+          players: afterFog.players.map((p, i) =>
+            i === g.currentPlayerIndex
+              ? { ...p, hand: p.hand.filter((c) => c !== "Charter") }
+              : p
+          ),
+          actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+        };
+      });
       setPlacementMode(null);
       setSelectedHex(null);
       setSelectedCard(null);
@@ -347,18 +381,32 @@ function App() {
 
       const newTiles = revealAdjacentFog(game.tiles, hex, game.fogRadius);
 
-      setGame((g) => ({
-        ...g,
-        tiles: newTiles,
-        players: g.players.map((p, i) =>
-          i === g.currentPlayerIndex
-            ? { ...p, hand: p.hand.filter((c) => c !== "Expedition") }
-            : p
-        ),
-        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
-      }));
+      setGame((g) => {
+        const afterFog = checkFogThresholdAndInsertMandate(g, newTiles);
+        return {
+          ...afterFog,
+          players: afterFog.players.map((p, i) => {
+            if (i !== g.currentPlayerIndex) return p;
+            let updated: Player = {
+              ...p,
+              hand: p.hand.filter((c) => c !== "Expedition"),
+            };
+            if (pendingPersonnelSource === "Explorer") {
+              const newHand = removeOneFromHand(updated.hand, "Explorer");
+              updated = {
+                ...updated,
+                hand: newHand,
+                discardPile: [...updated.discardPile, "Explorer"],
+              };
+            }
+            return updated;
+          }),
+          actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+        };
+      });
       setPlacementMode(null);
       setPendingEventCard(null);
+      setPendingPersonnelSource(null);
       setSelectedCard(null);
       return;
     }
@@ -378,16 +426,18 @@ function App() {
         buildingOwner: "Chieftain",
       };
 
-      setGame((g) => ({
-        ...g,
-        tiles: newTiles,
-        players: g.players.map((p, i) =>
-          i === g.currentPlayerIndex
-            ? { ...p, hand: p.hand.filter((c) => c !== "Contact") }
-            : p
-        ),
-        actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
-      }));
+      setGame((g) => {
+        const afterFog = checkFogThresholdAndInsertMandate(g, newTiles);
+        return {
+          ...afterFog,
+          players: afterFog.players.map((p, i) =>
+            i === g.currentPlayerIndex
+              ? { ...p, hand: p.hand.filter((c) => c !== "Contact") }
+              : p
+          ),
+          actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
+        };
+      });
       setPlacementMode(null);
       setPendingEventCard(null);
       setSelectedCard(null);
@@ -466,26 +516,35 @@ function App() {
               buildingOwner: p.type,
             },
           },
-          players: g.players.map((pl, i) =>
-            i === g.currentPlayerIndex
-              ? {
-                  ...pl,
-                  hand: pl.hand.filter((c) => c !== "Build"),
-                  resources: {
-                    ...pl.resources,
-                    wood: pl.resources.wood - 1,
-                    ore: pl.resources.ore - 1,
-                    coins: pl.resources.coins - 1,
-                  },
-                }
-              : pl
-          ),
+          players: g.players.map((pl, i) => {
+            if (i !== g.currentPlayerIndex) return pl;
+            let updated: Player = {
+              ...pl,
+              hand: pl.hand.filter((c) => c !== "Build"),
+              resources: {
+                ...pl.resources,
+                wood: pl.resources.wood - 1,
+                ore: pl.resources.ore - 1,
+                coins: pl.resources.coins - 1,
+              },
+            };
+            if (pendingPersonnelSource === "Builder") {
+              const newHand = removeOneFromHand(updated.hand, "Builder");
+              updated = {
+                ...updated,
+                hand: newHand,
+                discardPile: [...updated.discardPile, "Builder"],
+              };
+            }
+            return updated;
+          }),
           actionsRemaining: decrementActionsRemaining(g.actionsRemaining),
         };
       });
       setPlacementMode(null);
       setPendingEventCard(null);
       setBuildBuildingChoice(null);
+      setPendingPersonnelSource(null);
       setSelectedCard(null);
       return;
     }
@@ -694,19 +753,46 @@ function App() {
 
   function handlePlayPersonnel(card: PersonnelCard, eventCard?: EventCard | PoliticsCard) {
     if (!currentPlayer.hand.includes(card) || game.actionsRemaining < 1) return;
+
+    if (card === "Builder") {
+      if (currentPlayer.type === "Chieftain") return;
+      const { wood, ore, coins } = currentPlayer.resources;
+      if (wood < 1 || ore < 1 || coins < 1) return;
+      setPendingPersonnelSource("Builder");
+      setPendingEventCard("Build");
+      setPlacementMode("build");
+      setBuildBuildingChoice(null);
+      setSelectedCard(null);
+      return;
+    }
+
+    if (card === "Liaison") {
+      setPendingPersonnelSource("Liaison");
+      setProcurementSource("liaison");
+      setProcurementChoosing(true);
+      setSelectedCard(null);
+      return;
+    }
+
+    if (card === "Explorer") {
+      setPendingPersonnelSource("Explorer");
+      setPendingEventCard("Expedition");
+      setPlacementMode("expedition");
+      setSelectedCard(null);
+      return;
+    }
+
     const resolvedEvent =
       eventCard ?? PERSONNEL_TO_EVENT[card];
     if (!resolvedEvent) return;
 
-    const cardsToAdd =
-      card === "Liaison" ? [resolvedEvent, resolvedEvent] : [resolvedEvent];
     consumeAction((g) => ({
       ...g,
       players: g.players.map((p, i) =>
         i === g.currentPlayerIndex
           ? {
               ...p,
-              hand: [...p.hand.filter((c) => c !== card), ...cardsToAdd],
+              hand: [...p.hand.filter((c) => c !== card), resolvedEvent],
               discardPile: [...p.discardPile, card],
             }
           : p
@@ -719,6 +805,8 @@ function App() {
     if (card === "Charter") return; // Charter has its own handler
 
     if (card === "Procurement") {
+      setPendingPersonnelSource(null);
+      setProcurementSource("card");
       setProcurementChoosing(true);
       setSelectedCard(null);
       return;
@@ -1252,7 +1340,7 @@ function App() {
     const mandateSlot = game.politics.findIndex((c) => c === "Mandate");
     if (
       mandateSlot < 0 ||
-      !currentPlayer.hand.includes("Procurement") ||
+      (!currentPlayer.hand.includes("Procurement") && procurementSource !== "liaison") ||
       game.actionsRemaining < 2 ||
       !canAffordMandate(currentPlayer, game.tiles)
     )
@@ -1261,31 +1349,56 @@ function App() {
     setGame((g) => {
       const player = g.players[g.currentPlayerIndex];
       const newResources = deductMandateCost(player, g.tiles);
+      const mandateSlot = g.politics.findIndex((c) => c === "Mandate");
+      if (mandateSlot < 0) return g;
       const rawSlots = [...g.politics] as (PoliticsCard | null)[];
       rawSlots[mandateSlot] = null;
-      const { politics, politicsDeck } = refillPoliticsSlots(rawSlots, g.politicsDeck);
+      const nextDeck = [...g.politicsDeck];
+      const drawn = nextDeck.shift() ?? null;
+      rawSlots[mandateSlot] = drawn;
+      const politics = rawSlots as [typeof g.politics[0], typeof g.politics[1], typeof g.politics[2], typeof g.politics[3]];
+      let newPlayers = g.players.map((p, i) => {
+        if (i !== g.currentPlayerIndex) return p;
+        let updated: Player = {
+          ...p,
+          hand: procurementSource === "card" ? removeOneFromHand(p.hand, "Procurement") : p.hand,
+          discardPile: [
+            ...p.discardPile,
+            "Promotion" as CardType,
+            "Seat" as CardType,
+          ],
+          resources: newResources,
+        };
+        if (procurementSource === "liaison") {
+          const newHand = removeOneFromHand(updated.hand, "Liaison");
+          updated = {
+            ...updated,
+            hand: newHand,
+            discardPile: [...updated.discardPile, "Liaison"],
+          };
+        }
+        return updated;
+      });
+      const slot3Vote = 1;
+      const bureaucratIdx = newPlayers.findIndex((p) => p.type === "Bureaucrat");
+      if (slot3Vote > 0 && bureaucratIdx >= 0 && g.currentPlayerIndex !== bureaucratIdx) {
+        newPlayers = newPlayers.map((p, i) =>
+          i === bureaucratIdx
+            ? { ...p, resources: { ...p.resources, votes: p.resources.votes + slot3Vote } }
+            : p
+        );
+      }
       return {
         ...g,
         politics,
-        politicsDeck,
-        players: g.players.map((p, i) =>
-          i === g.currentPlayerIndex
-            ? {
-                ...p,
-                hand: removeOneFromHand(p.hand, "Procurement"),
-                discardPile: [
-                  ...p.discardPile,
-                  "Promotion" as CardType,
-                  "Seat" as CardType,
-                ],
-                resources: newResources,
-              }
-            : p
-        ),
+        politicsDeck: nextDeck,
+        players: newPlayers,
         actionsRemaining: 0,
       };
     });
     setProcurementChoosing(false);
+    setProcurementSource(null);
+    setPendingPersonnelSource(null);
     setSelectedCard(null);
   }
 
@@ -1355,27 +1468,46 @@ function App() {
   }
 
   function handleProcurementGenerate() {
-    if (!currentPlayer.hand.includes("Procurement") || game.actionsRemaining < 1)
+    if (
+      (!currentPlayer.hand.includes("Procurement") && procurementSource !== "liaison") ||
+      game.actionsRemaining < 1
+    )
       return;
     consumeAction((g) =>
       runProcurement(
         {
           ...g,
-          players: g.players.map((p, i) =>
-            i === g.currentPlayerIndex
-              ? { ...p, hand: removeOneFromHand(p.hand, "Procurement") }
-              : p
-          ),
+          players: g.players.map((p, i) => {
+            if (i !== g.currentPlayerIndex) return p;
+            let updated: Player =
+              procurementSource === "card"
+                ? { ...p, hand: removeOneFromHand(p.hand, "Procurement") }
+                : p;
+            if (procurementSource === "liaison") {
+              const newHand = removeOneFromHand(updated.hand, "Liaison");
+              updated = {
+                ...updated,
+                hand: newHand,
+                discardPile: [...updated.discardPile, "Liaison"],
+              };
+            }
+            return updated;
+          }),
         },
         currentPlayer.type
       )
     );
     setProcurementChoosing(false);
+    setProcurementSource(null);
+    setPendingPersonnelSource(null);
     setSelectedCard(null);
   }
 
   function handleProcurementPurchase(slotIndex: number) {
-    if (!currentPlayer.hand.includes("Procurement") || game.actionsRemaining < 1)
+    if (
+      (!currentPlayer.hand.includes("Procurement") && procurementSource !== "liaison") ||
+      game.actionsRemaining < 1
+    )
       return;
     const cost = POLITICS_COSTS[slotIndex];
     const card = game.politics[slotIndex];
@@ -1384,49 +1516,80 @@ function App() {
       purchasePoliticsCard(
         {
           ...g,
-          players: g.players.map((p, i) =>
-            i === g.currentPlayerIndex
-              ? { ...p, hand: removeOneFromHand(p.hand, "Procurement") }
-              : p
-          ),
+          players: g.players.map((p, i) => {
+            if (i !== g.currentPlayerIndex) return p;
+            let updated: Player =
+              procurementSource === "card"
+                ? { ...p, hand: removeOneFromHand(p.hand, "Procurement") }
+                : p;
+            if (procurementSource === "liaison") {
+              const newHand = removeOneFromHand(updated.hand, "Liaison");
+              updated = {
+                ...updated,
+                hand: newHand,
+                discardPile: [...updated.discardPile, "Liaison"],
+              };
+            }
+            return updated;
+          }),
         },
         slotIndex,
         g.currentPlayerIndex
       )
     );
     setProcurementChoosing(false);
+    setProcurementSource(null);
+    setPendingPersonnelSource(null);
     setSelectedCard(null);
   }
 
   function handleProcurementMarketBuy(resource: "wood" | "ore", count: number) {
-    if (!currentPlayer.hand.includes("Procurement") || game.actionsRemaining < 1) return;
+    if (
+      (!currentPlayer.hand.includes("Procurement") && procurementSource !== "liaison") ||
+      game.actionsRemaining < 1
+    )
+      return;
     const track = resource === "wood" ? game.woodMarket : game.oreMarket;
     const result = buyFromMarket(track, count);
     if (!result || currentPlayer.resources.coins < result.totalCost) return;
     const marketKey = resource === "wood" ? "woodMarket" : "oreMarket";
     consumeAction((g) => ({
       ...g,
-      players: g.players.map((p, i) =>
-        i === g.currentPlayerIndex
-          ? {
-              ...p,
-              hand: removeOneFromHand(p.hand, "Procurement"),
-              resources: {
-                ...p.resources,
-                [resource]: p.resources[resource as keyof typeof p.resources] + count,
-                coins: p.resources.coins - result.totalCost,
-              },
-            }
-          : p
-      ),
+      players: g.players.map((p, i) => {
+        if (i !== g.currentPlayerIndex) return p;
+        let updated: Player = {
+          ...p,
+          hand: procurementSource === "card" ? removeOneFromHand(p.hand, "Procurement") : p.hand,
+          resources: {
+            ...p.resources,
+            [resource]: p.resources[resource as keyof typeof p.resources] + count,
+            coins: p.resources.coins - result.totalCost,
+          },
+        };
+        if (procurementSource === "liaison") {
+          const newHand = removeOneFromHand(updated.hand, "Liaison");
+          updated = {
+            ...updated,
+            hand: newHand,
+            discardPile: [...updated.discardPile, "Liaison"],
+          };
+        }
+        return updated;
+      }),
       [marketKey]: result.newTrack,
     }));
     setProcurementChoosing(false);
+    setProcurementSource(null);
+    setPendingPersonnelSource(null);
     setSelectedCard(null);
   }
 
   function handleProcurementMarketSell(resource: "wood" | "ore", count: number) {
-    if (!currentPlayer.hand.includes("Procurement") || game.actionsRemaining < 1) return;
+    if (
+      (!currentPlayer.hand.includes("Procurement") && procurementSource !== "liaison") ||
+      game.actionsRemaining < 1
+    )
+      return;
     if (currentPlayer.resources[resource] < count) return;
     const track = resource === "wood" ? game.woodMarket : game.oreMarket;
     const result = sellToMarket(track, count);
@@ -1434,22 +1597,32 @@ function App() {
     const marketKey = resource === "wood" ? "woodMarket" : "oreMarket";
     consumeAction((g) => ({
       ...g,
-      players: g.players.map((p, i) =>
-        i === g.currentPlayerIndex
-          ? {
-              ...p,
-              hand: removeOneFromHand(p.hand, "Procurement"),
-              resources: {
-                ...p.resources,
-                [resource]: p.resources[resource as keyof typeof p.resources] - count,
-                coins: p.resources.coins + result.totalGain,
-              },
-            }
-          : p
-      ),
+      players: g.players.map((p, i) => {
+        if (i !== g.currentPlayerIndex) return p;
+        let updated: Player = {
+          ...p,
+          hand: procurementSource === "card" ? removeOneFromHand(p.hand, "Procurement") : p.hand,
+          resources: {
+            ...p.resources,
+            [resource]: p.resources[resource as keyof typeof p.resources] - count,
+            coins: p.resources.coins + result.totalGain,
+          },
+        };
+        if (procurementSource === "liaison") {
+          const newHand = removeOneFromHand(updated.hand, "Liaison");
+          updated = {
+            ...updated,
+            hand: newHand,
+            discardPile: [...updated.discardPile, "Liaison"],
+          };
+        }
+        return updated;
+      }),
       [marketKey]: result.newTrack,
     }));
     setProcurementChoosing(false);
+    setProcurementSource(null);
+    setPendingPersonnelSource(null);
     setSelectedCard(null);
   }
 
@@ -1946,12 +2119,30 @@ function App() {
 
       let conf = g.conference;
       let confDeck = g.conferenceDeck;
+
       if (isNewRound) {
         const deck = [...confDeck];
         conf = conf.map((slot) =>
           slot !== null ? slot : (deck.shift() ?? null)
         ) as typeof conf;
         confDeck = deck;
+
+        const rotated = rotatePoliticsEndOfRound(g);
+        const hasBureaucrat = g.players.some((p) => p.type === "Bureaucrat");
+        return {
+          ...rotated,
+          currentPlayerIndex: nextPlayer,
+          actionsRemaining: 2,
+          woodMarket: woodMkt,
+          oreMarket: oreMkt,
+          conference: conf,
+          conferenceDeck: confDeck,
+          bureaucratReorderPhase: hasBureaucrat ? true : undefined,
+          landClaimsUntilPlayer:
+            g.landClaimsUntilPlayer === nextPlayer
+              ? undefined
+              : g.landClaimsUntilPlayer,
+        };
       }
 
       return {
@@ -1972,6 +2163,7 @@ function App() {
     setSelectedHex(null);
     setSelectedCard(null);
     setProcurementChoosing(false);
+    setProcurementSource(null);
     setAuction(null);
   }
 
@@ -2098,6 +2290,13 @@ function App() {
           <button
             type="button"
             className="game-header__btn"
+            onClick={handleQuit}
+          >
+            Quit
+          </button>
+          <button
+            type="button"
+            className="game-header__btn"
             onClick={() => saveGameState(game)}
           >
             Save
@@ -2113,6 +2312,93 @@ function App() {
       </header>
       {rulebookOpen && (
         <RulebookView onClose={() => setRulebookOpen(false)} />
+      )}
+
+      {game.bureaucratReorderPhase && (
+        <div className="bureaucrat-reorder-panel">
+          {currentPlayer.type === "Bureaucrat" ? (
+            !reorderInProgress ? (
+              <>
+                <p>Reorder the Politics Market? (Slot prices stay fixed; only cards move.)</p>
+                <div className="bureaucrat-reorder-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGame((g) => ({ ...g, bureaucratReorderPhase: undefined }));
+                    }}
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentPlayer.resources.votes < 1}
+                    onClick={() => {
+                      setGame((g) => {
+                        const bi = g.players.findIndex((p) => p.type === "Bureaucrat");
+                        if (bi < 0 || g.players[bi].resources.votes < 1) return g;
+                        return {
+                          ...g,
+                          players: g.players.map((p, i) =>
+                            i === bi
+                              ? { ...p, resources: { ...p.resources, votes: p.resources.votes - 1 } }
+                              : p
+                          ),
+                        };
+                      });
+                      setPendingReorder([...game.politics]);
+                      setReorderInProgress(true);
+                    }}
+                  >
+                    Pay 1 Vote to reorder
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>Swap slots to reorder. Slot 0 = 1 Coin, Slot 3 = 4 Coins + 1 Vote.</p>
+                <div className="bureaucrat-reorder-slots">
+                  {(pendingReorder ?? game.politics).map((card, i) => (
+                    <div key={i} className="market-slot">
+                      <span className="market-slot__label">Slot {i}</span>
+                      {card ? <Card card={card} compact /> : <span>—</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="bureaucrat-reorder-swaps">
+                  {[0, 1, 2, 3].flatMap((a) =>
+                    [1, 2, 3].filter((b) => b > a).map((b) => (
+                      <button
+                        key={`${a}-${b}`}
+                        type="button"
+                        onClick={() => {
+                          const p = pendingReorder ?? [...game.politics];
+                          const next = [...p] as GameState["politics"];
+                          [next[a], next[b]] = [next[b], next[a]];
+                          setPendingReorder(next);
+                        }}
+                      >
+                        Swap {a}↔{b}
+                      </button>
+                    ))
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const order = pendingReorder ?? game.politics;
+                    setGame((g) => ({ ...g, politics: order, bureaucratReorderPhase: undefined }));
+                    setReorderInProgress(false);
+                    setPendingReorder(null);
+                  }}
+                >
+                  Confirm order
+                </button>
+              </>
+            )
+          ) : (
+            <p>Waiting for Bureaucrat to reorder or skip…</p>
+          )}
+        </div>
       )}
 
       <main className="game-main">
@@ -2178,13 +2464,14 @@ function App() {
                       setPendingEventCard(null);
                       setBuildBuildingChoice(null);
                       setSelectedCard(null);
+                      setPendingPersonnelSource(null);
                     }
                   : undefined
               }
               onEndTurn={handleEndTurn}
               buildOptions={
                 placementMode === "build" && !buildBuildingChoice
-                  ? (BUILD_OPTIONS[currentPlayer.type] ?? [])
+                  ? getAllowedBuildTypes(game.tiles, currentPlayer.type)
                   : undefined
               }
               onBuildChoice={setBuildBuildingChoice}
@@ -2193,10 +2480,11 @@ function App() {
                 procurementChoosing
                   ? game.politics
                       .map((card, i) =>
-                        card && card !== "Mandate" && currentPlayer.resources.coins >= POLITICS_COSTS[i]
+                        card && card !== "Mandate" && currentPlayer.resources.coins >= POLITICS_COSTS[i] && currentPlayer.resources.votes >= POLITICS_VOTE_COSTS[i]
                           ? {
                               slotIndex: i,
                               cost: POLITICS_COSTS[i],
+                              voteCost: POLITICS_VOTE_COSTS[i],
                               card,
                               onPurchase: () => handleProcurementPurchase(i),
                             }
@@ -2247,10 +2535,10 @@ function App() {
                       label: (() => {
                         const cost = getMandateCost(currentPlayer.type, currentPlayer.seats);
                         switch (currentPlayer.type) {
-                          case "Hotelier": return `Buy Mandate (${cost} 💰)`;
-                          case "Industrialist": return `Buy Mandate (${cost} 🪵+⛏️)`;
-                          case "Bureaucrat": return `Buy Mandate (${cost} 🗳️)`;
-                          case "Chieftain": return `Buy Mandate (Presence ≥ ${cost})`;
+                          case "Hotelier": return `Buy Mandate (${cost} 💰 + 1 🗳️)`;
+                          case "Industrialist": return `Buy Mandate (${cost} 🪵+⛏️ + 1 🗳️)`;
+                          case "Bureaucrat": return `Buy Mandate (${cost + 1} 🗳️)`;
+                          case "Chieftain": return `Buy Mandate (Presence ≥ ${cost} + 1 🗳️)`;
                           default: return "Buy Mandate";
                         }
                       })(),
@@ -2266,7 +2554,10 @@ function App() {
               }
               onProcurementCancel={
                 procurementChoosing
-                  ? () => setProcurementChoosing(false)
+                  ? () => {
+                      setProcurementChoosing(false);
+                      setProcurementSource(null);
+                    }
                   : undefined
               }
               auctionUI={auctionUI}
@@ -2360,8 +2651,6 @@ function App() {
               const generatedEvents: string[] =
                 selectedMarketSlot.row === "conference" && card && PERSONNEL_CARDS.includes(card as PersonnelCard)
                   ? (() => {
-                      if (card === "Liaison")
-                        return ["Procurement", "Procurement"];
                       const single = PERSONNEL_TO_EVENT[card as PersonnelCard];
                       if (single) return [single];
                       if (card === "Broker") return [...BROKER_EVENT_OPTIONS];
@@ -2446,6 +2735,8 @@ function App() {
             />
             <PoliticsRow
               slots={game.politics}
+              voteCosts={POLITICS_VOTE_COSTS}
+              coinCosts={POLITICS_COSTS}
               onCardClick={(slotIndex: number) => setSelectedMarketSlot({ row: "politics", slotIndex })}
               selectedSlot={selectedMarketSlot?.row === "politics" ? selectedMarketSlot.slotIndex : undefined}
             />
