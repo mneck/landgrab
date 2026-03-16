@@ -18,7 +18,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Builder: {
     title: "Builder",
     flavor: "",
-    description: "Take the Build action (place a building). Card goes to your discard pile.",
+    description: "Place a building adjacent to one of your buildings. Cannot be placed adjacent to Fog. Card goes to your discard pile.",
     icon: "👷🏼",
     image: "",
     category: "personnel",
@@ -35,7 +35,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Liaison: {
     title: "Liaison",
     flavor: "",
-    description: "Take 1 Procurement action (market, Politics, or generate resources). Card goes to your discard pile.",
+    description: "Choose 1: Generate resources from your buildings; pay for a Politics card; sell 1 type of resource on the Resources market. This card goes to your discard pile.",
     icon: "👩🏻‍💼",
     image: "",
     category: "personnel",
@@ -43,7 +43,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Explorer: {
     title: "Explorer",
     flavor: "",
-    description: "Take the Expedition action (reveal adjacent Fog). Card goes to your discard pile.",
+    description: "Choose a non-Fog hex; reveal adjacent Fog hexes. Card goes to your discard pile.",
     icon: "🧗‍♀️",
     image: "",
     category: "personnel",
