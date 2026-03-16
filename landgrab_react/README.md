@@ -1,75 +1,67 @@
-# React + TypeScript + Vite
+# Landgrab (React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A strategy game prototype of settlement, industry, and politics. Build on a hex map, play cards, and compete for political seats.
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Node.js** 18+ (or use a version manager like `nvm`)
+- **npm** (included with Node)
 
-## React Compiler
+## Running the Project
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+### Install dependencies
 
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Start the development server
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+The app will open at `http://localhost:5173` (or another port if 5173 is in use).
+
+### Build for production
+
+```bash
+npm run build
+```
+
+### Preview production build
+
+```bash
+npm run preview
+```
+
+## Beginning a Game
+
+1. **Start the app** — Run `npm run dev` and open the URL in your browser.
+
+2. **Start Game** — On the title screen, click **Start Game**.
+
+3. **Choose players** — Pick the number of players:
+   - **2 players** — Hotelier vs Industrialist
+   - **3 players** — Choose a third faction (Bureaucrat or Chieftain)
+   - **4 players** — All factions
+
+4. **Play** — You start with 2 actions per turn. Use the actions bar to:
+   - **Play Charter** — Place your starter building on the hex map
+   - **Play cards** — Click cards in your hand for options
+   - **Draw** — Draw a card (costs 1 action)
+   - **End Turn** — Pass to the next player
+
+5. **Win** — Collect enough **Seat** cards to reach the victory threshold.
+
+## Other Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run lint` | Run ESLint |
+| `npm run test` | Run tests |
+| `npm run test:watch` | Run tests in watch mode |
+
+## Saving
+
+Use the **Save** button in the game header to persist your game to local storage. Refreshing the page or returning later will restore the saved game. Use **Quit** to clear the save and return to the title screen.
