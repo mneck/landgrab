@@ -36,11 +36,7 @@ The rules say "each *other* player gets exactly 1 chance" to pass or counter-bid
 
 The starting Talent track includes Fixer and Advocate, but neither has a card description anywhere in the rules. Broker and Forester are described. These two need entries.
 
-### 7. Tableau maximum of 8 cards — Reorganization at the cap is ambiguous
-
-A player at 8 cards cannot acquire new cards "unless they first use a Reorganization Event to remove a card." But if they don't already have Reorganization in their Tableau, acquiring it would itself be a 9th card. Clarify: can a player at the 8-card cap still acquire Reorganization specifically to make room, or must they already have it?
-
-### 8. Builder's Resource Market access: does Elder follow the same rule for Chieftain?
+### 7. Builder's Resource Market access: does Elder follow the same rule for Chieftain?
 
 The rules state Elder also provides Resource Market access (as a substitute for Builder). Worth confirming explicitly that the Chieftain uses Elder identically to how other players use Builder for market access — no special restrictions or differences.
 
@@ -58,7 +54,13 @@ Liaison previously had three options (Generate Resources, Politics Market, Resou
 
 ### 11. Charter description: Chieftain Village placement scope
 
-The Charter card says Chieftain may "place a Village on any Fog, Field, Sand, Forest, or Mountain hex." Confirm whether this is intentionally broader than Elder's first action (which converts a Fog hex *and* places a Village on it). Charter seems to allow Village placement on already-revealed non-Fog hexes, which Elder does not. If that's intentional, it's a meaningful distinction worth stating explicitly.
+~~The Charter card says Chieftain may "place a Village on any Fog, Field, Sand, Forest, or Mountain hex." Confirm whether this is intentionally broader than Elder's first action (which converts a Fog hex *and* places a Village on it). Charter seems to allow Village placement on already-revealed non-Fog hexes, which Elder does not. If that's intentional, it's a meaningful distinction worth stating explicitly.~~
+
+**Resolved.** The distinction is intentional and thematic:
+- **Elder** places a Village only on a Fog hex — the village was already there, hidden in the fog, and is now revealed to outsiders. Elder *reveals* a pre-existing settlement.
+- **Charter** places a Village on any hex (Fog, Field, Sand, Forest, or Mountain), giving the Chieftain the strategic advantage of seeding reserves in already-revealed locations early in the game.
+
+Rules updated to make this explicit.
 
 ### 12. Builder adjacency rule is slightly inconsistent with Winning Conditions
 
@@ -93,6 +95,20 @@ With three clear market assignments, a simple reference box would help at the ta
 | Builder | Build               | Resource Market  |
 | Liaison | Procurement         | Politics Market  |
 | Guide   | Explore / Survey    | Talent track     |
+
+### 19. Consider two play modes: Standard (2 actions) and Tactical (1 action)
+
+The current 2-action-per-turn structure works well for most groups. However, alternating single actions — each player placing 1 token, back and forth — creates tighter reactive play where each action is a public statement the opponent reads and responds to immediately. The tradeoff is significant cognitive overhead, especially in 3-4 player games where players are already tracking the hex map, 3 markets, and each opponent's Tableau and resources.
+
+**Recommended approach:** offer both as named modes rather than beginner/advanced (which feels condescending):
+- **Standard Mode:** each player places 2 Action Tokens per turn. Good for new players and larger groups.
+- **Tactical Mode:** players alternate placing 1 Action Token at a time. Best suited to 2-player games where reading a single opponent's action is tense rather than overwhelming.
+
+A small "Play Modes" section listing only what differs between the two keeps the rulebook clean without duplicating the full rules.
+
+**Two rules that need specific clarification for Tactical Mode:**
+- **Talent bidding:** a bid should pause the alternation until the auction resolves, then play continues with the next player's action.
+- **Mandate purchase:** currently must be the "first action of a turn" — in Tactical Mode, clarify this means before a player's first action token of the round.
 
 ### 18. Survey discoveries could interact with existing resource systems
 

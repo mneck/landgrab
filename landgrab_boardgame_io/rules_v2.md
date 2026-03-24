@@ -57,6 +57,21 @@ Games can be played with the following variations:
 
 **4-player:** Hotelier, Industrialist, Chieftain, Bureaucrat
 
+## Starting Resources
+
+Each player begins the game with **3 Coins** and no other resources.
+
+## Turn Order
+
+Turn order is determined by a simultaneous secret bid before the game begins:
+
+1. Each player secretly selects a bid of 1, 2, or 3 Coins and reveals simultaneously.
+2. The highest bidder goes first and pays their bid to the Bank. Their starting Coins are reduced accordingly.
+3. The other player keeps all 3 Coins and goes second.
+4. In case of a tie, both players re-bid.
+
+Going first is an advantage — an earlier Charter placement shapes the map for everyone. The second player's unspent Coins compensate for moving later.
+
 ## Map
 
 The game takes place on an island. **Fog** covers the interior of the island—these hexes are unexplored until revealed by a Guide action or when placing a building with Charter. Only **one ring** of hexes around the fog is initially visible as the coastline; these are **Sand**, **Forest**, **Field**, or **Mountain** hexes. The **outermost rim** of the map is **Water**, representing the surrounding ocean.
@@ -90,7 +105,7 @@ Each player starts the game with 4 cards:
 - **Hotelier, Industrialist, Bureaucrat:** Builder, Liaison, Guide, Charter
 - **Chieftain:** Elder, Liaison, Guide, Charter
 
-A Tableau can hold a maximum of **8 cards**. A player with 8 cards cannot acquire new cards unless they first use a **Reorganization** Event to remove a card from their Tableau.
+A Tableau can hold a maximum of **8 cards**. A player with 8 cards cannot acquire new cards, with one exception: **Reorganization**. A player at the 8-card cap may acquire Reorganization as a 9th card, then must immediately activate it to remove 1 card of any type from their Tableau. Reorganization is then trashed as normal, bringing the Tableau back to 8 cards.
 
 # Cards
 
@@ -126,7 +141,7 @@ Builder also provides access to the **Resource Market**. Instead of building, a 
 ### Elder *(Chieftain only — replaces Builder)*
 
 Take one of two actions:
-- Convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex.
+- Reveal a hidden settlement: convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex. The Village must be placed on a Fog hex — the settlement was already there, concealed from outsiders, and Elder brings it to light.
 - Place a Reserve on a Sand, Field, Forest, or Mountain hex adjacent to a Village or Reserve. Cannot be placed adjacent to Fog. Costs 1 Coin plus 1 additional Coin per Reserve already placed (e.g. placing the 7th Reserve costs 7 Coins).
 
 Elder also provides access to the **Resource Market**. Instead of using either action above, the Chieftain may activate Elder to buy or sell resources (see [Resource Market](#resource-market)).
@@ -158,10 +173,72 @@ Event cards are added to a player's Tableau when:
 ### Charter *(starting Event card)*
 
 Place a building corresponding to your player type without paying building costs and ignoring the requirement to place adjacent to non-Fog tiles:
-- **Chieftain:** place a Village on any Fog, Field, Sand, Forest, or Mountain hex.
+- **Chieftain:** place a Village on any Fog, Field, Sand, Forest, or Mountain hex. Unlike Elder (which can only reveal a Village from a Fog hex), Charter lets the Chieftain place a Village on any terrain — including already-revealed hexes. This gives the Chieftain early strategic flexibility to seed Villages in different areas of the map before other players have established their positions.
 - **Others:** place the player's primary building (Resort, Industrial Zone, or Infrastructure) on any Field or Sand hex.
 
 Adjacent Fog hexes are revealed and become Mountain, Forest, Field, or Sand hexes.
+
+# Taking Your Turn
+
+On your turn you have **2 Action Tokens** to place on cards in your Tableau. Each token activates that card's effect. You cannot place both tokens on the same card, and you must place both tokens before passing to your opponent — you cannot save them for later.
+
+Every decision carries an opportunity cost: activating Builder to build means not restocking from the Resource Market this turn; activating Liaison to generate resources means not grabbing a Politics card; activating Guide to explore means not recruiting from the Talent track. With only 2 tokens, you will almost always want to do more than you can.
+
+Each turn follows this sequence:
+
+1. Remove all Action Tokens from your Tableau.
+2. Place your first Action Token on any card in your Tableau and resolve its effect immediately.
+3. Place your second Action Token on any other card in your Tableau and resolve its effect immediately.
+4. Check the Resource Market: if either resource row is empty, place 1 token of that resource in the 4-Coin slot.
+
+---
+
+## Example: Opening Turn (2 Players)
+
+**Setup:** The Hotelier and Industrialist each have their starting Tableau — Builder, Liaison, Guide, and Charter. The map shows one ring of coastline hexes (Sand, Forest, Field, Mountain) surrounding a large Fog interior.
+
+---
+
+**Hotelier's Turn 1**
+
+The Hotelier wants to get a Resort on the board as quickly as possible — every turn without one is a turn without income.
+
+- **Action 1 — Charter:** Places a Resort on a Sand hex adjacent to 1 Water, 1 Forest, and 1 Mountain hex. Building costs are ignored. Two adjacent Fog hexes are revealed, becoming a Field and a Mountain hex.
+- **Action 2 — Liaison (Generate Resources):** The Resort immediately generates income: 1 Coin per adjacent Forest (1), Water (1), and Mountain (1), plus 1 bonus Coin for being on Sand and adjacent to Water. **The Hotelier gains 4 Coins.**
+
+Charter is removed from the Hotelier's Tableau. The Hotelier ends turn 1 with 4 Coins and 1 Resort on the board.
+
+---
+
+**Industrialist's Turn 1**
+
+The Industrialist needs an Industrial Zone producing before they can build further — and they need Wood and Ore to do that.
+
+- **Action 1 — Charter:** Places an Industrial Zone on a Field hex adjacent to 2 Forest hexes and 1 Mountain hex. Two adjacent Fog hexes are revealed, becoming a Forest and a Sand hex.
+- **Action 2 — Guide (Explore):** Targets a coastal hex to reveal more of the interior. Three Fog hexes adjacent to it become a Mountain, a Field, and a Forest hex — expanding the map and revealing potential build sites.
+
+Charter is removed from the Industrialist's Tableau. The Industrialist ends turn 1 with 1 Industrial Zone placed and more of the map visible — but no resources yet. They'll need to activate Liaison next turn to generate Wood and Ore.
+
+---
+
+## Example: Midgame Turn (2 Players)
+
+**Situation:** It is turn 8. The Hotelier has 3 Resorts and 2 Housing built, 11 Coins, 1 Wood, and 1 Ore. Their Tableau now contains Builder, Liaison, Guide, and a **Forester** acquired earlier from the Talent track. Charter has been used and is gone. The Industrialist has been aggressively building Industrial Zones and their Wood supply is climbing.
+
+The Hotelier wants to build a third Housing (to maintain the Resort-to-Housing ratio) and also wants to grab a Politics card before the Industrialist does.
+
+---
+
+**Hotelier's Turn 8**
+
+- **Action 1 — Builder (Build):** Pays 1 Wood, 1 Ore, and 1 Coin to place a Housing adjacent to an existing Resort. The Hotelier now has 3 Resorts and 3 Housing — the ratio is maintained, clearing the way to build another Resort. Remaining resources: 10 Coins, 0 Wood, 0 Ore.
+- **Action 2 — Liaison (Politics Market):** Pays 3 Coins to acquire an **Urban Planning** card from the Politics market. The card is added directly to the Hotelier's Tableau and could be activated this turn — but both tokens are spent. It will be ready next turn. The Bureaucrat (not in this game) would have gained 1 Vote here. Remaining resources: 7 Coins.
+
+The Hotelier ends turn 8 with a new Housing, an Urban Planning card in their Tableau, and 7 Coins. They deliberately chose *not* to generate resources this turn — a calculated risk that the Industrialist won't outpace them before they can Procure next turn.
+
+> **Note on opportunity cost:** The Hotelier had other options. Activating **Builder** for the Resource Market instead of building would have restocked Wood and Ore for next turn. Activating **Guide** for the Talent track could have bid on a new specialist. Activating **Liaison** for Procurement would have generated roughly 9 Coins from 3 Resorts. Each choice forecloses the others — this tension is the core of every turn.
+
+---
 
 # Victory Conditions
 
@@ -227,7 +304,7 @@ At the end of a full round (each player has had a turn), the Talent track cards 
   - *Logging*: replace a Forest hex with a Field hex.
   - *Forestry*: replace a Field hex with a Forest hex.
 - **Consultant**: Add a Reorganization Event card to your Tableau:
-  - *Reorganization*: Pick 2: Remove a Personnel card from your Tableau permanently; take an additional action; add a card from the Talent track to your Tableau for free.
+  - *Reorganization*: Pick 2: Remove any card from your Tableau permanently; take an additional action; add a card from the Talent track to your Tableau for free.
 - **Broker**: Add an Import or Export Event card to your Tableau (your choice):
   - *Import*: Acquire 1 Wood or 1 Ore for 1 Coin; does not come from the Resource market.
   - *Export*: Sell 1–3 Wood or Ore (any mix) for equal Coins; does not return to the Resource market.
@@ -294,7 +371,7 @@ The following Event cards can appear in the Politics track:
 14. **Levy**: Choose a player. They lose up to 2 Coins.
 15. **Expropriation**: The Industrialist adds 1–3 Wood or Ore (any mix) to the Resource market and receives 1 Coin.
 16. **Graft**: Exchange 1 Coin for 1 Vote or 1 Vote for 1 Coin with another player.
-17. **Reorganization**: Pick two: Remove a Personnel card from your Tableau permanently; take an additional action; add a card from the Talent track to your Tableau for free.
+17. **Reorganization**: Pick two: Remove any card from your Tableau permanently; take an additional action; add a card from the Talent track to your Tableau for free.
 18. **Import**: Acquire 1 Wood or 1 Ore for 1 Coin. This resource does not come from the Resource market.
 19. **Export**: Sell 1–3 Wood or Ore (any mix) for an equal number of Coins. Sold resources do not return to the Resource market.
 20. **Logging**: Convert a Forest hex to a Field hex. Take 1 Wood from the Bank.
