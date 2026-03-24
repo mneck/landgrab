@@ -1,8 +1,26 @@
 # Overview
 
-Landgrab is a strategy game where players take turns placing **Action Tokens** on **Personnel** cards and **Event** cards that comprise a player's **Tableau**. Each turn, a player can place 2 Action Tokens on 2 different card in their tableau, which triggers a certain action, such as:
+## Flavor
 
-- building a Farm, Housing, or other structures on an island map comprised of Field, Mountain, Water, Forest, Fog, and Sand tiles;
+The early 1960s. North American, Japanese, and European economies are booming. That means investors are looking for fresh locales to develop, for resource extraction and tourist attraction. Not everyone is loving this: pushback from locals and environmentalists makes for interesting maneuvers. But time is running short and everyone wants to get their piece of the pie before it's too late.
+
+## Practical Overview
+
+Landgrab is a strategy game where players take turns placing **Action Tokens** on **Personnel** cards and **Event** cards that comprise a player's **Tableau**. Each turn, a player can place 2 Action Tokens on 2 different card in their tableau, which triggers a certain action.
+
+Each action can trigger events across 5 play areas:
+
+1. each player's Tableau;
+2. the island Map comprised of Field, Mountain, Water, Forest, Fog, and Sand hexes;
+3. the Resources Market, where players can buy or sell Wood (🪵) and Ore (⚙️) using Money Tokens (💰)
+4. the Talent Pool, where players can acquire Personnel cards to add to their Tableau
+5. the Events Track, where player can acquire Events cards to add to their Tableau
+
+
+
+
+
+- building a Farm, Housing, or other structures on an island map comprised of Field, Mountain, Water, Forest, Fog, and Sand hexes;
 - generating Wood, Ore, Coin, or Vote resources;
 - acquiring a Personnel or Action card to add to that player's Tableau; or
 - changing a hex tile on the map, perhaps from a Fog hex to a Forest hex.
@@ -14,7 +32,7 @@ Each player has different winning conditions depending on one of four **Player T
 3. The Chieftain wins by reserving undeveloped hexes on the map.
 4. The Bureaucrat wins by collecting votes.
 
-Resources are generated primarily according to rules on adjacency of hex types. For example, a Hotelier's Resort building placed on a Field hex will generate additional coins for each adjacent Water hex.
+Resources are generated primarily according to rules on adjacency of hex types. For example, a Hotelier's Resort building placed on a Sand hex will generate additional coins for each adjacent Water hex.
 
 ## Winning Conditions
 
@@ -22,7 +40,7 @@ Resources are generated primarily according to rules on adjacency of hex types. 
 
 > From paradise to parking lots!
 
-1. **The Hotelier** accumulates Coins to purchase Mandates and earn Seats. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when an Action Token is placed on a Builder. Each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex, and an additional Coin if placed on a Sand hex and adjacent to a Water hex. The Hotelier starts with the Personnel cards **Builder, Liaison,** and **Explorer** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. After placing a Building with Charter, the Hotelier must place 1 Housing before placing another Resort. After using Charter, a Hotelier player must have at least the same number of Housing as Resorts before building another Resort (e.g. valid placements would be 3 Resorts and 2 Housing, but 2 Resorts and 0 Housing would be invalid). Resorts and Housing can only be built on Sand and Field Hexes, and (except for the Resort placed with Charter) must be built adjacent to Infrastructure, Hotelier, or Housing Buildings that have already been placed.
+1. **The Hotelier** accumulates Coins to purchase Mandates and earn Seats. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when an Action Token is placed on a Builder. Each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex, and an additional Coin if placed on a Sand hex and adjacent to one or more Water hexes. A Resort produces 1 less coin for each Industrial Zone adjacent to that Resort. The Hotelier starts with the Personnel cards **Builder, Liaison,** and **Explorer** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. After placing a Building with Charter, the Hotelier must place 1 Housing before placing another Resort. After using Charter, a Hotelier player must have at least the same number of Housing as Resorts before building another Resort (e.g. valid placements would be 3 Resorts and 2 Housing, but 2 Resorts and 0 Housing would be invalid). Resorts and Housing can only be built on Sand and Field Hexes, and (except for the Resort placed with Charter) must be built adjacent to Infrastructure, Hotelier, or Housing Buildings that have already been placed.
 
 ### The Industrialist
 
@@ -87,8 +105,8 @@ Each player has a Tableau comprised of cards. Each player starts the game with 4
 
 1. Builder,
 2. Explorer,
-3. Liaison, and 
-4. Charter. 
+3. Liaison, and
+4. Charter.
 
 - The Chieftain's starting Tableau has Elder, Explorer, Liaison, and Charter cards.
 
@@ -107,11 +125,14 @@ When a player places an Action Token on a Personnel card, that Personnel card's 
 **Each player starts with 4 cards in her Tableau.**
 
 1. **Builder**: Build.
+
 - Take the Build action place a building corresponding to the player type (Hotelier builds Resorts and Housing; Bureaucrat builds Infrastructure and Civic Offices, etc.). Buildings must be placed adjacent to another Building owned by that player or adjacent to an Infrastructure hex. Buildings cannot be placed adjacent to Fog.
-2. **Liaison**: Take 1 of 3 actions: 
+
+1. **Liaison**: Take 1 of 3 actions:
   a. Pay Votes to take an Event card from the Politics market, 1 Procurement action (market, Politics, or generate resources); discard the Liaison to your discard pile.
   b. Generate resources from your Buildings.
   c. Pay to buy or sell Wood/Ore at the Resources market.
+
 - **Politics Market:** Buy 1 card from the Politics market by paying its Vote cost. See [Purchasing Politics Cards](#purchasing-politics-cards).
   - **Generate Resources:** Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies:
     - Each Resort yields Coins for the Hotelier, generating 1 Coin per each adjacent Mountain, Forest, and Water hex; 1 additional Coin is generated for each Resort if that Resort is on a Sand hex and also adjacent to a Water hex. A Resort cannot generate coins from any hex occupied by a Reserve.
@@ -119,14 +140,14 @@ When a player places an Action Token on a Personnel card, that Personnel card's 
     - Each Infrastructure yields Votes for the Bureaucrat, generating 1 Vote for each building that is adjacent to an Infrastructure hex. An Infrastructure cannot generate coins from any hex occupied by a Reserve.
     - Chieftain generates 1 coin per Reserve that is not adjacent to any other player's building.
 
-3. **Explorer**: Reveal Fog adjacent to any non-Fog hex.
-4. **Charter** (EVENT): Place a Village, Infrastructure, Resort, or Industrial Zone, depending on player type. The Village can only be placed on a Fog hex; the Infrastructure, Resort, and Industrial Zone can only be placed on Field or Sand hexes. Ignore building costs or the requirement to place a building adjacent to non-Fog tiles. Adjacent Fog hexes are revealed and become either Mountain, Forest, Field, or Sand hexes.
+1. **Explorer**: Reveal Fog adjacent to any non-Fog hex.
+2. **Charter** (EVENT): Place a Village, Infrastructure, Resort, or Industrial Zone, depending on player type. The Village can only be placed on a Fog hex; the Infrastructure, Resort, and Industrial Zone can only be placed on Field or Sand hexes. Ignore building costs or the requirement to place a building adjacent to non-Fog tiles. Adjacent Fog hexes are revealed and become either Mountain, Forest, Field, or Sand hexes.
 
 The starting Tableau for the Chieftain uses the Elder instead of Builder to take one of two actions:
+
 - **Elder** (Chieftain only): Take one of two actions: 
 - Convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex.
 - Place a Reserve adjacent to a Village or Reserve; can only be placed on non-Fog hexes and cannot be placed adjacent to Fog hexes.
-
 
 ## Event cards
 
@@ -141,7 +162,6 @@ Event cards are single-use; after a player places an Action Token on an Event ca
 2. **Procurement [generated from Liaison]**
   Take one of the following actions:
   - **Resource Market:** Acquire 1-4 Wood **or** 1-4 Ore resources from the Market, or sell 1-4 Wood **or** 1-4 Ore resources to the market. Market mechanics are explained in the [Resource Market](#resource-market) section.
-  
 3. **Expedition [generated from Explorer]**
   Select any non-Fog tile. Any Fog tiles adjacent to that tile will turn into either a Mountain, Forest, Field, Sand, or Water tile.
 

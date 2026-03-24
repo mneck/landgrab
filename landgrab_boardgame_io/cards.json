@@ -1,0 +1,75 @@
+{
+  "cards": [
+    {
+      "id": "builder",
+      "name": "Builder",
+      "emoji": "👷🏾‍♂️",
+      "type": "personnel",
+      "source": "starting",
+      "player_affinity": ["hotelier", "industrialist", "bureaucrat"],
+      "market_access": "resource_market",
+      "primary_action": "Place a building corresponding to your player type. Pay 1 Wood, 1 Ore, and 1 Coin. Buildings cannot be placed adjacent to Fog hexes and must be placed adjacent to an existing building you own or adjacent to an Infrastructure hex.",
+      "per_player_rules": {
+        "industrialist": "Build a Farm or Industrial Zone on a Sand or Field hex; must be adjacent to another Farm, Industrial Zone, or Infrastructure.",
+        "hotelier": "Build a Housing or Resort on a Sand or Field hex; must be adjacent to another Resort, Housing, or Infrastructure.",
+        "bureaucrat": "Build a Civic Office or Infrastructure on a Sand or Field hex; Infrastructure must be adjacent to a Village, Farm, Housing, Industrial Zone, Resort, or Civic Office."
+      },
+      "market_action": "Instead of building, buy or sell up to 4 Wood or up to 4 Ore at the Resource Market.",
+      "generates": null,
+      "notes": ""
+    },
+    {
+      "id": "elder",
+      "name": "Elder",
+      "emoji": "👲🏾",
+      "type": "personnel",
+      "source": "starting",
+      "player_affinity": ["chieftain"],
+      "replaces": "builder",
+      "market_access": "resource_market",
+      "primary_action": "Take one of two actions: (1) Reveal a hidden settlement — convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex. The Village must be placed on a Fog hex. (2) Place a Reserve on a Sand, Field, Forest, or Mountain hex adjacent to a Village or Reserve. Cannot be placed adjacent to Fog. Costs 1 Coin plus 1 additional Coin per Reserve already placed.",
+      "market_action": "Instead of using either action above, buy or sell up to 4 Wood or up to 4 Ore at the Resource Market.",
+      "generates": null,
+      "notes": ""
+    },
+    {
+      "id": "guide",
+      "name": "Guide",
+      "emoji": "🕵🏼‍♂️",
+      "type": "personnel",
+      "source": "starting",
+      "player_affinity": ["hotelier", "industrialist", "bureaucrat", "chieftain"],
+      "market_access": "talent",
+      "primary_action": "Explore or Survey a hex on the map. Select any non-Fog hex as the target. Explore (target has at least one adjacent Fog hex): all adjacent Fog hexes are revealed and become Mountain, Forest, Field, Sand, or Water. Survey (target has no adjacent Fog hexes): the hex is fully surveyed, potentially revealing a hidden resource such as an archaeological site, ruins, natural wonder, gems, or fertile soil.",
+      "market_action": "Instead of exploring or surveying, recruit a Personnel card from the Talent track.",
+      "generates": null,
+      "notes": "Survey discovery effects are forthcoming."
+    },
+    {
+      "id": "liaison",
+      "name": "Liaison",
+      "emoji": "👩🏻‍💼",
+      "type": "personnel",
+      "source": "starting",
+      "player_affinity": ["hotelier", "industrialist", "bureaucrat", "chieftain"],
+      "market_access": "politics",
+      "primary_action": "Take one of two actions: (1) Generate Resources (Procurement) — generate Votes, Coins, or Wood/Ore from your buildings based on adjacencies. Resources cannot be generated from hexes occupied by a Reserve. (2) Politics Market — buy 1 Event card from the Politics market by paying its Coin cost. The card is added to your Tableau and is available for use this turn.",
+      "market_action": null,
+      "generates": null,
+      "notes": ""
+    },
+    {
+      "id": "charter",
+      "name": "Charter",
+      "emoji": "📜",
+      "type": "event",
+      "source": "starting",
+      "single_use": true,
+      "player_affinity": ["hotelier", "industrialist", "bureaucrat", "chieftain"],
+      "cost": null,
+      "effect": "Place a building corresponding to your player type without paying building costs and ignoring the adjacency requirement. Chieftain: place a Village on any Fog, Field, Sand, Forest, or Mountain hex — unlike Elder, Charter allows Village placement on already-revealed hexes. Others: place your primary building (Resort, Industrial Zone, or Infrastructure) on any Field or Sand hex. Adjacent Fog hexes are revealed and become Mountain, Forest, Field, or Sand hexes.",
+      "generates": null,
+      "notes": ""
+    }
+  ]
+}
