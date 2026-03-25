@@ -100,15 +100,40 @@ Players begin the game with the following cards in their Tableau. Placing an Act
 - When placing a Building, payment is made to the bank (not the Resources Market). Buildings are placed according to the following rules:
   1. A building must be placed adjacent to another building owned by the placing player, or next to an Infrastructure owned by any player.
   2. A building cannot be placed adjacent to Fog.
-- The Hotelier can build a Resort or Housing.
-- The Industrialist can build an Industrial Zone or 
+  3. Player types can build the following buildings:
+    - The Hotelier can build a Resort or Housing.
+    - The Industrialist can build an Industrial Zone or Farm.
+    - The Bureaucrat can build an Infrastructure or Civic Offices.
+    - The Chieftain can use the Elder to place a Village (on Fog - can be placed adjacent to Fog) and a Reserve.
+- Using the Resource Market is explained in the [Resource Market](#resource-market) section.
 
-### Guide.
+### Liaison
+#### 👤 Generate resources from buildings OR pay 🗳️ to acquire an Event card from the Politics track.
+- Resources are generated according to each building's adjacency bonuses.
+
+### Guide
+#### 👤 Select a non-Fog hex and reveal all Fog hexes adjacent to that hex OR pay 💰 to bid on a Personnel card from the Network.
 
  Resort, Industrial Zone, Infrastructure, or Village depending on player type.
 
-### 
+## Buildings
 
+Each player can build two types of buildings.
+
+### Resource-Generating Buildings
+#### Resorts
+Each Resort generates 1 💰 for every adjacent Mountain, Water, and Forest hex; and also if the Resort is placed on a Sand and also adjacent to Water. A Resort generates 1 💰 less for each adjacent Industrial Zone or Infrastructure.
+
+### Industrial Zones
+Each Industrial Zone generates 1 🪵 for every adjacent Forest hex and 1 ⚙️ for every adjacent Mountain hex. Cannot generate resources from hexes that have Reserves placed on them.
+
+### Infrastructure
+Each Infrastructure produces 1 🗳️ for each adjacent Building owned by other players.
+
+### Reserves
+Must be placed adjacent to a Reserve or Village. Each Reserve generates 1 💰 unless that Reserve is adjacent to another player's Building.
+
+### 
 
 ## A typical turn
 '''
@@ -117,193 +142,6 @@ Players begin the game with the following cards in their Tableau. Placing an Act
 
 
 ----
-
-
-takes her turn by placing an Action Token on a card in her Tableau.
-
-accumulates 💰 to purchase Mandates and earn Seats. Coins are collected primarily by placing Resort and Housing Buildings on Sand and Field hexes. A Resort produces Coins when an Action Token is placed on a Builder. Each Resort produces a Coin for each adjacent Forest, Water, and Mountain hex, and an additional Coin if placed on a Sand hex and adjacent to one or more Water hexes. A Resort produces 1 less coin for each Industrial Zone adjacent to that Resort. The Hotelier starts with the Personnel cards **Builder, Liaison,** and **Guide** and the **Charter** event card. The Hotelier can build **Resorts** and **Housing** buildings. After placing a Building with Charter, the Hotelier must place 1 Housing before placing another Resort. After using Charter, a Hotelier player must have at least the same number of Housing as Resorts before building another Resort (e.g. valid placements would be 3 Resorts and 2 Housing, but 2 Resorts and 0 Housing would be invalid). Resorts and Housing can only be built on Sand and Field Hexes, and (except for the Resort placed with Charter) must be built adjacent to Infrastructure, Hotelier, or Housing Buildings that have already been placed.
-
-### The Industrialist
-
-> You see a forest? I see Ikea furniture.
-
-1. **The Industrialist** accumulates Wood and Ore to purchase Mandates and earn Seats. When a **Procurement** event card is played, each Industrial Zone produces:
-
-- 1 Wood per adjacent Forest hex
-- 1 Ore per adjacent Mountain hex
-
-The Industrialist starts with the Personnel cards **Builder, Liaison, Guide** and the **Charter** Event card; they can build **Industrial Zone** and **Farm** buildings. After placing with Charter, the Industrialist must place 1 Farm before placing another Industrial Zone; then up to 2 Industrial Zones per 1 Farm. Industrial Zones and Farms can only be built on Sand and Field Hexes, and must be built adjacent to Infrastructure, Industrial Zone, and Farm Buildings that have already been placed.
-
-### The Bureaucrat
-
-> You'll need a permit for that.
-
-1. **The Bureaucrat** accumulates Votes to purchase Mandates and earn Seats. The Bureaucrat gains Votes by playing a **Procurement** event card, which generates one Vote for each Resort, Village, Industrial Zone, Farm, or Housing adjacent to Infrastructure; the same hex is only counted once for voting (e.g. if a Farm is adjacent to 2-3 Infrastructure hexes, only 1 vote is generated). The Bureaucrat starts with the Personnel cards **Builder, Liaison, Guide** and the **Charter** Event card.; the Bureaucrat can build **Infrastructure** and **Civic Office** buildings. After placing with Charter, the Bureaucrat must place 1 Civic Office before placing another Infrastructure; then up to 2 Infrastructure per 1 Civic Office. Infrastructure and Civic Offices can only be built on Sand and Field hexes, and must be built adjacent to Village, Farm, Housing, Industrial Zone, Resort, or Civic Office Buildings that have already been placed.
-
-### The Chieftain
-
-> Go away.
-
-1. The Chieftain builds Reserves and Villages to increase their **Presence Score**, which is used to purchase Mandates and earn Seats. Presence Score equals the number of Reserves plus Villages adjacent to a Reserve. A Hex is secured by placing a **Reserve** (an empty brown ring) on a Mountain, Field, Sand, or Forest hex, which prevents the Hotelier and Industrialist players from being able to receive Coins or Wood/Ore resources from that hex, and prevents other players from building on the Reserve hex. The Chieftain starts with the **Elder, Liaison, Guide** Personnel cards and the **Charter** Event card. The Chieftain can build **Villages** and **Reserves**; Reserves must be placed adjacent to Villages or other Reserves.
-
-# Setup
-
-Games can be played with the following variations:
-
-**2-player:** Hotelier, Industrialist
-
-**3-player:** Hotelier, Industrialist, and either Chieftain or Bureaucrat
-
-**4-player**: Hotelier, Industrialist, Chieftain, Bureaucrat
-
-## Map
-
-The game takes place on an island. **Fog** covers the interior of the island—these hexes are unexplored until revealed by an Guide action or when placing a building with Charter. Only **one ring** of hexes around the fog is initially visible as the coastline; these are **Sand**, **Forest**, **Field**, or **Mountain** hexes. The **outermost rim** of the map is **Water**, representing the surrounding ocean.
-
-# Tokens
-
-Players have several types of tokens, which are separate from the Personnel and Event cards that comprise each player’s Tableau:
-
-### 🪵 Wood
-
-Produced by the Industrialist's Industrial Zones (using Procurement Event cards). Used for building and exporting. 1 Wood is generated for the Industrialist player during Procurement for each Forest adjacent to each Industrial Zone.
-
-### ⚙️ Ore
-
-Produced by the Industrialist's Industrial Zones (using **Procurement** Event cards). Used for building and exporting. 1 Ore is generated during Procurement for the Industrialist player for each Mountain adjacent to each Industrial Zone.
-
-### 💰 Coins
-
-Collected by the Hotelier when **Procurement** is played; each Resort produces 1 Coin per adjacent Forest, Water, and Mountain hex. Used by all players in the Resources and Conference markets for purchasing Personnel cards, resources, and taking other actions.
-
-### 🗳️ Votes
-
-Collected by the Bureaucrat when a **Procurement** card is played; each Infrastructure produces 1 vote per adjacent Industrial Zone, Resort, Village, Farm, and Housing hex (a single hex cannot be counted twice to generate Votes, e.g. a Farm with 2 adjacent Infrastructure tiles will only generate 1 vote).
-
-# Cards
-
-By default, at the start of each game, a player has 2 Action Tokens and can therefore take 2 actions each turn. A player takes an action by moving their Action Token to a card in their Tableau.
-
-There are two types of cards: Personnel cards and Event cards.
-
-## Personnel cards
-
-When a player places an Action Token on a Personnel card, that Personnel card's action is triggered and the card remains in the player's Tableau. 
-
-**Each player starts with 4 cards in her Tableau.**
-
-1. **Builder**: Build.
-
-- Take the Build action place a building corresponding to the player type (Hotelier builds Resorts and Housing; Bureaucrat builds Infrastructure and Civic Offices, etc.). Buildings must be placed adjacent to another Building owned by that player or adjacent to an Infrastructure hex. Buildings cannot be placed adjacent to Fog.
-
-1. **Liaison**: Take 1 of 3 actions:
-  a. Pay Votes to take an Event card from the Politics market, 1 Procurement action (market, Politics, or generate resources); discard the Liaison to your discard pile.
-  b. Generate resources from your Buildings.
-  c. Pay to buy or sell Wood/Ore at the Resources market.
-
-- **Politics Market:** Buy 1 card from the Politics market by paying its Vote cost. See [Purchasing Politics Cards](#purchasing-politics-cards).
-  - **Generate Resources:** Generate Votes, Coins, or Wood/Ore depending on placement of respective Infrastructure, Resort, or Industrial Zone Buildings and relevant adjacencies:
-    - Each Resort yields Coins for the Hotelier, generating 1 Coin per each adjacent Mountain, Forest, and Water hex; 1 additional Coin is generated for each Resort if that Resort is on a Sand hex and also adjacent to a Water hex. A Resort cannot generate coins from any hex occupied by a Reserve.
-    - Each Industrial Zone yields Resources for the Industrialist, generating 1 Wood for each adjacent Forest and 1 Ore for each adjacent Mountain. An Industrial Zone cannot generate coins from any hex occupied by a Reserve.
-    - Each Infrastructure yields Votes for the Bureaucrat, generating 1 Vote for each building that is adjacent to an Infrastructure hex. An Infrastructure cannot generate coins from any hex occupied by a Reserve.
-    - Chieftain generates 1 coin per Reserve that is not adjacent to any other player's building.
-
-1. **Guide**: Reveal Fog adjacent to any non-Fog hex.
-2. **Charter** (EVENT): Place a Village, Infrastructure, Resort, or Industrial Zone, depending on player type. The Village can only be placed on a Fog hex; the Infrastructure, Resort, and Industrial Zone can only be placed on Field or Sand hexes. Ignore building costs or the requirement to place a building adjacent to non-Fog tiles. Adjacent Fog hexes are revealed and become either Mountain, Forest, Field, or Sand hexes.
-
-The starting Tableau for the Chieftain uses the Elder instead of Builder to take one of two actions:
-
-- **Elder** (Chieftain only): Take one of two actions: 
-- Convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex.
-- Place a Reserve adjacent to a Village or Reserve; can only be placed on non-Fog hexes and cannot be placed adjacent to Fog hexes.
-
-## Event cards
-
-Event cards are single-use; after a player places an Action Token on an Event card, that Event card is removed from that player's Tableau, and that Event is removed from the game ("trashed").
-
-1. **Build [generated from Builder]**
-  Industrialist, Hotelier, and Bureaucrat players pay 1 Wood, 1 Ore, and 1 Coin to construct a building. Aside from the Buildings initially placed using **Charter**, a Building cannot be placed adjacent to any Fog hexes (an Expedition must first be placed to change any Fog tiles to non-Fog tiles). The following rules regarding "Build" are specific to each player type:
-    a. The **Industrialist** can build a Farm or Industrial Zone on Sand or Field hex; must be placed adjacent to another Farm, Industrial Zone, or Infrastructure hex.
-    b. The **Hotelier** can build a Housing or Resort on a Sand or Field hex; must be placed adjacent to another Resort or Housing, or Infrastructure hex.
-    c. The **Bureaucrat** can build a Civic Offices or Infrastructure on a Sand or Field hex; an Infrastructure must be placed adjacent to another Village, Farm, Housing, Industrial Zone, Resort or Civic Office hex.
-    The **Chieftain** uses the **Reserve** Event card instead of Build: **Reserve:** spend one Coin to place a Reserve on Sand, Field, Forest, or Mountain hexes. Must be placed adjacent to a Village or Reserve and cannot be placed adjacent to Fog tiles. Costs an additional coin for each Reserve already placed (e.g. if the Reserve player has placed 6 Reserves, 7 Coins will be required to build another Reserve).
-2. **Procurement [generated from Liaison]**
-  Take one of the following actions:
-  - **Resource Market:** Acquire 1-4 Wood **or** 1-4 Ore resources from the Market, or sell 1-4 Wood **or** 1-4 Ore resources to the market. Market mechanics are explained in the [Resource Market](#resource-market) section.
-3. **Expedition [generated from Guide]**
-  Select any non-Fog tile. Any Fog tiles adjacent to that tile will turn into either a Mountain, Forest, Field, Sand, or Water tile.
-
-# Victory Conditions
-
-A player wins by acquiring **3 Seats**. Seats are earned by purchasing and playing **Mandate** cards from the Politics market.
-
-## Mandate
-
-Mandate cards are interleaved into the Politics deck on a schedule: the first Mandate appears after 5 regular Politics cards, then after 4, then 3, then 2, and every 2 cards thereafter. When a Mandate is drawn from the deck to fill a market slot, it occupies the 4-Coin slot, with the other cards pushed to cheaper positions, if needed. If a Mandate is drawn but one is already visible in the market, the duplicate is moved to the bottom of the Politics draw deck and the next card is drawn instead.
-
-A Mandate cannot be Bribed or otherwise removed from the market; it can only be purchased. A player may only acquire a Mandate as the **first Action** of their turn. Playing a Mandate adds a **Promotion** card and a **Seat** card to the player's discard pile and **ends their turn**.
-
-The cost of a Mandate is based on the player's type plus their current number of Seats:
-
-
-| Player Type   | Mandate Cost                | Notes                                                      |
-| ------------- | --------------------------- | ---------------------------------------------------------- |
-| Hotelier      | 10 Coins + Seat#            | Seat# = number of Seats already held                       |
-| Industrialist | 10 Wood/Ore + Seat#         | Any mix of Wood and Ore                                    |
-| Bureaucrat    | 10 Votes + Seat#            |                                                            |
-| Chieftain     | Presence Score ≥ 10 + Seat# | Presence Score = Reserves + Villages adjacent to a Reserve |
-
-
-## Promotion
-
-When a Promotion card is added to a player's hand, it is played immediately. The player discards their hand and adds a Dividends card to their discard pile.
-
-## Seat
-
-Play to gain 1 Seat. Acquire 3 Seats to win the game.
-
-# Conference
-
-This is where Personnel cards are auctioned. The "flavor" idea here is that a member of the player's staff attends a conference, networks, and finds a new hire, which then attracts the attention of other players. 
-
-## Conference Setup
-
-Card Row:   [ ]  |  [ ]  |  [ ]  |  [ ]
-
-## Conference Setup and Mechanics
-
-4 Personnel cards are laid out in a row. At the start of the game, the following 4 cards are in the Conference row:
-
-1. Broker
-2. Forester
-3. Fixer
-4. Advocate
-
-Instead of playing a Personnel card to generate an Event, a player can initiate a Conference bid:
-
-1. Select a Personnel card from the Conference row.
-2. Select a Personnel card from your hand to discard. It goes to your discard pile regardless of who wins the bid.
-3. Set an opening bid of at least 1 Coin.
-4. Going clockwise, each other player gets exactly **1 chance** to either:
-  a. **Pass** permanently, or
-    b. **Counter-bid** by matching the entire current bid and adding exactly 1 additional resource of any type (Coin, Wood, Ore, or Vote).
-5. The highest bidder (the last player who didn't pass, or the initiating player if everyone passes) pays all bid resources to the Bank. Wood and Ore used in bidding are **not** added to the Resource market.
-6. The winning player adds the Conference Personnel card to their discard pile.
-
-Counter-bids accumulate: if the opening bid is 3 Coins and the next player adds 1 Wood, the bid becomes "3 Coins + 1 Wood." The following player must then match all of that and add 1 more resource. Choosing a resource type that opponents lack can lock them out of bidding, making resource diversity strategically important.
-
-At the end of a full round (each player has had a turn), the Conference cards are replaced. After a Player has purchased a Personnel card, that card is not replaced until the end of the round.
-
-Examples of Personnel cards that can be added to the Conference row:
-
-- Forester: generates a Logging or Forestry Event card of the player's choice:
-  - Logging: replace a Forest hex with a Field hex 
-  - Forestry: replace a Field hex with a Forest hex
-- Consultant: generates "Reorganization" Event:     
-  - Reorganization: Pick 2: Draw a card; take an action; trash a Personnel card from your hand.
-- Broker: Add to your hand an Import or Export Event card of your choice:
-  - Import: Acquire 1 Wood or 1 Ore resource for 1 Coin; this resource does not come from the Resource market track.
-  - Export: Export any mix of 1–3 Wood or Ore for equal Coins. These exported resources do not return to the market track.
 
 # Resource Market
 
