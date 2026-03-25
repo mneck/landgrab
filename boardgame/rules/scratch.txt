@@ -1,0 +1,7 @@
+
+A Tableau can have a maximum of 8 cards. A player with 8 cards in their Tableau cannot acquire new cards (except by acquiring the "Reorganization" Event, which, when acquired, can be used to immediately remove a card of the player's choice from their Tableau).
+
+
+🪵 ⚙️ 💰 🗳️
+
+⚡ 👤

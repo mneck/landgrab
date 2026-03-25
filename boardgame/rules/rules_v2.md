@@ -115,11 +115,13 @@ There are two types of cards: **Personnel** cards and **Event** cards.
 
 ## Personnel cards
 
-| Card    | Primary Action   | Market Access    |
-|---------|------------------|------------------|
-| Builder | Build            | Resource Market  |
-| Liaison | Procurement      | Politics Market  |
-| Guide   | Explore / Survey | Talent track     |
+
+| Card    | Primary Action   | Market Access   |
+| ------- | ---------------- | --------------- |
+| Builder | Build            | Resource Market |
+| Liaison | Procurement      | Politics Market |
+| Guide   | Explore / Survey | Talent track    |
+
 
 *(The Chieftain replaces Builder with Elder, which also provides Resource Market access.)*
 
@@ -132,6 +134,7 @@ A player may also place an Action Token on a Personnel card to access the **Tale
 Take the Build action: place a building corresponding to your player type (see building types in [Winning Conditions](#winning-conditions)). Pay 1 Wood, 1 Ore, and 1 Coin. Buildings cannot be placed adjacent to Fog hexes. Adjacency requirements vary by player type; see per-player rules below.
 
 Per-player building rules:
+
 - **Industrialist:** build a Farm or Industrial Zone on a Sand or Field hex; must be adjacent to an existing Farm, Industrial Zone, or Infrastructure.
 - **Hotelier:** build a Housing or Resort on a Sand or Field hex; must be adjacent to an existing Resort, Housing, or Infrastructure.
 - **Bureaucrat:** build a Civic Office or Infrastructure on a Sand or Field hex; both must be adjacent to an existing Village, Farm, Housing, Industrial Zone, Resort, or Civic Office.
@@ -141,6 +144,7 @@ Builder also provides access to the **Resource Market**. Instead of building, a 
 ### Elder *(Chieftain only — replaces Builder)*
 
 Take one of two actions:
+
 - Reveal a hidden settlement: convert any Fog hex into a Field, Mountain, Forest, or Sand hex and place a Village on that hex. The Village must be placed on a Fog hex — the settlement was already there, concealed from outsiders, and Elder brings it to light.
 - Place a Reserve on a Sand, Field, Forest, or Mountain hex adjacent to a Village or Reserve. Cannot be placed adjacent to Fog. Costs 1 Coin plus 1 additional Coin per Reserve already placed (e.g. placing the 7th Reserve costs 7 Coins).
 
@@ -149,6 +153,7 @@ Elder also provides access to the **Resource Market**. Instead of using either a
 ### Liaison
 
 Take one of two actions:
+
 - **Generate Resources (Procurement):** Generate Votes, Coins, or Wood/Ore from your buildings based on their adjacencies (see Procurement rules in [Winning Conditions](#winning-conditions)). Resources cannot be generated from hexes occupied by a Reserve.
 - **Politics Market:** Buy 1 Event card from the Politics market by paying its Coin cost. The card is added directly to your Tableau and is available for use this turn (see [Purchasing Politics Cards](#purchasing-politics-cards)).
 
@@ -168,6 +173,7 @@ Guide also provides access to the **Talent** track. Instead of exploring or surv
 Event cards are single-use. When a player places an Action Token on an Event card, its effect triggers and the card is removed from the Tableau permanently ("trashed").
 
 Event cards are added to a player's Tableau when:
+
 - They start the game with Charter.
 - They purchase one from the Politics market via Liaison.
 - A Talent Personnel card's ability adds one (e.g. Forester, Broker).
@@ -175,6 +181,7 @@ Event cards are added to a player's Tableau when:
 ### Charter *(starting Event card)*
 
 Place a building corresponding to your player type without paying building costs and ignoring the requirement to place adjacent to non-Fog tiles:
+
 - **Chieftain:** place a Village on any Fog, Field, Sand, Forest, or Mountain hex. Unlike Elder (which can only reveal a Village from a Fog hex), Charter lets the Chieftain place a Village on any terrain — including already-revealed hexes. This gives the Chieftain early strategic flexibility to seed Villages in different areas of the map before other players have established their positions.
 - **Others:** place the player's primary building (Resort, Industrial Zone, or Infrastructure) on any Field or Sand hex.
 
@@ -202,6 +209,7 @@ Two modes are available. The rules above describe Standard Mode. Only what diffe
 **Tactical Mode:** Players alternate placing 1 Action Token at a time — Player A places 1 token, then Player B places 1 token, and so on, until each player has placed 2 tokens. Best suited to 2-player games where reading a single opponent's individual action is tense rather than overwhelming.
 
 Two rules that need specific clarification for Tactical Mode:
+
 - **Talent bidding:** When a player initiates a Talent bid, the auction resolves fully before alternating single-token placement resumes. After the auction concludes, the next player in the alternation sequence places their token.
 - **Mandate purchase:** Purchasing a Mandate must be a player's first token placement of the round (before they have placed any token this round), not simply the first token of their "turn."
 
@@ -266,12 +274,14 @@ A Mandate cannot be Bribed or otherwise removed from the market; it can only be 
 
 The cost of a Mandate is based on the player's type plus their current number of Seats:
 
+
 | Player Type   | Mandate Cost                | Notes                                                      |
 | ------------- | --------------------------- | ---------------------------------------------------------- |
 | Hotelier      | 10 Coins + Seat#            | Seat# = number of Seats already held                       |
 | Industrialist | 10 Wood/Ore + Seat#         | Any mix of Wood and Ore                                    |
 | Bureaucrat    | 10 Votes + Seat#            |                                                            |
 | Chieftain     | Presence Score ≥ 10 + Seat# | Presence Score = Reserves + Villages adjacent to a Reserve |
+
 
 ## Promotion
 
@@ -336,16 +346,17 @@ Each resource (Wood and Ore) has a market row with four price slots (1–4 Coins
 
 Starting state (market is full):
 
-| Price | 1 | 2 | 3 | 4 |
-|-------|---|---|---|---|
-| Ore   | ● | ● | ● | ● |
-| Wood  | ● | ● | ● | ● |
+
+| Price | 1   | 2   | 3   | 4   |
+| ----- | --- | --- | --- | --- |
+| Ore   | ●   | ●   | ●   | ●   |
+| Wood  | ●   | ●   | ●   | ●   |
+
 
 - **Buying:** Pay Coins to acquire Wood or Ore, taking from the cheapest available slot(s) first.
   - *Example:* The Hotelier activates Builder and chooses the Resource Market. They purchase all 4 Ore for 10 Coins (1+2+3+4). All Ore is removed. At end of turn, 1 Ore is placed in the 4-Coin slot.
 - **Selling:** Place resources into the highest-priced empty slot(s) first, working downward. Gain Coins equal to the slot prices filled.
   - *Example:* The Industrialist activates Builder and sells 3 Wood into an empty market, filling the 4, 3, and 2-Coin slots, gaining 9 Coins.
-
 - If, at the end of a player's turn, a resource row is empty, place 1 token of that resource in the 4-Coin slot. This represents an emergency import at maximum cost—hoarding creates pain, but not permanent denial.
 
 # Politics
@@ -356,11 +367,14 @@ The Politics market is a row of 4 Event cards purchasable via Liaison. Cards cos
 
 Starting Politics cards:
 
+
 | Cost | 1     | 2      | 3      | 4       |
-|------|-------|--------|--------|---------|
+| ---- | ----- | ------ | ------ | ------- |
 | Card | Graft | Import | Import | Logging |
 
+
 The Event cards are managed differently depending on whether the Bureaucrat player is present:
+
 - **With Bureaucrat:** After the Bureaucrat's turn and after the market has been replenished, the Bureaucrat may reorder the cards in any order.
 - **Without Bureaucrat:** The order of the Politics market remains fixed.
 
@@ -395,3 +409,4 @@ The following Event cards can appear in the Politics track:
 19. **Export**: Sell 1–3 Wood or Ore (any mix) for an equal number of Coins. Sold resources do not return to the Resource market.
 20. **Logging**: Convert a Forest hex to a Field hex. Take 1 Wood from the Bank.
 21. **Forestry**: Convert an empty Field hex to a Forest hex.
+
