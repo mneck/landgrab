@@ -164,7 +164,7 @@ function resolveMandate(G: LandgrabState, playerIndex: number, instanceId: strin
 
 // ---- Moves ----
 
-type MoveArgs = { G: LandgrabState; ctx: { currentPlayer: string }; events?: { endTurn: () => void } };
+type MoveArgs = { G: LandgrabState; ctx: { currentPlayer: string; numPlayers: number }; events?: { endTurn: () => void } };
 
 export const moves = {
   activateCard: ({ G, ctx }: MoveArgs, instanceId: string) => {
@@ -193,6 +193,36 @@ export const moves = {
       case 'Elder':
         G.pendingAction = { type: 'elder_choose', instanceId };
         break;
+      case 'Fixer': {
+        player.tableau.push({
+          instanceId: `Graft_${playerIndex}_${Date.now()}`,
+          cardType: 'Graft' as EventCardType,
+          category: 'Event',
+        });
+        break;
+      }
+      case 'Broker':
+        G.pendingAction = { type: 'broker_choose', instanceId };
+        break;
+      case 'Forester':
+        G.pendingAction = { type: 'forester_choose', instanceId };
+        break;
+      case 'Consultant': {
+        player.tableau.push({
+          instanceId: `Reorganization_${playerIndex}_${Date.now()}`,
+          cardType: 'Reorganization' as EventCardType,
+          category: 'Event',
+        });
+        break;
+      }
+      case 'Advocate': {
+        player.tableau.push({
+          instanceId: `Taxation_${playerIndex}_${Date.now()}`,
+          cardType: 'Taxation' as EventCardType,
+          category: 'Event',
+        });
+        break;
+      }
       case 'Charter':
         removeFromTableau(G, playerIndex, instanceId);
         G.pendingAction = { type: 'charter_place', instanceId };
@@ -348,6 +378,26 @@ export const moves = {
       } else {
         G.pendingAction = { type: 'builder_market_choose', instanceId };
       }
+    }
+    else if (type === 'broker_choose') {
+      if (option !== 'import' && option !== 'export') return INVALID_MOVE;
+      const cardType = option === 'import' ? 'Import' : 'Export';
+      G.players[playerIndex].tableau.push({
+        instanceId: `${cardType}_${playerIndex}_${Date.now()}`,
+        cardType: cardType as EventCardType,
+        category: 'Event',
+      });
+      G.pendingAction = null;
+    }
+    else if (type === 'forester_choose') {
+      if (option !== 'logging' && option !== 'forestry') return INVALID_MOVE;
+      const cardType = option === 'logging' ? 'Logging' : 'Forestry';
+      G.players[playerIndex].tableau.push({
+        instanceId: `${cardType}_${playerIndex}_${Date.now()}`,
+        cardType: cardType as EventCardType,
+        category: 'Event',
+      });
+      G.pendingAction = null;
     }
     else if (type === 'event_import_choose') {
       const instanceId = G.pendingAction.instanceId;
@@ -521,17 +571,14 @@ export const moves = {
     const card = G.politicsRow[slotIndex];
     if (!card || card === 'Mandate') return INVALID_MOVE;
 
-    const VOTE_COSTS = [0, 1, 1, 1];
-    const COIN_COSTS = [1, 2, 3, 4];
-    const voteCost = VOTE_COSTS[slotIndex] ?? 1;
-    const coinCost = COIN_COSTS[slotIndex] ?? 4;
+    const VOTE_COSTS = [0, 1, 2, 3];
+    const voteCost = VOTE_COSTS[slotIndex] ?? 0;
 
     const player = G.players[playerIndex];
-    if (player.resources.votes < voteCost || player.resources.coins < coinCost) return INVALID_MOVE;
+    if (player.resources.votes < voteCost) return INVALID_MOVE;
     if (player.tableau.length >= 8) return INVALID_MOVE;
 
     player.resources.votes -= voteCost;
-    player.resources.coins -= coinCost;
 
     player.tableau.push({
       instanceId: `${card}_${playerIndex}_${Date.now()}`,
@@ -622,7 +669,10 @@ export const moves = {
 
   endTurn: ({ G, ctx, events }: MoveArgs) => {
     if (G.pendingAction) return INVALID_MOVE;
-    rotatePoliticsEndOfRound(G);
+    const isLastPlayerInRound = parseInt(ctx.currentPlayer) === ctx.numPlayers - 1;
+    if (isLastPlayerInRound) {
+      rotatePoliticsEndOfRound(G);
+    }
     events?.endTurn();
   },
 };

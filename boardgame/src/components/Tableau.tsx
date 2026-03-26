@@ -1,4 +1,3 @@
-import React from 'react';
 import type { PlayerState, PendingAction } from '../game/types';
 import { Card } from './Card';
 
@@ -8,17 +7,19 @@ interface TableauProps {
   tokensUsedThisTurn: string[];
   pendingAction: PendingAction | null;
   actionsRemaining: number;
-  onActivateCard: (instanceId: string) => void;
+  selectedCardId: string | null;
+  onSelectCard: (instanceId: string) => void;
 }
 
-export const Tableau: React.FC<TableauProps> = ({
+export function Tableau({
   player,
   isCurrentPlayer,
   tokensUsedThisTurn,
   pendingAction,
   actionsRemaining,
-  onActivateCard,
-}) => {
+  selectedCardId,
+  onSelectCard,
+}: TableauProps) {
   return (
     <div className="tableau">
       <div className="tableau-header">
@@ -33,12 +34,12 @@ export const Tableau: React.FC<TableauProps> = ({
       <div className="tableau-cards">
         {player.tableau.map((card) => {
           const isUsed = tokensUsedThisTurn.includes(card.instanceId);
-          const canActivate =
+          const isSelected = selectedCardId === card.instanceId;
+          const canClick =
             isCurrentPlayer &&
             !isUsed &&
             !pendingAction &&
-            actionsRemaining > 0 &&
-            (card.cardType !== 'Mandate' || tokensUsedThisTurn.length === 0);
+            actionsRemaining > 0;
 
           return (
             <Card
@@ -46,8 +47,9 @@ export const Tableau: React.FC<TableauProps> = ({
               card={card}
               isUsed={isUsed}
               isActive={isCurrentPlayer}
-              isSelectable={canActivate}
-              onClick={() => onActivateCard(card.instanceId)}
+              isSelectable={canClick}
+              isSelected={isSelected}
+              onClick={() => onSelectCard(card.instanceId)}
             />
           );
         })}
@@ -57,4 +59,4 @@ export const Tableau: React.FC<TableauProps> = ({
       </div>
     </div>
   );
-};
+}

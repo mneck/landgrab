@@ -1,23 +1,23 @@
-import React from 'react';
 import type { TableauCard } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
 
 interface CardProps {
   card: TableauCard;
   isUsed: boolean;
-  isActive: boolean;         // It's this player's turn
-  isSelectable: boolean;     // Can be clicked
+  isActive: boolean;
+  isSelectable: boolean;
+  isSelected?: boolean;
   onClick?: () => void;
-  showTooltip?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({
+export function Card({
   card,
   isUsed,
   isActive,
   isSelectable,
+  isSelected,
   onClick,
-}) => {
+}: CardProps) {
   const info = CARD_INFO[card.cardType];
   const isEvent = card.category === 'Event';
 
@@ -28,7 +28,7 @@ export const Card: React.FC<CardProps> = ({
         isEvent ? 'card-event' : 'card-personnel',
         isUsed ? 'card-used' : '',
         isSelectable && isActive ? 'card-selectable' : '',
-        isActive && !isUsed ? 'card-active' : '',
+        isSelected ? 'card-selected' : '',
       ].join(' ')}
       onClick={isSelectable && isActive && !isUsed ? onClick : undefined}
       title={info ? `${info.title}: ${info.description}` : card.cardType}
@@ -41,4 +41,4 @@ export const Card: React.FC<CardProps> = ({
       {isEvent && <div className="card-event-badge">EVENT</div>}
     </div>
   );
-};
+}

@@ -1,5 +1,4 @@
-export const POLITICS_COSTS = [1, 2, 3, 4] as const;
-export const POLITICS_VOTE_COSTS = [0, 1, 1, 1] as const;
+export const POLITICS_VOTE_COSTS = [0, 1, 2, 3] as const;
 
 export const PLAYER_COLORS: Record<string, string> = {
   Hotelier: '#e67e22',

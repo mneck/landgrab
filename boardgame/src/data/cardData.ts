@@ -22,7 +22,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
     title: "Guide",
     flavor: "",
     description: "Reveal Fog hexes adjacent to a chosen hex, OR spend coins to bid on a Network card.",
-    icon: "🧗‍♀️",
+    icon: "👩🏽‍🏫",
     image: "",
     category: "personnel",
   },
@@ -261,7 +261,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Mandate: {
     title: "Mandate",
     flavor: "Your successes are recognized.",
-    description: "Must be your FIRST action. Pay your faction's cost (10 + Seat# resources) to gain a Seat. Win condition: 3 Seats.",
+    description: "Must be your FIRST action. Pay your faction's cost (10 + Seat# resources) to gain a Seat. Win condition: 2 Seats.",
     icon: "🔖",
     image: "",
     category: "event",
@@ -277,7 +277,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Seat: {
     title: "Seat",
     flavor: "",
-    description: "Play to gain 1 Seat. Acquire 3 Seats to win the game.",
+    description: "Play to gain 1 Seat. Acquire 2 Seats to win the game.",
     icon: "💺",
     image: "",
     category: "event",

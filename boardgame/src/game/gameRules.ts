@@ -1,6 +1,6 @@
 import type { LandgrabState, BuildingType, PlayerType, TileType } from './types';
 import type { HexCoord } from '../utils/hexGrid';
-import { hexDistance, hexKey, hexNeighbors } from '../utils/hexGrid';
+import { hexDistance, hexKey, hexFromKey, hexNeighbors } from '../utils/hexGrid';
 
 const REVEALED_TERRAIN_TYPES: TileType[] = ["Field", "Mountain", "Forest", "Sand", "Water"];
 
@@ -99,6 +99,21 @@ export function getAllowedBuildTypes(tiles: LandgrabState["tiles"], playerType: 
     if (b === ps.production) return production < maxProduction;
     return true;
   });
+}
+
+export function hasAnyValidBuildHex(
+  tiles: LandgrabState["tiles"],
+  playerType: string,
+  landClaimsActive?: boolean
+): boolean {
+  const allowed = getAllowedBuildTypes(tiles, playerType);
+  if (allowed.length === 0) return false;
+  for (const k of Object.keys(tiles)) {
+    for (const bt of allowed) {
+      if (canPlaceBuild(tiles, hexFromKey(k), playerType, bt, landClaimsActive)) return true;
+    }
+  }
+  return false;
 }
 
 export function canPlaceBuild(

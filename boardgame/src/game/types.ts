@@ -113,6 +113,8 @@ export type PendingAction =
   | { type: 'event_taxation_hex'; instanceId: string }
   | { type: 'event_graft_choose'; instanceId: string }
   | { type: 'event_urbanplanning_hex'; instanceId: string }
+  | { type: 'broker_choose'; instanceId: string }
+  | { type: 'forester_choose'; instanceId: string }
   | { type: 'network_bid'; slotIndex: number; highestBidder: number | null; highestBid: number; bids: Record<number, number | null> };
 
 export interface LandgrabState {
@@ -147,7 +149,7 @@ export interface LandgrabState {
 // ---- generateIsland (adapted from landgrab_react) ----
 
 export const MANDATE_INTERVALS = [4, 3, 2, 1] as const;
-export const SEATS_TO_WIN = 3;
+export const SEATS_TO_WIN = 2;
 
 function shuffleLocal<T>(array: T[]): T[] {
   const result = [...array];

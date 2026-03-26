@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { BoardProps } from 'boardgame.io/react';
 import type { LandgrabState, BuildingType } from '../game/types';
+import { CARD_INFO } from '../data/cardData';
 import { PlayerPanel } from './PlayerPanel';
 import { HexMap } from './HexMap';
 import { PoliticsRow } from './PoliticsRow';
 import { NetworkRow } from './NetworkRow';
 import { ResourceMarket } from './ResourceMarket';
-import { CARD_INFO } from '../data/cardData';
-import { getAllowedBuildTypes } from '../game/gameRules';
+import { getAllowedBuildTypes, hasAnyValidBuildHex } from '../game/gameRules';
 
 export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const currentPlayerIndex = parseInt(ctx.currentPlayer);
-  // In local mode, the active player is whoever's turn it is
   const myPlayerIndex = playerID !== undefined && playerID !== null
     ? parseInt(playerID)
     : currentPlayerIndex;
@@ -36,13 +36,20 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
     }
   }
 
-  function handleActivateCard(instanceId: string) {
+  function handleSelectCard(instanceId: string) {
     if (!isMyTurn) return;
-    moves.activateCard(instanceId);
+    setSelectedCardId(prev => prev === instanceId ? null : instanceId);
+  }
+
+  function handleConfirmCard() {
+    if (!isMyTurn || !selectedCardId) return;
+    moves.activateCard(selectedCardId);
+    setSelectedCardId(null);
   }
 
   function handleEndTurn() {
     if (!isMyTurn || G.pendingAction) return;
+    setSelectedCardId(null);
     moves.endTurn();
   }
 
@@ -51,31 +58,36 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
     if (!pa || !isMyTurn) return null;
 
     switch (pa.type) {
-      case 'builder_choose':
+      case 'builder_choose': {
+        const canBuild = hasAnyValidBuildHex(G.tiles, currentPlayer.type, G.landClaimsUntilPlayer !== undefined);
         return (
           <div className="action-panel">
             <div className="action-prompt">Builder: Choose an action</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('build')}>
-                Build (1🪙 + 1🪵 + 1⛏️)
+              <button
+                onClick={() => moves.chooseOption('build')}
+                disabled={!canBuild}
+                title={canBuild ? undefined : 'No valid build locations — place your Charter first'}
+              >
+                Build (1 coin + 1 wood + 1 ore)
               </button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('market')}>
+              <button className="btn-secondary" onClick={() => moves.chooseOption('market')}>
                 Resource Market
               </button>
             </div>
           </div>
         );
+      }
 
       case 'builder_build_type': {
         const allowed = getAllowedBuildTypes(G.tiles, currentPlayer.type);
         return (
           <div className="action-panel">
-            <div className="action-prompt">Choose building type, then click a hex</div>
+            <div className="action-prompt">Choose building type</div>
             <div className="action-buttons">
               {allowed.map(bt => (
                 <button
                   key={bt}
-                  className="btn btn-primary"
                   onClick={() => moves.chooseBuildingType(bt as BuildingType)}
                 >
                   {bt}
@@ -91,7 +103,7 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
           <div className="action-panel">
             <div className="action-prompt">
               Click a valid hex to place <strong>{pa.buildingType}</strong>
-              <span className="cost-badge">Cost: 1🪙 + 1🪵 + 1⛏️</span>
+              <span className="cost-badge">1 coin + 1 wood + 1 ore</span>
             </div>
           </div>
         );
@@ -99,12 +111,12 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'builder_market_choose':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Resource Market: Choose action</div>
+            <div className="action-prompt">Resource Market</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('buy_wood')}>Buy Wood</button>
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('buy_ore')}>Buy Ore</button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('sell_wood')}>Sell Wood</button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('sell_ore')}>Sell Ore</button>
+              <button onClick={() => moves.chooseOption('buy_wood')}>Buy Wood</button>
+              <button onClick={() => moves.chooseOption('buy_ore')}>Buy Ore</button>
+              <button className="btn-secondary" onClick={() => moves.chooseOption('sell_wood')}>Sell Wood</button>
+              <button className="btn-secondary" onClick={() => moves.chooseOption('sell_ore')}>Sell Ore</button>
             </div>
           </div>
         );
@@ -113,7 +125,8 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Buying 1 {pa.resource}... <button className="btn btn-sm" onClick={() => moves.chooseOption('done')}>Done with market</button>
+              Buying 1 {pa.resource}...
+              <button onClick={() => moves.chooseOption('done')}>Done</button>
             </div>
           </div>
         );
@@ -122,7 +135,8 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Selling 1 {pa.resource}... <button className="btn btn-sm" onClick={() => moves.chooseOption('done')}>Done with market</button>
+              Selling 1 {pa.resource}...
+              <button onClick={() => moves.chooseOption('done')}>Done</button>
             </div>
           </div>
         );
@@ -132,10 +146,10 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
           <div className="action-panel">
             <div className="action-prompt">Guide: Choose an action</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('reveal')}>
-                Reveal Fog (click a non-fog hex)
+              <button onClick={() => moves.chooseOption('reveal')}>
+                Reveal Fog
               </button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('network')}>
+              <button className="btn-secondary" onClick={() => moves.chooseOption('network')}>
                 Bid on Network card
               </button>
             </div>
@@ -145,7 +159,7 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'guide_reveal_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click any non-Fog hex to reveal adjacent Fog tiles</div>
+            <div className="action-prompt">Click a non-Fog hex to reveal adjacent Fog tiles</div>
           </div>
         );
 
@@ -161,10 +175,10 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
           <div className="action-panel">
             <div className="action-prompt">Liaison: Choose an action</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('generate')}>
+              <button onClick={() => moves.chooseOption('generate')}>
                 Generate Resources
               </button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('politics')}>
+              <button className="btn-secondary" onClick={() => moves.chooseOption('politics')}>
                 Acquire Politics Card
               </button>
             </div>
@@ -174,7 +188,7 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'liaison_politics':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click a Politics card to acquire it (costs coins + votes)</div>
+            <div className="action-prompt">Click a Politics card to acquire it</div>
           </div>
         );
 
@@ -183,11 +197,11 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
           <div className="action-panel">
             <div className="action-prompt">Elder: Choose an action</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('village')}>
-                Place Village (on Fog hex)
+              <button onClick={() => moves.chooseOption('village')}>
+                Place Village (on Fog)
               </button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('reserve')}>
-                Place Reserve (adjacent to Village/Reserve)
+              <button className="btn-secondary" onClick={() => moves.chooseOption('reserve')}>
+                Place Reserve
               </button>
             </div>
           </div>
@@ -196,14 +210,14 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'elder_village_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click a Fog hex to reveal it and place a Village</div>
+            <div className="action-prompt">Click a Fog hex to reveal and place Village</div>
           </div>
         );
 
       case 'elder_reserve_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click a valid hex adjacent to Village/Reserve to place a Reserve</div>
+            <div className="action-prompt">Click a hex adjacent to Village/Reserve</div>
           </div>
         );
 
@@ -211,8 +225,8 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Charter: Click a valid hex to place your first building
-              <span className="cost-badge">Free!</span>
+              Charter: Click a valid hex for your starting building
+              <span className="cost-badge">Free</span>
             </div>
           </div>
         );
@@ -220,10 +234,10 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'event_import_choose':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Import: Choose a resource to acquire for 1🪙</div>
+            <div className="action-prompt">Import: Choose a resource (1 coin)</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('wood')}>Wood 🪵</button>
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('ore')}>Ore ⛏️</button>
+              <button onClick={() => moves.chooseOption('wood')}>Wood</button>
+              <button onClick={() => moves.chooseOption('ore')}>Ore</button>
             </div>
           </div>
         );
@@ -233,11 +247,11 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
           <div className="action-panel">
             <div className="action-prompt">Graft: Choose an exchange</div>
             <div className="action-buttons">
-              <button className="btn btn-primary" onClick={() => moves.chooseOption('coin_to_vote')}>
-                Give 1🪙 → Get 1🗳️
+              <button onClick={() => moves.chooseOption('coin_to_vote')}>
+                1 Coin to 1 Vote
               </button>
-              <button className="btn btn-secondary" onClick={() => moves.chooseOption('vote_to_coin')}>
-                Give 1🗳️ → Get 1🪙
+              <button className="btn-secondary" onClick={() => moves.chooseOption('vote_to_coin')}>
+                1 Vote to 1 Coin
               </button>
             </div>
           </div>
@@ -246,14 +260,14 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'event_bribe':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Bribe: Click a Politics card to remove it (costs 1🪙)</div>
+            <div className="action-prompt">Bribe: Click a Politics card to remove (1 coin)</div>
           </div>
         );
 
       case 'event_zoning_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Zoning: Click a Field/Sand hex adjacent to your building to zone it</div>
+            <div className="action-prompt">Zoning: Click a Field/Sand hex adjacent to your building</div>
           </div>
         );
 
@@ -267,21 +281,21 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'event_logging_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Logging: Click a Forest hex to convert it to Field (+1🪵)</div>
+            <div className="action-prompt">Logging: Click a Forest hex to convert (+1 wood)</div>
           </div>
         );
 
       case 'event_forestry_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Forestry: Click an empty Field hex to convert it to Forest</div>
+            <div className="action-prompt">Forestry: Click a Field hex to convert to Forest</div>
           </div>
         );
 
       case 'event_taxation_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Taxation: Click one of your Reserves to collect coins from adjacent opponent buildings</div>
+            <div className="action-prompt">Taxation: Click your Reserve to collect</div>
           </div>
         );
 
@@ -289,7 +303,29 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Urban Planning: Click one of your production buildings (Cost: 1🪙 + 1🪵 + 1⛏️) to double its output
+              Urban Planning: Click a production building (1 coin + 1 wood + 1 ore)
+            </div>
+          </div>
+        );
+
+      case 'broker_choose':
+        return (
+          <div className="action-panel">
+            <div className="action-prompt">Broker: Choose an event card to add</div>
+            <div className="action-buttons">
+              <button onClick={() => moves.chooseOption('import')}>Import</button>
+              <button onClick={() => moves.chooseOption('export')}>Export</button>
+            </div>
+          </div>
+        );
+
+      case 'forester_choose':
+        return (
+          <div className="action-panel">
+            <div className="action-prompt">Forester: Choose an event card to add</div>
+            <div className="action-buttons">
+              <button onClick={() => moves.chooseOption('logging')}>Logging</button>
+              <button onClick={() => moves.chooseOption('forestry')}>Forestry</button>
             </div>
           </div>
         );
@@ -297,7 +333,7 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
       case 'network_bid':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Use the Network panel below to place your bid</div>
+            <div className="action-prompt">Place your bid in the Network panel</div>
           </div>
         );
 
@@ -306,110 +342,163 @@ export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
     }
   }
 
-  const SEATS_TO_WIN = 3;
+  const SEATS_TO_WIN = 2;
 
   if (G.winner) {
     return (
       <div className="game-over">
-        <h1>Game Over!</h1>
+        <h1>Game Over</h1>
         <p className="winner-announce">{G.winner} wins with {SEATS_TO_WIN} Seats!</p>
-        <p>Congratulations!</p>
       </div>
     );
   }
 
   return (
     <div className="board-layout">
-      {/* Top bar: all player panels */}
-      <div className="players-bar">
-        {G.players.map((player, i) => (
-          <PlayerPanel
-            key={i}
-            player={player}
-            playerIndex={i}
-            isCurrentPlayer={i === currentPlayerIndex}
-            tokensUsedThisTurn={G.tokensUsedThisTurn}
-            pendingAction={G.pendingAction}
-            actionsRemaining={G.actionsRemainingThisTurn}
-            onActivateCard={handleActivateCard}
-          />
-        ))}
-      </div>
-
-      {/* Fog progress bar */}
-      <div className="fog-progress-bar-container">
-        <div className="fog-progress-label">
-          Fog Revealed: {G.fogRevealed}/{G.totalFog}
-          {G.thresholdReached && <span className="threshold-badge">Mandate Phase Active</span>}
+      <div className="game-content">
+        {/* Left sidebar: players, current player first */}
+        <div className="players-sidebar">
+          {(() => {
+            const indices = G.players.map((_, i) => i);
+            const sorted = [
+              currentPlayerIndex,
+              ...indices.filter(i => i !== currentPlayerIndex),
+            ];
+            return sorted.map(i => (
+              <PlayerPanel
+                key={i}
+                player={G.players[i]}
+                playerIndex={i}
+                isCurrentPlayer={i === currentPlayerIndex}
+                tokensUsedThisTurn={G.tokensUsedThisTurn}
+                pendingAction={G.pendingAction}
+                actionsRemaining={G.actionsRemainingThisTurn}
+                selectedCardId={i === currentPlayerIndex ? selectedCardId : null}
+                onSelectCard={handleSelectCard}
+              />
+            ));
+          })()}
         </div>
-        <div className="fog-progress-bar">
-          <div
-            className="fog-progress-fill"
-            style={{ width: `${(G.fogRevealed / Math.max(G.totalFog, 1)) * 100}%` }}
-          />
-          <div
-            className="fog-threshold-mark"
-            style={{ left: `${((Math.floor(G.totalFog / 2) + 1) / Math.max(G.totalFog, 1)) * 100}%` }}
-          />
-        </div>
-      </div>
 
-      {/* Center: map + action panel */}
-      <div className="center-area">
-        <div className="map-area">
-          {renderPendingActionUI()}
-          <HexMap
-            tiles={G.tiles}
-            pendingAction={G.pendingAction}
-            playerType={currentPlayer.type}
-            landClaimsActive={G.landClaimsUntilPlayer !== undefined}
-            onHexClick={handleHexClick}
-            selectedHex={selectedHex}
-          />
-        </div>
-      </div>
+        {/* Center: map + markets */}
+        <div className="map-and-markets">
+          <div className="map-row">
+            {/* Action panel (left of map) */}
+            <div className="actions-bar">
+              <div className="game-actions">
+                <div className="actions-left">
+                  Actions: {G.actionsRemainingThisTurn}/2
+                </div>
 
-      {/* Bottom: markets + turn control */}
-      <div className="bottom-area">
-        <PoliticsRow
-          politicsRow={G.politicsRow}
-          pendingAction={G.pendingAction}
-          isCurrentPlayerTurn={isMyTurn}
-          onSelectSlot={(slotIndex) => {
-            if (G.pendingAction?.type === 'liaison_politics') {
-              moves.selectPoliticsCard(slotIndex);
-            } else if (G.pendingAction?.type === 'event_bribe') {
-              moves.chooseOption(slotIndex.toString());
-            }
-          }}
-        />
+                {renderPendingActionUI()}
 
-        <NetworkRow
-          networkRow={G.networkRow}
-          pendingAction={G.pendingAction}
-          isCurrentPlayerTurn={isMyTurn}
-          playerCoins={currentPlayer.resources.coins}
-          onSelectSlot={(slotIndex) => moves.selectNetworkCard(slotIndex)}
-          onPlaceBid={(amount) => moves.placeBid(amount)}
-        />
+                {/* Card preview + Take Action when a card is selected but no action is pending */}
+                {isMyTurn && !G.pendingAction && selectedCardId && (() => {
+                  const card = currentPlayer.tableau.find(c => c.instanceId === selectedCardId);
+                  if (!card) return null;
+                  const info = CARD_INFO[card.cardType];
+                  const isUsed = G.tokensUsedThisTurn.includes(card.instanceId);
+                  const canActivate = !isUsed && G.actionsRemainingThisTurn > 0
+                    && (card.cardType !== 'Mandate' || G.tokensUsedThisTurn.length === 0);
+                  return (
+                    <div className="card-preview">
+                      <div className="card-preview__header">
+                        <span className="card-preview__icon">{info?.icon ?? '?'}</span>
+                        <span className="card-preview__title">{info?.title ?? card.cardType}</span>
+                        {card.category === 'Event' && <span className="card-event-badge">EVENT</span>}
+                      </div>
+                      <div className="card-preview__desc">{info?.description ?? ''}</div>
+                      <div className="card-preview__actions">
+                        <button
+                          onClick={handleConfirmCard}
+                          disabled={!canActivate}
+                          title={isUsed ? 'Already used this turn' : undefined}
+                        >
+                          Take Action
+                        </button>
+                        <button className="btn-secondary" onClick={() => setSelectedCardId(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
-        <ResourceMarket woodMarket={G.woodMarket} oreMarket={G.oreMarket} />
+                {isMyTurn && !G.pendingAction && !selectedCardId && (
+                  <>
+                    <div className="select-card-hint">Select a card from your Tableau</div>
+                    <button className="btn-end-turn" onClick={handleEndTurn}>
+                      End Turn
+                    </button>
+                  </>
+                )}
 
-        <div className="turn-control">
-          <div className="turn-info">
-            <span className="turn-player">
-              Current Turn: <strong>{currentPlayer.type}</strong> (P{currentPlayerIndex + 1})
-            </span>
-            <span className="turn-round">Round {ctx.turn}</span>
+                {G.pendingAction && (
+                  <span className="pending-label">Resolve current action</span>
+                )}
+                <div className="turn-round" style={{ marginTop: '0.5rem' }}>
+                  Round {ctx.turn}
+                </div>
+              </div>
+
+              {/* Fog bar */}
+              <div className="fog-progress-bar-container">
+                <div className="fog-progress-label">
+                  Fog: {G.fogRevealed}/{G.totalFog}
+                  {G.thresholdReached && <span className="threshold-badge">Mandate Active</span>}
+                </div>
+                <div className="fog-progress-bar">
+                  <div
+                    className="fog-progress-fill"
+                    style={{ width: `${(G.fogRevealed / Math.max(G.totalFog, 1)) * 100}%` }}
+                  />
+                  <div
+                    className="fog-threshold-mark"
+                    style={{ left: `${((Math.floor(G.totalFog / 2) + 1) / Math.max(G.totalFog, 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Map */}
+            <div className="map-section">
+              <HexMap
+                tiles={G.tiles}
+                pendingAction={G.pendingAction}
+                playerType={currentPlayer.type}
+                landClaimsActive={G.landClaimsUntilPlayer !== undefined}
+                onHexClick={handleHexClick}
+                selectedHex={selectedHex}
+              />
+            </div>
           </div>
-          {isMyTurn && !G.pendingAction && (
-            <button className="btn btn-end-turn" onClick={handleEndTurn}>
-              End Turn
-            </button>
-          )}
-          {G.pendingAction && (
-            <span className="pending-label">Resolve current action first</span>
-          )}
+
+          {/* Markets (3-column) */}
+          <div className="markets-section">
+            <PoliticsRow
+              politicsRow={G.politicsRow}
+              pendingAction={G.pendingAction}
+              isCurrentPlayerTurn={isMyTurn}
+              onSelectSlot={(slotIndex) => {
+                if (G.pendingAction?.type === 'liaison_politics') {
+                  moves.selectPoliticsCard(slotIndex);
+                } else if (G.pendingAction?.type === 'event_bribe') {
+                  moves.chooseOption(slotIndex.toString());
+                }
+              }}
+            />
+
+            <NetworkRow
+              networkRow={G.networkRow}
+              pendingAction={G.pendingAction}
+              isCurrentPlayerTurn={isMyTurn}
+              playerCoins={currentPlayer.resources.coins}
+              onSelectSlot={(slotIndex) => moves.selectNetworkCard(slotIndex)}
+              onPlaceBid={(amount) => moves.placeBid(amount)}
+            />
+
+            <ResourceMarket woodMarket={G.woodMarket} oreMarket={G.oreMarket} />
+          </div>
         </div>
       </div>
     </div>

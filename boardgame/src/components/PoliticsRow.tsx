@@ -1,7 +1,6 @@
-import React from 'react';
 import type { PoliticsSlot, PendingAction } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
-import { POLITICS_COSTS, POLITICS_VOTE_COSTS } from '../data/cardRules';
+import { POLITICS_VOTE_COSTS } from '../data/cardRules';
 
 interface PoliticsRowProps {
   politicsRow: PoliticsSlot[];
@@ -10,25 +9,25 @@ interface PoliticsRowProps {
   onSelectSlot: (slotIndex: number) => void;
 }
 
-export const PoliticsRow: React.FC<PoliticsRowProps> = ({
+export function PoliticsRow({
   politicsRow,
   pendingAction,
   isCurrentPlayerTurn,
   onSelectSlot,
-}) => {
+}: PoliticsRowProps) {
   const isPoliticsPhase = pendingAction?.type === 'liaison_politics';
   const isBribePhase = pendingAction?.type === 'event_bribe';
   const isSelectable = isPoliticsPhase || isBribePhase;
 
   return (
-    <div className="market-section">
-      <div className="market-title">Politics Track</div>
+    <div className="market-row">
+      <h4 className="market-row__title">Politics</h4>
+      <p className="market-row__subtitle">Events &amp; Mandates</p>
       <div className="politics-row">
         {politicsRow.map((card, i) => {
           const info = card && card !== 'Mandate' ? CARD_INFO[card] : null;
           const isMandate = card === 'Mandate';
-          const voteCost = POLITICS_VOTE_COSTS[i] ?? 1;
-          const coinCost = POLITICS_COSTS[i] ?? 4;
+          const voteCost = POLITICS_VOTE_COSTS[i] ?? 0;
           const canSelect = isSelectable && isCurrentPlayerTurn && !!card && !isMandate;
 
           return (
@@ -43,7 +42,7 @@ export const PoliticsRow: React.FC<PoliticsRowProps> = ({
               onClick={canSelect ? () => onSelectSlot(i) : undefined}
             >
               <div className="slot-cost">
-                {coinCost}🪙 {voteCost > 0 ? `+${voteCost}🗳️` : ''}
+                {voteCost > 0 ? `${voteCost} 🗳️` : 'Free'}
               </div>
               {card ? (
                 <>
@@ -59,4 +58,4 @@ export const PoliticsRow: React.FC<PoliticsRowProps> = ({
       </div>
     </div>
   );
-};
+}

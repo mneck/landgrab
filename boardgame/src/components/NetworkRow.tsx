@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { NetworkSlot, PendingAction } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
 
@@ -11,21 +11,22 @@ interface NetworkRowProps {
   onPlaceBid: (amount: number) => void;
 }
 
-export const NetworkRow: React.FC<NetworkRowProps> = ({
+export function NetworkRow({
   networkRow,
   pendingAction,
   isCurrentPlayerTurn,
   playerCoins,
   onSelectSlot,
   onPlaceBid,
-}) => {
+}: NetworkRowProps) {
   const [bidAmount, setBidAmount] = useState(1);
   const isNetworkPhase = pendingAction?.type === 'guide_network';
   const isBidPhase = pendingAction?.type === 'network_bid';
 
   return (
-    <div className="market-section">
-      <div className="market-title">Network (Personnel Market)</div>
+    <div className="market-row">
+      <h4 className="market-row__title">Network</h4>
+      <p className="market-row__subtitle">Personnel Market</p>
       <div className="network-row">
         {networkRow.map((card, i) => {
           const info = card ? CARD_INFO[card] : null;
@@ -67,15 +68,25 @@ export const NetworkRow: React.FC<NetworkRowProps> = ({
             className="bid-input"
           />
           <button
-            className="btn btn-primary"
+            className="action-buttons"
+            style={{
+              background: 'var(--accent)',
+              color: 'var(--bg-dark)',
+              border: 'none',
+              padding: '0.35rem 0.6rem',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
             onClick={() => onPlaceBid(bidAmount)}
             disabled={bidAmount <= pendingAction.highestBid || bidAmount > playerCoins}
           >
-            Place Bid ({bidAmount}🪙)
+            Place Bid ({bidAmount} coins)
           </button>
-          <span className="bid-info">You have {playerCoins}🪙</span>
+          <span className="bid-info">You have {playerCoins} coins</span>
         </div>
       )}
     </div>
   );
-};
+}
