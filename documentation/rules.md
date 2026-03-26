@@ -53,7 +53,7 @@ The game takes place on an island. **Fog** covers the interior of the island—t
 Players have several types of tokens, which are separate from the Personnel and Event cards that comprise each player’s deck:
 
 ### 🪵 Wood
-Produced by the Industrialist's Industrial Zones (using Procurement Event cards). Used for building and exporting. 1 Wood is generated during Procurement for each Forest adjacent to each Industrial Zone.
+Produced by the Industrialist's Industrial Zones (using Procurement Event cards). Used for building and exporting. 1 Wood is generated during Procurement for each Forest adjacent to each Industrial Zone.   
 
 ### ⚙️ Ore
 Produced by the Industrialist's Industrial Zones (using **Procurement** Event cards). Used for building and exporting. 1 Ore is generated during Procurement for each Mountain adjacent to each Industrial Zone.
