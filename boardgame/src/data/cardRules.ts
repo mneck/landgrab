@@ -6,10 +6,3 @@ export const PLAYER_COLORS: Record<string, string> = {
   Bureaucrat: '#8e44ad',
   Chieftain: '#27ae60',
 };
-
-export const PLAYER_BG_COLORS: Record<string, string> = {
-  Hotelier: 'rgba(230,126,34,0.15)',
-  Industrialist: 'rgba(41,128,185,0.15)',
-  Bureaucrat: 'rgba(142,68,173,0.15)',
-  Chieftain: 'rgba(39,174,96,0.15)',
-};

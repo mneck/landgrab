@@ -119,19 +119,6 @@
   color: var(--text-muted);
 }
 
-/* ── Victory Banner ── */
-
-.victory-banner {
-  text-align: center;
-  padding: 1rem;
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.15));
-  color: var(--accent);
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  border-bottom: 2px solid var(--accent);
-}
-
 /* ── Game Container ── */
 
 .game-container {
@@ -295,13 +282,6 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.actions-turn {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-bottom: 0.35rem;
-  color: var(--accent);
-}
-
 .actions-left {
   font-size: 0.8rem;
   margin-bottom: 0.5rem;
@@ -426,32 +406,6 @@
   background: var(--accent);
   transform: translateX(-50%);
   border-radius: 1px;
-}
-
-/* ── Turn Control ── */
-
-.turn-control {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-
-.turn-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.turn-player {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.turn-player strong {
-  color: var(--text);
 }
 
 .turn-round {
@@ -687,13 +641,6 @@
 .resource-track__count {
   font-size: 1rem;
   color: var(--accent);
-}
-
-.market-hint {
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-  font-style: italic;
 }
 
 /* ── Tableau ── */

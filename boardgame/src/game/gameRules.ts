@@ -171,33 +171,6 @@ export function canPlaceConservation(
   return true;
 }
 
-export function calculatePresenceScore(tiles: LandgrabState["tiles"]): number {
-  let score = 0;
-  const reserves: HexCoord[] = [];
-  for (const t of Object.values(tiles)) {
-    if (t.building === "Reserve" && t.buildingOwner === "Chieftain") {
-      score += 1;
-      reserves.push(t.hex);
-    }
-  }
-  const countedVillages = new Set<string>();
-  for (const rHex of reserves) {
-    for (const nb of hexNeighbors(rHex)) {
-      const k = hexKey(nb);
-      const nt = tiles[k];
-      if (
-        nt?.building === "Village" &&
-        nt.buildingOwner === "Chieftain" &&
-        !countedVillages.has(k)
-      ) {
-        countedVillages.add(k);
-        score += 1;
-      }
-    }
-  }
-  return score;
-}
-
 export function revealAdjacentFog(
   tiles: Record<string, LandgrabState["tiles"][string]>,
   hex: HexCoord,

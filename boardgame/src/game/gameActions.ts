@@ -50,17 +50,6 @@ export function rotatePoliticsEndOfRound(G: LandgrabState): void {
     }
   }
 }
-
-/** Add resources to a market track, filling cheapest empty slots first */
-export function addToMarket(market: ResourceTrack, count: number): ResourceTrack {
-  const m = [...market] as ResourceTrack;
-  let remaining = count;
-  for (let i = 0; i < 4 && remaining > 0; i++) {
-    if (m[i] === 0) { m[i] = 1; remaining--; }
-  }
-  return m;
-}
-
 /** Buy cheapest available resources from a market track */
 export function buyFromMarket(
   track: ResourceTrack,
