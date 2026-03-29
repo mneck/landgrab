@@ -73,6 +73,28 @@
   box-shadow: 0 6px 24px rgba(245, 158, 11, 0.4);
 }
 
+.start-screen__btn--continue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 1rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 16px rgba(245, 158, 11, 0.15);
+}
+
+.start-screen__btn--continue:hover {
+  background: rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 0 1px var(--accent), 0 6px 24px rgba(245, 158, 11, 0.25);
+}
+
 .start-screen__options {
   display: flex;
   flex-direction: column;
@@ -548,6 +570,55 @@
 .slot-selectable:hover {
   background: rgba(245, 158, 11, 0.14);
   outline: 2px solid var(--accent);
+}
+
+/* ── Market Slot Tooltip ── */
+
+.market-slot-hoverable {
+  position: relative;
+}
+
+.slot-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  background: #1a2236;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.slot-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(245, 158, 11, 0.35);
+}
+
+.market-slot-hoverable:hover > .slot-tooltip {
+  display: block;
+}
+
+.slot-tooltip__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.slot-tooltip__desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 /* ── Network Row ── */

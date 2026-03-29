@@ -25,7 +25,7 @@ export function PoliticsRow({
       <p className="market-row__subtitle">Events &amp; Mandates</p>
       <div className="politics-row">
         {politicsRow.map((card, i) => {
-          const info = card && card !== 'Mandate' ? CARD_INFO[card] : null;
+          const info = card ? CARD_INFO[card] : null;
           const isMandate = card === 'Mandate';
           const voteCost = POLITICS_VOTE_COSTS[i] ?? 0;
           const canSelect = isSelectable && isCurrentPlayerTurn && !!card && !isMandate;
@@ -35,6 +35,7 @@ export function PoliticsRow({
               key={i}
               className={[
                 'politics-slot',
+                'market-slot-hoverable',
                 !card ? 'slot-empty' : '',
                 isMandate ? 'slot-mandate' : '',
                 canSelect ? 'slot-selectable' : '',
@@ -48,6 +49,12 @@ export function PoliticsRow({
                 <>
                   <div className="slot-icon">{isMandate ? '🔖' : (info?.icon ?? '?')}</div>
                   <div className="slot-name">{isMandate ? 'Mandate' : (info?.title ?? card)}</div>
+                  {info?.description && (
+                    <div className="slot-tooltip">
+                      <div className="slot-tooltip__title">{info.icon} {info.title}</div>
+                      <div className="slot-tooltip__desc">{info.description}</div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="slot-empty-label">—</div>

@@ -253,6 +253,49 @@ describe('Elder card (Chieftain)', () => {
   });
 });
 
+describe('player turn transitions', () => {
+  it('Player 2 can activate cards on their turn', () => {
+    const G = createInitialState(2);
+    const ctx1 = makeCtx(1, 2);
+
+    const player2Builder = G.players[1].tableau.find(c => c.cardType === 'Builder')!;
+    const result = moves.activateCard({ G, ctx: ctx1 }, player2Builder.instanceId);
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G.pendingAction?.type).toBe('builder_choose');
+    expect(G.actionsRemainingThisTurn).toBe(1);
+  });
+
+  it('Player 2 can end their turn', () => {
+    const G = createInitialState(2);
+    const ctx1 = makeCtx(1, 2);
+    const endTurnCalled = { value: false };
+
+    const result = moves.endTurn({
+      G,
+      ctx: ctx1,
+      events: { endTurn: () => { endTurnCalled.value = true; } },
+    });
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(endTurnCalled.value).toBe(true);
+  });
+
+  it('all players in a 4-player game can activate cards on their respective turns', () => {
+    const G = createInitialState(4);
+
+    for (let i = 0; i < 4; i++) {
+      G.tokensUsedThisTurn = [];
+      G.actionsRemainingThisTurn = 2;
+      G.pendingAction = null;
+
+      const ctx = makeCtx(i, 4);
+      const guide = G.players[i].tableau.find(c => c.cardType === 'Guide')!;
+      const result = moves.activateCard({ G, ctx }, guide.instanceId);
+      expect(result).not.toBe(INVALID_MOVE);
+      expect(G.pendingAction?.type).toBe('guide_choose');
+    }
+  });
+});
+
 describe('win condition', () => {
   it('sets winner when a player reaches 2 seats via Seat card', () => {
     const G = createInitialState(2);

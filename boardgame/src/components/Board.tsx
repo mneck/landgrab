@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { BoardProps } from 'boardgame.io/react';
 import type { LandgrabState, BuildingType } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
 import { PlayerPanel } from './PlayerPanel';
@@ -9,7 +8,14 @@ import { NetworkRow } from './NetworkRow';
 import { ResourceMarket } from './ResourceMarket';
 import { getAllowedBuildTypes, hasAnyValidBuildHex } from '../game/gameRules';
 
-export function Board({ G, ctx, moves, playerID }: BoardProps<LandgrabState>) {
+export interface LandgrabBoardProps {
+  G: LandgrabState;
+  ctx: { currentPlayer: string; turn: number; numPlayers: number };
+  moves: Record<string, (...args: any[]) => any>;
+  playerID?: string | null;
+}
+
+export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 

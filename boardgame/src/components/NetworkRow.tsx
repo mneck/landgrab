@@ -37,6 +37,7 @@ export function NetworkRow({
               key={i}
               className={[
                 'network-slot',
+                'market-slot-hoverable',
                 !card ? 'slot-empty' : '',
                 canSelect ? 'slot-selectable' : '',
               ].join(' ')}
@@ -47,6 +48,12 @@ export function NetworkRow({
                   <div className="slot-icon">{info?.icon ?? '?'}</div>
                   <div className="slot-name">{info?.title ?? card}</div>
                   <div className="slot-badge">Personnel</div>
+                  {info?.description && (
+                    <div className="slot-tooltip">
+                      <div className="slot-tooltip__title">{info.icon} {info.title}</div>
+                      <div className="slot-tooltip__desc">{info.description}</div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="slot-empty-label">—</div>
