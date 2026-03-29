@@ -115,7 +115,7 @@ export type PendingAction =
   | { type: 'event_urbanplanning_hex'; instanceId: string }
   | { type: 'broker_choose'; instanceId: string }
   | { type: 'forester_choose'; instanceId: string }
-  | { type: 'network_bid'; slotIndex: number; highestBidder: number | null; highestBid: number; bids: Record<number, number | null> };
+  | { type: 'network_bid'; instanceId: string; slotIndex: number; highestBidder: number | null; highestBid: number; bids: Record<number, number | null> };
 
 export interface LandgrabState {
   tiles: Record<string, Tile>;

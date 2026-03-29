@@ -154,6 +154,106 @@ describe('endTurn', () => {
   });
 });
 
+describe('cancelAction', () => {
+  it('cancels a pending Builder action and refunds the action', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    const builderCard = G.players[0].tableau.find(c => c.cardType === 'Builder')!;
+
+    moves.activateCard({ G, ctx }, builderCard.instanceId);
+    expect(G.pendingAction?.type).toBe('builder_choose');
+    expect(G.actionsRemainingThisTurn).toBe(1);
+    expect(G.tokensUsedThisTurn).toContain(builderCard.instanceId);
+
+    const result = moves.cancelAction({ G, ctx });
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G.pendingAction).toBeNull();
+    expect(G.actionsRemainingThisTurn).toBe(2);
+    expect(G.tokensUsedThisTurn).not.toContain(builderCard.instanceId);
+  });
+
+  it('allows reusing a card after canceling', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    const builderCard = G.players[0].tableau.find(c => c.cardType === 'Builder')!;
+
+    moves.activateCard({ G, ctx }, builderCard.instanceId);
+    moves.cancelAction({ G, ctx });
+
+    // Should be able to activate the same card again
+    const result = moves.activateCard({ G, ctx }, builderCard.instanceId);
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G.pendingAction?.type).toBe('builder_choose');
+  });
+
+  it('rejects cancel when no pending action', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    const result = moves.cancelAction({ G, ctx });
+    expect(result).toBe(INVALID_MOVE);
+  });
+
+  it('cancels charter_place and re-adds Charter to tableau', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    const charterCard = G.players[0].tableau.find(c => c.cardType === 'Charter')!;
+
+    moves.activateCard({ G, ctx }, charterCard.instanceId);
+    expect(G.pendingAction?.type).toBe('charter_place');
+    expect(G.players[0].tableau.find(c => c.cardType === 'Charter')).toBeUndefined();
+
+    const result = moves.cancelAction({ G, ctx });
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G.pendingAction).toBeNull();
+    expect(G.actionsRemainingThisTurn).toBe(2);
+
+    const restoredCharter = G.players[0].tableau.find(c => c.cardType === 'Charter');
+    expect(restoredCharter).toBeDefined();
+    expect(restoredCharter!.instanceId).toBe(charterCard.instanceId);
+  });
+
+  it('cancels a mid-flow builder_build_type action', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    const builderCard = G.players[0].tableau.find(c => c.cardType === 'Builder')!;
+
+    moves.activateCard({ G, ctx }, builderCard.instanceId);
+    moves.chooseOption({ G, ctx }, 'build');
+    expect(G.pendingAction?.type).toBe('builder_build_type');
+
+    const result = moves.cancelAction({ G, ctx });
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G.pendingAction).toBeNull();
+    expect(G.actionsRemainingThisTurn).toBe(2);
+  });
+
+  it('cancels Guide, Liaison, and Elder choose states', () => {
+    for (const cardType of ['Guide', 'Liaison'] as const) {
+      const G = createInitialState(2);
+      const ctx = makeCtx(0, 2);
+      const card = G.players[0].tableau.find(c => c.cardType === cardType)!;
+
+      moves.activateCard({ G, ctx }, card.instanceId);
+      expect(G.pendingAction).not.toBeNull();
+
+      const result = moves.cancelAction({ G, ctx });
+      expect(result).not.toBe(INVALID_MOVE);
+      expect(G.pendingAction).toBeNull();
+      expect(G.actionsRemainingThisTurn).toBe(2);
+    }
+
+    // Elder for Chieftain
+    const G3 = createInitialState(3);
+    const ctx3 = makeCtx(2, 3);
+    const elder = G3.players[2].tableau.find(c => c.cardType === 'Elder')!;
+    moves.activateCard({ G: G3, ctx: ctx3 }, elder.instanceId);
+    const result = moves.cancelAction({ G: G3, ctx: ctx3 });
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G3.pendingAction).toBeNull();
+    expect(G3.actionsRemainingThisTurn).toBe(2);
+  });
+});
+
 describe('chooseOption', () => {
   it('rejects chooseOption when no pending action', () => {
     const G = createInitialState(2);

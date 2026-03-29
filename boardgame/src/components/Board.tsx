@@ -59,6 +59,16 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
     moves.endTurn();
   }
 
+  const NON_CANCELLABLE = new Set([
+    'builder_market_buy',
+    'builder_market_sell',
+  ]);
+
+  function handleCancelAction() {
+    if (!isMyTurn || !G.pendingAction) return;
+    moves.cancelAction();
+  }
+
   function renderPendingActionUI() {
     const pa = G.pendingAction;
     if (!pa || !isMyTurn) return null;
@@ -398,6 +408,12 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
 
                 {renderPendingActionUI()}
 
+                {isMyTurn && G.pendingAction && !NON_CANCELLABLE.has(G.pendingAction.type) && (
+                  <button className="btn-cancel" onClick={handleCancelAction}>
+                    Cancel Action
+                  </button>
+                )}
+
                 {/* Card preview + Take Action when a card is selected but no action is pending */}
                 {isMyTurn && !G.pendingAction && selectedCardId && (() => {
                   const card = currentPlayer.tableau.find(c => c.instanceId === selectedCardId);
@@ -439,9 +455,6 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
                   </>
                 )}
 
-                {G.pendingAction && (
-                  <span className="pending-label">Resolve current action</span>
-                )}
                 <div className="turn-round" style={{ marginTop: '0.5rem' }}>
                   Round {ctx.turn}
                 </div>

@@ -607,6 +607,7 @@ export const moves = {
 
     G.pendingAction = {
       type: 'network_bid',
+      instanceId: G.pendingAction.instanceId,
       slotIndex,
       highestBidder: null,
       highestBid: 0,
@@ -664,6 +665,30 @@ export const moves = {
     G.players[playerIndex].resources.coins += result.totalGain;
     if (resource === 'wood') G.woodMarket = result.newTrack;
     else G.oreMarket = result.newTrack;
+    G.pendingAction = null;
+  },
+
+  cancelAction: ({ G, ctx }: MoveArgs) => {
+    if (!G.pendingAction) return INVALID_MOVE;
+
+    // Can't cancel after a market transaction has already been processed
+    const NON_CANCELLABLE = new Set(['builder_market_buy', 'builder_market_sell']);
+    if (NON_CANCELLABLE.has(G.pendingAction.type)) return INVALID_MOVE;
+
+    const playerIndex = parseInt(ctx.currentPlayer);
+    const instanceId = G.pendingAction.instanceId;
+
+    // Charter was removed from tableau on activation — re-add it
+    if (G.pendingAction.type === 'charter_place') {
+      G.players[playerIndex].tableau.push({
+        instanceId,
+        cardType: 'Charter',
+        category: 'Event',
+      });
+    }
+
+    G.tokensUsedThisTurn = G.tokensUsedThisTurn.filter(id => id !== instanceId);
+    G.actionsRemainingThisTurn += 1;
     G.pendingAction = null;
   },
 
