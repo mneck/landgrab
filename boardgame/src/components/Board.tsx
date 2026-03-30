@@ -6,7 +6,7 @@ import { HexMap } from './HexMap';
 import { PoliticsRow } from './PoliticsRow';
 import { NetworkRow } from './NetworkRow';
 import { ResourceMarket } from './ResourceMarket';
-import { getAllowedBuildTypes, hasAnyValidBuildHex, canAffordMandate, getMandateCostLabel } from '../game/gameRules';
+import { getAllowedBuildTypes, hasAnyValidBuildHex } from '../game/gameRules';
 
 export interface LandgrabBoardProps {
   G: LandgrabState;
@@ -483,32 +483,14 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
                   );
                 })()}
 
-                {isMyTurn && !G.pendingAction && !selectedCardId && (() => {
-                  const mandateSlotIndex = G.politicsRow.findIndex(c => c === 'Mandate');
-                  const showAcquireMandate = mandateSlotIndex >= 0
-                    && G.tokensUsedThisTurn.length === 0
-                    && G.actionsRemainingThisTurn > 0;
-                  const affordable = showAcquireMandate && canAffordMandate(G.tiles, currentPlayer);
-                  return (
-                    <>
-                      {showAcquireMandate && (
-                        <div className="action-panel">
-                          <button
-                            onClick={() => moves.acquireMandate(mandateSlotIndex)}
-                            disabled={!affordable}
-                            title={affordable ? undefined : 'Cannot afford Mandate cost'}
-                          >
-                            🔖 Acquire Mandate ({getMandateCostLabel(currentPlayer)})
-                          </button>
-                        </div>
-                      )}
-                      <div className="select-card-hint">Select a card from your Tableau</div>
-                      <button className="btn-end-turn" onClick={handleEndTurn}>
-                        End Turn
-                      </button>
-                    </>
-                  );
-                })()}
+                {isMyTurn && !G.pendingAction && !selectedCardId && (
+                  <>
+                    <div className="select-card-hint">Select a card from your Tableau</div>
+                    <button className="btn-end-turn" onClick={handleEndTurn}>
+                      End Turn
+                    </button>
+                  </>
+                )}
 
                 <div className="turn-round" style={{ marginTop: '0.5rem' }}>
                   Round {ctx.turn}

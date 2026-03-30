@@ -239,22 +239,22 @@ A Mandate **cannot be Bribed** or otherwise removed from the market; it can only
 
 ## Acquiring a Mandate
 
-A player may only acquire a Mandate as the **first action of their turn** (no Action Tokens may have been placed yet). Acquiring a Mandate does not require using a Tableau card — it is a standalone action that costs 1 of the player's 2 actions for the turn.
+A Mandate is acquired the same way as any other Politics card: use **Liaison**, choose the Politics option, and pay the **🗳️ cost** of the slot the Mandate occupies (0, 1, 2, or 3 🗳️). The Mandate is then added to the player's Tableau and the Politics track is replenished from the deck as normal.
 
-The cost of a Mandate is based on player type plus the number of Seats already held (**Seat#**):
-
-| Player Type   | Mandate cost | Notes |
-|---------------|--------------|-------|
-| Hotelier      | 10 💰 + Seat# | Seat# = Seats already held |
-| Industrialist | 10 🪵 and/or ⚙️ + Seat# | Any mix of Wood and Ore |
-| Bureaucrat    | 10 🗳️ + Seat# | |
-| Chieftain     | Presence Score ≥ 10 + Seat# | Presence Score = number of Reserves + Villages adjacent to a Reserve |
-
-Pay those costs to the bank (meet the Presence threshold for the Chieftain) when you take the Mandate from the Politics track. The Mandate is then added to the player's Tableau. The Politics track slot is replenished from the deck as normal.
+A Mandate **can only be activated as the first action** of a player's turn (see below).
 
 ## Activating a Mandate
 
-Place an Action Token on the Mandate in your Tableau and spend **1 🗳️**:
+Place an Action Token on the Mandate in your Tableau as your **first action** of the turn. Pay **1 🗳️** plus your faction's resource cost:
+
+| Player Type   | Activation cost | Notes |
+|---------------|----------------|-------|
+| Hotelier      | 1 🗳️ + 10 💰 + Seat# | Seat# = Seats already held |
+| Industrialist | 1 🗳️ + 10 🪵 and/or ⚙️ + Seat# | Any mix of Wood and Ore |
+| Bureaucrat    | 1 🗳️ + 10 🗳️ + Seat# | Total 🗳️ = 11 + Seat# |
+| Chieftain     | 1 🗳️ + Presence Score ≥ 10 + Seat# | Presence Score = Reserves + Villages adjacent to a Reserve |
+
+Then:
 
 1. **Remove all Event cards** from your Tableau, including the Mandate itself. (Personnel remain.)
 2. **Add 1 Seat** to your Tableau. The Seat card remains in your Tableau permanently, occupying 1 slot.

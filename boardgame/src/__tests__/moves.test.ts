@@ -419,6 +419,7 @@ describe('win condition', () => {
 
     G.players[0].seats = 1;
     G.players[0].resources.votes = 5;
+    G.players[0].resources.coins = 15;
     G.players[0].tableau.push({
       instanceId: 'mandate_test',
       cardType: 'Mandate',
@@ -436,6 +437,7 @@ describe('win condition', () => {
 
     G.players[0].seats = 0;
     G.players[0].resources.votes = 5;
+    G.players[0].resources.coins = 15;
     G.players[0].tableau.push({
       instanceId: 'mandate_test',
       cardType: 'Mandate',
@@ -445,10 +447,10 @@ describe('win condition', () => {
     moves.activateCard({ G, ctx }, 'mandate_test');
     expect(G.players[0].seats).toBe(1);
     expect(G.winner).toBeUndefined();
-    // Seat card should be in tableau
     expect(G.players[0].tableau.some(c => c.cardType === 'Seat')).toBe(true);
-    // Restructuring should be in tableau
     expect(G.players[0].tableau.some(c => c.cardType === 'Restructuring')).toBe(true);
+    // Faction cost deducted: 10 coins for Hotelier with 0 seats
+    expect(G.players[0].resources.coins).toBe(5);
   });
 
   it('Mandate activation purges all Event cards from tableau', () => {
@@ -456,6 +458,7 @@ describe('win condition', () => {
     const ctx = makeCtx(0, 2);
 
     G.players[0].resources.votes = 5;
+    G.players[0].resources.coins = 15;
     G.players[0].tableau.push(
       { instanceId: 'mandate_test', cardType: 'Mandate', category: 'Event' },
       { instanceId: 'div_test', cardType: 'Dividends', category: 'Event' },
@@ -465,10 +468,8 @@ describe('win condition', () => {
     const personnelCount = G.players[0].tableau.filter(c => c.category === 'Personnel').length;
     moves.activateCard({ G, ctx }, 'mandate_test');
 
-    // All Events purged except the newly added Seat and Restructuring
     const events = G.players[0].tableau.filter(c => c.category === 'Event');
     expect(events.every(c => c.cardType === 'Seat' || c.cardType === 'Restructuring')).toBe(true);
-    // Personnel unchanged
     expect(G.players[0].tableau.filter(c => c.category === 'Personnel').length).toBe(personnelCount);
   });
 
@@ -477,6 +478,24 @@ describe('win condition', () => {
     const ctx = makeCtx(0, 2);
 
     G.players[0].resources.votes = 0;
+    G.players[0].resources.coins = 15;
+    G.players[0].tableau.push({
+      instanceId: 'mandate_test',
+      cardType: 'Mandate',
+      category: 'Event',
+    });
+
+    const result = moves.activateCard({ G, ctx }, 'mandate_test');
+    expect(result).toBe(INVALID_MOVE);
+    expect(G.players[0].seats).toBe(0);
+  });
+
+  it('Mandate activation fails without faction cost', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].resources.votes = 5;
+    G.players[0].resources.coins = 5;
     G.players[0].tableau.push({
       instanceId: 'mandate_test',
       cardType: 'Mandate',
@@ -489,78 +508,45 @@ describe('win condition', () => {
   });
 });
 
-describe('acquireMandate', () => {
-  it('Hotelier acquires Mandate from Politics track by paying coins', () => {
+describe('Mandate acquisition via Liaison', () => {
+  it('Mandate can be acquired from Politics track via Liaison', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);
 
     G.politicsRow[2] = 'Mandate';
-    G.players[0].resources.coins = 15;
+    G.players[0].resources.votes = 5;
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'liaison_0' };
 
-    moves.acquireMandate({ G, ctx }, 2);
+    moves.selectPoliticsCard({ G, ctx }, 2);
     expect(G.players[0].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
-    expect(G.players[0].resources.coins).toBe(5);
+    expect(G.players[0].resources.votes).toBe(3);
     expect(G.politicsRow[2]).not.toBe('Mandate');
-    expect(G.actionsRemainingThisTurn).toBe(1);
   });
 
-  it('rejects Mandate acquisition if not first action', () => {
+  it('Mandate costs the slot vote price (slot 3 = 3 votes)', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);
 
-    G.politicsRow[2] = 'Mandate';
-    G.players[0].resources.coins = 15;
-    G.tokensUsedThisTurn = ['some_card'];
+    G.politicsRow[3] = 'Mandate';
+    G.players[0].resources.votes = 5;
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'liaison_0' };
 
-    const result = moves.acquireMandate({ G, ctx }, 2);
-    expect(result).toBe(INVALID_MOVE);
+    moves.selectPoliticsCard({ G, ctx }, 3);
+    expect(G.players[0].resources.votes).toBe(2);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
   });
 
-  it('rejects Mandate acquisition if slot is not Mandate', () => {
-    const G = createInitialState(2);
-    const ctx = makeCtx(0, 2);
-
-    G.players[0].resources.coins = 15;
-
-    const result = moves.acquireMandate({ G, ctx }, 0);
-    expect(result).toBe(INVALID_MOVE);
-  });
-
-  it('rejects Mandate acquisition if player cannot afford it', () => {
-    const G = createInitialState(2);
-    const ctx = makeCtx(0, 2);
-
-    G.politicsRow[2] = 'Mandate';
-    G.players[0].resources.coins = 5;
-
-    const result = moves.acquireMandate({ G, ctx }, 2);
-    expect(result).toBe(INVALID_MOVE);
-  });
-
-  it('Industrialist pays wood and ore for Mandate', () => {
-    const G = createInitialState(2);
-    const ctx = makeCtx(1, 2);
-
-    G.politicsRow[1] = 'Mandate';
-    G.players[1].resources.wood = 6;
-    G.players[1].resources.ore = 5;
-
-    moves.acquireMandate({ G, ctx }, 1);
-    expect(G.players[1].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
-    expect(G.players[1].resources.wood + G.players[1].resources.ore).toBe(1);
-  });
-
-  it('escalating cost: 2nd Mandate costs 11 for Hotelier', () => {
+  it('Mandate at slot 0 is free (0 votes)', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);
 
     G.politicsRow[0] = 'Mandate';
-    G.players[0].seats = 1;
-    G.players[0].resources.coins = 11;
+    G.players[0].resources.votes = 1;
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'liaison_0' };
 
-    moves.acquireMandate({ G, ctx }, 0);
+    moves.selectPoliticsCard({ G, ctx }, 0);
+    expect(G.players[0].resources.votes).toBe(1);
     expect(G.players[0].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
-    expect(G.players[0].resources.coins).toBe(0);
   });
 });
 

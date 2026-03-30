@@ -122,6 +122,7 @@ function payMandateCost(G: LandgrabState, playerIndex: number): boolean {
 function activateMandate(G: LandgrabState, playerIndex: number, instanceId: string): boolean {
   const player = G.players[playerIndex];
   if (player.resources.votes < 1) return false;
+  if (!payMandateCost(G, playerIndex)) return false;
   player.resources.votes -= 1;
 
   player.tableau = player.tableau.filter(c => c.category !== 'Event');
@@ -556,7 +557,7 @@ export const moves = {
     if (!G.pendingAction || G.pendingAction.type !== 'liaison_politics') return INVALID_MOVE;
 
     const card = G.politicsRow[slotIndex];
-    if (!card || card === 'Mandate') return INVALID_MOVE;
+    if (!card) return INVALID_MOVE;
 
     const VOTE_COSTS = [0, 1, 2, 3];
     const voteCost = VOTE_COSTS[slotIndex] ?? 0;
@@ -653,32 +654,6 @@ export const moves = {
     if (resource === 'wood') G.woodMarket = result.newTrack;
     else G.oreMarket = result.newTrack;
     G.pendingAction = null;
-  },
-
-  acquireMandate: ({ G, ctx }: MoveArgs, slotIndex: number) => {
-    const playerIndex = parseInt(ctx.currentPlayer);
-    if (G.pendingAction) return INVALID_MOVE;
-    if (G.tokensUsedThisTurn.length > 0) return INVALID_MOVE;
-    if (G.actionsRemainingThisTurn === 0) return INVALID_MOVE;
-
-    if (slotIndex < 0 || slotIndex > 3) return INVALID_MOVE;
-    const card = G.politicsRow[slotIndex];
-    if (card !== 'Mandate') return INVALID_MOVE;
-
-    const player = G.players[playerIndex];
-    if (player.tableau.length >= 8) return INVALID_MOVE;
-    if (!payMandateCost(G, playerIndex)) return INVALID_MOVE;
-
-    player.tableau.push({
-      instanceId: `Mandate_${playerIndex}_${Date.now()}`,
-      cardType: 'Mandate' as EventCardType,
-      category: 'Event',
-    });
-
-    const nextCard = G.politicsDeck.shift() ?? null;
-    G.politicsRow[slotIndex] = nextCard;
-
-    G.actionsRemainingThisTurn -= 1;
   },
 
   chooseRestructuringTarget: ({ G, ctx }: MoveArgs, targetInstanceId: string) => {

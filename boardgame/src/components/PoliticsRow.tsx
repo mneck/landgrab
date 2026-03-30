@@ -28,7 +28,7 @@ export function PoliticsRow({
           const info = card ? CARD_INFO[card] : null;
           const isMandate = card === 'Mandate';
           const voteCost = POLITICS_VOTE_COSTS[i] ?? 0;
-          const canSelect = isSelectable && isCurrentPlayerTurn && !!card && !isMandate;
+          const canSelect = isSelectable && isCurrentPlayerTurn && !!card;
 
           return (
             <div

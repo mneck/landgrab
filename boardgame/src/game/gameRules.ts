@@ -285,6 +285,7 @@ export function runProcurementForPlayer(
           const nt = tiles[hexKey(nb)];
           if (!nt || nt.building === "Reserve") continue;
           if (["Forest", "Water", "Mountain"].includes(nt.type)) prod += 1;
+          if (nt.building === "IndustrialZone" || nt.building === "Infrastructure") prod -= 1;
         }
         if (t.type === "Sand") {
           for (const nb of hexNeighbors(t.hex)) {
@@ -292,7 +293,7 @@ export function runProcurementForPlayer(
             if (nt?.type === "Water" && nt.building !== "Reserve") { prod += 1; break; }
           }
         }
-        res.coins += prod * getProcurementMultiplier(t);
+        res.coins += Math.max(0, prod) * getProcurementMultiplier(t);
       }
     }
   } else if (playerType === "Industrialist") {
