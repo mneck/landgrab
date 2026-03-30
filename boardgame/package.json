@@ -5,14 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "tsx watch server.ts",
+    "dev:all": "npm run dev:server & npm run dev",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "serve": "NODE_ENV=production tsx server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "boardgame.io": "^0.50.2",
+    "koa-static": "^5.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -20,6 +24,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.21.0",
     "typescript": "~5.6.3",
     "vite": "^5.4.10",
     "vitest": "^4.1.2"

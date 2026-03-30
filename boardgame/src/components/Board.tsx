@@ -7,15 +7,17 @@ import { PoliticsRow } from './PoliticsRow';
 import { NetworkRow } from './NetworkRow';
 import { ResourceMarket } from './ResourceMarket';
 import { getAllowedBuildTypes, hasAnyValidBuildHex } from '../game/gameRules';
+import { useAIPlayer } from '../ai/aiRunner';
 
 export interface LandgrabBoardProps {
   G: LandgrabState;
   ctx: { currentPlayer: string; turn: number; numPlayers: number };
   moves: Record<string, (...args: any[]) => any>;
   playerID?: string | null;
+  aiPlayerIndices?: number[];
 }
 
-export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
+export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: LandgrabBoardProps) {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -26,9 +28,12 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
   const isMyTurn = myPlayerIndex === currentPlayerIndex;
   const currentPlayer = G.players[currentPlayerIndex];
 
+  const { isAITurn } = useAIPlayer({ G, ctx, moves, aiPlayerIndices });
+  const humanCanAct = isMyTurn && !isAITurn;
+
   function handleHexClick(hexKey: string) {
     const pa = G.pendingAction;
-    if (!pa || !isMyTurn) return;
+    if (!pa || !humanCanAct) return;
 
     const hexPlacingActions = [
       'charter_place', 'builder_build_hex', 'elder_village_hex', 'elder_reserve_hex',
@@ -43,18 +48,18 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
   }
 
   function handleSelectCard(instanceId: string) {
-    if (!isMyTurn) return;
+    if (!humanCanAct) return;
     setSelectedCardId(prev => prev === instanceId ? null : instanceId);
   }
 
   function handleConfirmCard() {
-    if (!isMyTurn || !selectedCardId) return;
+    if (!humanCanAct || !selectedCardId) return;
     moves.activateCard(selectedCardId);
     setSelectedCardId(null);
   }
 
   function handleEndTurn() {
-    if (!isMyTurn || G.pendingAction) return;
+    if (!humanCanAct || G.pendingAction) return;
     setSelectedCardId(null);
     moves.endTurn();
   }
@@ -65,13 +70,13 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
   ]);
 
   function handleCancelAction() {
-    if (!isMyTurn || !G.pendingAction) return;
+    if (!humanCanAct || !G.pendingAction) return;
     moves.cancelAction();
   }
 
   function renderPendingActionUI() {
     const pa = G.pendingAction;
-    if (!pa || !isMyTurn) return null;
+    if (!pa || !humanCanAct) return null;
 
     switch (pa.type) {
       case 'builder_choose': {
@@ -442,7 +447,14 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
 
                 {renderPendingActionUI()}
 
-                {isMyTurn && G.pendingAction && !NON_CANCELLABLE.has(G.pendingAction.type)
+                {isAITurn && (
+                  <div className="ai-thinking-indicator">
+                    <span className="ai-thinking-spinner" />
+                    AI is thinking ({G.players[currentPlayerIndex].type})...
+                  </div>
+                )}
+
+                {humanCanAct && G.pendingAction && !NON_CANCELLABLE.has(G.pendingAction.type)
                   && !(G.pendingAction.type === 'event_stimulus_choose' && G.pendingAction.remaining < 4)
                   && (
                   <button className="btn-cancel" onClick={handleCancelAction}>
@@ -450,8 +462,7 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
                   </button>
                 )}
 
-                {/* Card preview + Take Action when a card is selected but no action is pending */}
-                {isMyTurn && !G.pendingAction && selectedCardId && (() => {
+                {humanCanAct && !G.pendingAction && selectedCardId && (() => {
                   const card = currentPlayer.tableau.find(c => c.instanceId === selectedCardId);
                   if (!card) return null;
                   const info = CARD_INFO[card.cardType];
@@ -483,7 +494,7 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
                   );
                 })()}
 
-                {isMyTurn && !G.pendingAction && !selectedCardId && (
+                {humanCanAct && !G.pendingAction && !selectedCardId && (
                   <>
                     <div className="select-card-hint">Select a card from your Tableau</div>
                     <button className="btn-end-turn" onClick={handleEndTurn}>
@@ -534,7 +545,7 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
             <PoliticsRow
               politicsRow={G.politicsRow}
               pendingAction={G.pendingAction}
-              isCurrentPlayerTurn={isMyTurn}
+              isCurrentPlayerTurn={humanCanAct}
               onSelectSlot={(slotIndex) => {
                 if (G.pendingAction?.type === 'liaison_politics') {
                   moves.selectPoliticsCard(slotIndex);
@@ -547,7 +558,7 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
             <NetworkRow
               networkRow={G.networkRow}
               pendingAction={G.pendingAction}
-              isCurrentPlayerTurn={isMyTurn}
+              isCurrentPlayerTurn={humanCanAct}
               playerCoins={currentPlayer.resources.coins}
               onSelectSlot={(slotIndex) => moves.selectNetworkCard(slotIndex)}
               onPlaceBid={(amount) => moves.placeBid(amount)}

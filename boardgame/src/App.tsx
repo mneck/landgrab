@@ -2,15 +2,26 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Client as BGClient } from 'boardgame.io/client';
 import { LandgrabGame } from './game/Game';
 import { Board } from './components/Board';
-import type { LandgrabState } from './game/types';
+import { Lobby } from './multiplayer/Lobby';
+import { OnlineGameView } from './multiplayer/OnlineGameView';
+import type { LandgrabState, PlayerType } from './game/types';
 import './App.css';
 
 type NumPlayers = 2 | 3 | 4;
 
-const PLAYER_TYPES: Record<NumPlayers, string[]> = {
+const ALL_PLAYER_TYPES: PlayerType[] = ['Hotelier', 'Industrialist', 'Chieftain', 'Bureaucrat'];
+
+const PLAYER_TYPES: Record<NumPlayers, PlayerType[]> = {
   2: ['Hotelier', 'Industrialist'],
   3: ['Hotelier', 'Industrialist', 'Chieftain'],
   4: ['Hotelier', 'Industrialist', 'Chieftain', 'Bureaucrat'],
+};
+
+const PLAYER_ICONS: Record<PlayerType, string> = {
+  Hotelier: '🏨',
+  Industrialist: '🏭',
+  Chieftain: '🏕️',
+  Bureaucrat: '🏛️',
 };
 
 const STORAGE_KEY = 'landgrab_save';
@@ -18,6 +29,7 @@ const STORAGE_KEY = 'landgrab_save';
 interface SavedGame {
   numPlayers: NumPlayers;
   state: Record<string, any>;
+  aiPlayerIndices?: number[];
 }
 
 function loadSavedGame(): SavedGame | null {
@@ -36,7 +48,7 @@ function clearSavedGame() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean) {
+function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean, aiPlayerIndices: number[]) {
   const clientRef = useRef<ReturnType<typeof BGClient> | null>(null);
   const [gameState, setGameState] = useState<{
     G: LandgrabState;
@@ -70,6 +82,7 @@ function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           numPlayers,
+          aiPlayerIndices,
           state: { G: state.G, ctx: state.ctx, plugins: state.plugins, _stateID: state._stateID, _undo: state._undo ?? [], _redo: state._redo ?? [] },
         }));
       } catch { /* quota exceeded, ignore */ }
@@ -91,8 +104,8 @@ function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean) {
   return { gameState, moves };
 }
 
-function GameView({ numPlayers, restoreSave }: { numPlayers: NumPlayers; restoreSave: boolean }) {
-  const { gameState, moves } = usePersistedGame(numPlayers, restoreSave);
+function GameView({ numPlayers, restoreSave, aiPlayerIndices }: { numPlayers: NumPlayers; restoreSave: boolean; aiPlayerIndices: number[] }) {
+  const { gameState, moves } = usePersistedGame(numPlayers, restoreSave, aiPlayerIndices);
 
   if (!gameState || !moves) return null;
 
@@ -101,16 +114,34 @@ function GameView({ numPlayers, restoreSave }: { numPlayers: NumPlayers; restore
       G={gameState.G}
       ctx={gameState.ctx}
       moves={moves}
+      aiPlayerIndices={aiPlayerIndices}
     />
   );
 }
 
+type GameMode = 'menu' | 'solo-setup' | 'hotseat-select' | 'online-lobby' | 'online-game';
+
+const GAME_SERVER_URL = import.meta.env.VITE_GAME_SERVER || '';
+
+interface OnlineSession {
+  matchID: string;
+  playerID: string;
+  credentials: string;
+  numPlayers: number;
+}
+
 export default function App() {
+  const [gameMode, setGameMode] = useState<GameMode>('menu');
   const [numPlayers, setNumPlayers] = useState<NumPlayers | null>(null);
   const [started, setStarted] = useState(false);
   const [restoreSave, setRestoreSave] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [savedGame, setSavedGame] = useState(() => loadSavedGame());
+  const [aiPlayerIndices, setAiPlayerIndices] = useState<number[]>([]);
+  const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
+
+  const [soloFaction, setSoloFaction] = useState<PlayerType | null>(null);
+  const [soloOpponents, setSoloOpponents] = useState<1 | 2 | 3>(2);
 
   const handleNewGame = useCallback(() => {
     clearSavedGame();
@@ -118,21 +149,68 @@ export default function App() {
     setStarted(false);
     setNumPlayers(null);
     setRestoreSave(false);
+    setGameMode('menu');
+    setAiPlayerIndices([]);
+    setSoloFaction(null);
+    setOnlineSession(null);
     setGameKey(k => k + 1);
   }, []);
 
   const handleContinue = useCallback(() => {
     if (!savedGame) return;
     setNumPlayers(savedGame.numPlayers);
+    setAiPlayerIndices(savedGame.aiPlayerIndices ?? []);
     setRestoreSave(true);
     setStarted(true);
   }, [savedGame]);
 
-  const handleStartFresh = useCallback(() => {
+  const handleStartHotseat = useCallback(() => {
+    clearSavedGame();
+    setRestoreSave(false);
+    setAiPlayerIndices([]);
+    setStarted(true);
+  }, []);
+
+  const handleStartSolo = useCallback(() => {
+    if (!soloFaction) return;
+    const totalPlayers = (soloOpponents + 1) as NumPlayers;
+    const factionOrder = PLAYER_TYPES[totalPlayers];
+    const humanIndex = factionOrder.indexOf(soloFaction);
+    if (humanIndex < 0) return;
+
+    const aiIndices = factionOrder.map((_, i) => i).filter(i => i !== humanIndex);
+    setNumPlayers(totalPlayers);
+    setAiPlayerIndices(aiIndices);
     clearSavedGame();
     setRestoreSave(false);
     setStarted(true);
-  }, []);
+  }, [soloFaction, soloOpponents]);
+
+  if (gameMode === 'online-game' && onlineSession) {
+    return (
+      <OnlineGameView
+        key={`online-${onlineSession.matchID}`}
+        matchID={onlineSession.matchID}
+        playerID={onlineSession.playerID}
+        credentials={onlineSession.credentials}
+        serverURL={GAME_SERVER_URL}
+        onLeave={handleNewGame}
+      />
+    );
+  }
+
+  if (gameMode === 'online-lobby') {
+    return (
+      <Lobby
+        serverURL={GAME_SERVER_URL}
+        onJoinMatch={(info) => {
+          setOnlineSession(info);
+          setGameMode('online-game');
+        }}
+        onBack={() => setGameMode('menu')}
+      />
+    );
+  }
 
   if (started && numPlayers) {
     return (
@@ -140,15 +218,12 @@ export default function App() {
         <div className="game-header">
           <h1>Landgrab</h1>
           <div className="game-header__actions">
-            <button
-              className="game-header__btn"
-              onClick={handleNewGame}
-            >
+            <button className="game-header__btn" onClick={handleNewGame}>
               New Game
             </button>
           </div>
         </div>
-        <GameView key={gameKey} numPlayers={numPlayers} restoreSave={restoreSave} />
+        <GameView key={gameKey} numPlayers={numPlayers} restoreSave={restoreSave} aiPlayerIndices={aiPlayerIndices} />
       </div>
     );
   }
@@ -169,35 +244,120 @@ export default function App() {
             Continue Game
             <span className="start-screen__option-detail">
               {savedGame.numPlayers} players · Round {savedGame.state.ctx.turn}
+              {(savedGame.aiPlayerIndices?.length ?? 0) > 0 && ' · vs AI'}
             </span>
           </button>
         )}
 
-        <div className="start-screen__options">
-          {([2, 3, 4] as NumPlayers[]).map((n) => (
+        {gameMode === 'menu' && (
+          <div className="start-screen__options">
             <button
-              key={n}
-              className={`start-screen__btn start-screen__option-btn ${numPlayers === n ? 'start-screen__option-btn--selected' : ''}`}
-              onClick={() => setNumPlayers(n)}
+              className="start-screen__btn start-screen__option-btn"
+              onClick={() => setGameMode('solo-setup')}
             >
-              <span className="start-screen__option-icons">
-                {'👤'.repeat(n)}
-              </span>
-              <span className="start-screen__option-label">{n} Players</span>
-              <span className="start-screen__option-detail">
-                {PLAYER_TYPES[n].join(' · ')}
-              </span>
+              <span className="start-screen__option-icons">👤🤖</span>
+              <span className="start-screen__option-label">Solo vs AI</span>
+              <span className="start-screen__option-detail">Play against AI opponents</span>
             </button>
-          ))}
-        </div>
+            <button
+              className="start-screen__btn start-screen__option-btn"
+              onClick={() => setGameMode('online-lobby')}
+            >
+              <span className="start-screen__option-icons">🌐</span>
+              <span className="start-screen__option-label">Online Multiplayer</span>
+              <span className="start-screen__option-detail">Play with friends over the network</span>
+            </button>
+            <button
+              className="start-screen__btn start-screen__option-btn"
+              onClick={() => setGameMode('hotseat-select')}
+            >
+              <span className="start-screen__option-icons">👤👤</span>
+              <span className="start-screen__option-label">Hot Seat</span>
+              <span className="start-screen__option-detail">Pass-and-play multiplayer</span>
+            </button>
+          </div>
+        )}
 
-        {numPlayers && (
-          <button
-            className="start-screen__btn start-screen__btn--primary"
-            onClick={handleStartFresh}
-          >
-            Start New Game
-          </button>
+        {gameMode === 'solo-setup' && (
+          <div className="start-screen__solo-setup">
+            <h3 className="start-screen__section-title">Choose your faction</h3>
+            <div className="start-screen__options start-screen__options--grid">
+              {ALL_PLAYER_TYPES.map(pt => (
+                <button
+                  key={pt}
+                  className={`start-screen__btn start-screen__option-btn ${soloFaction === pt ? 'start-screen__option-btn--selected' : ''}`}
+                  onClick={() => setSoloFaction(pt)}
+                >
+                  <span className="start-screen__option-icons">{PLAYER_ICONS[pt]}</span>
+                  <span className="start-screen__option-label">{pt}</span>
+                </button>
+              ))}
+            </div>
+
+            {soloFaction && (
+              <>
+                <h3 className="start-screen__section-title">Number of AI opponents</h3>
+                <div className="start-screen__options">
+                  {([1, 2, 3] as const).map(n => {
+                    const total = (n + 1) as NumPlayers;
+                    const factions = PLAYER_TYPES[total];
+                    if (!factions.includes(soloFaction)) return null;
+                    return (
+                      <button
+                        key={n}
+                        className={`start-screen__btn start-screen__option-btn ${soloOpponents === n ? 'start-screen__option-btn--selected' : ''}`}
+                        onClick={() => setSoloOpponents(n)}
+                      >
+                        <span className="start-screen__option-icons">{'🤖'.repeat(n)}</span>
+                        <span className="start-screen__option-label">{n} Opponent{n > 1 ? 's' : ''}</span>
+                        <span className="start-screen__option-detail">
+                          {factions.filter(f => f !== soloFaction).join(' · ')}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button className="start-screen__btn start-screen__btn--primary" onClick={handleStartSolo}>
+                  Start Game
+                </button>
+              </>
+            )}
+
+            <button className="start-screen__btn start-screen__btn--back" onClick={() => { setGameMode('menu'); setSoloFaction(null); }}>
+              Back
+            </button>
+          </div>
+        )}
+
+        {gameMode === 'hotseat-select' && (
+          <>
+            <div className="start-screen__options">
+              {([2, 3, 4] as NumPlayers[]).map((n) => (
+                <button
+                  key={n}
+                  className={`start-screen__btn start-screen__option-btn ${numPlayers === n ? 'start-screen__option-btn--selected' : ''}`}
+                  onClick={() => setNumPlayers(n)}
+                >
+                  <span className="start-screen__option-icons">{'👤'.repeat(n)}</span>
+                  <span className="start-screen__option-label">{n} Players</span>
+                  <span className="start-screen__option-detail">
+                    {PLAYER_TYPES[n].join(' · ')}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {numPlayers && (
+              <button className="start-screen__btn start-screen__btn--primary" onClick={handleStartHotseat}>
+                Start New Game
+              </button>
+            )}
+
+            <button className="start-screen__btn start-screen__btn--back" onClick={() => { setGameMode('menu'); setNumPlayers(null); }}>
+              Back
+            </button>
+          </>
         )}
       </div>
     </div>
