@@ -1,0 +1,5 @@
+/.claude
+/boardgame/node_modules
+/boardgame/dist
+*.local
+.DS_Store
