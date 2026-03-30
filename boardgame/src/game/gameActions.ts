@@ -1,5 +1,5 @@
 import type { LandgrabState, ResourceTrack } from './types';
-import { MANDATE_INTERVALS } from './types';
+import { MANDATE_INTERVALS, MANDATE_RECURRING_INTERVAL } from './types';
 
 export function shuffle<T>(array: T[]): T[] {
   const result = [...array];
@@ -27,13 +27,15 @@ function getMandateMilestone(intervalIndex: number): number {
   if (intervalIndex < MANDATE_INTERVALS.length) {
     return MANDATE_INTERVALS.slice(0, intervalIndex + 1).reduce((a: number, b: number) => a + b, 0);
   }
-  return 10 + (intervalIndex - MANDATE_INTERVALS.length);
+  const base = MANDATE_INTERVALS.reduce((a: number, b: number) => a + b, 0);
+  return base + (intervalIndex - MANDATE_INTERVALS.length + 1) * MANDATE_RECURRING_INTERVAL;
 }
 
 /** End-of-round rotation: remove Slot 0, shift left, draw 1 into Slot 3 */
 export function rotatePoliticsEndOfRound(G: LandgrabState): void {
+  const removed = G.politicsRow[0];
   const [, ...rest] = G.politicsRow;
-  const drawn = G.politicsDeck.shift() ?? null;
+  let drawn = G.politicsDeck.shift() ?? null;
   G.politicsRow = [
     rest[0] ?? null,
     rest[1] ?? null,
@@ -41,11 +43,21 @@ export function rotatePoliticsEndOfRound(G: LandgrabState): void {
     drawn,
   ];
 
+  if (removed === 'Mandate') {
+    G.politicsDeck.push('Mandate');
+  }
+
   if (G.thresholdReached) {
     G.revealedPoliticsSinceThreshold += 1;
     const milestone = getMandateMilestone(G.mandateIntervalIndex);
     if (G.revealedPoliticsSinceThreshold >= milestone) {
-      G.politicsRow[3] = "Mandate";
+      const mandateAlreadyVisible = G.politicsRow.some(c => c === 'Mandate');
+      if (!mandateAlreadyVisible) {
+        if (drawn !== null) G.politicsDeck.unshift(drawn);
+        G.politicsRow[3] = 'Mandate';
+      } else {
+        G.politicsDeck.push('Mandate');
+      }
       G.mandateIntervalIndex += 1;
     }
   }

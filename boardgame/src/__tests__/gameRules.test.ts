@@ -7,8 +7,10 @@ import {
   canPlaceConservation,
   getCharterBuilding,
   countProductionAndSupport,
+  canAffordMandate,
   BUILD_OPTIONS,
 } from '../game/gameRules';
+import { rotatePoliticsEndOfRound } from '../game/gameActions';
 import { hexKey, hexNeighbors } from '../utils/hexGrid';
 import { createInitialState } from '../game/setup';
 import type { LandgrabState, Tile } from '../game/types';
@@ -259,5 +261,61 @@ describe('countProductionAndSupport', () => {
       production: 0,
       support: 0,
     });
+  });
+});
+
+describe('canAffordMandate', () => {
+  it('Hotelier needs 10 coins for first Mandate', () => {
+    const G = createInitialState(2);
+    G.players[0].resources.coins = 10;
+    expect(canAffordMandate(G.tiles, G.players[0])).toBe(true);
+    G.players[0].resources.coins = 9;
+    expect(canAffordMandate(G.tiles, G.players[0])).toBe(false);
+  });
+
+  it('Hotelier needs 11 for second Mandate (10 + 1 seat)', () => {
+    const G = createInitialState(2);
+    G.players[0].seats = 1;
+    G.players[0].resources.coins = 11;
+    expect(canAffordMandate(G.tiles, G.players[0])).toBe(true);
+    G.players[0].resources.coins = 10;
+    expect(canAffordMandate(G.tiles, G.players[0])).toBe(false);
+  });
+
+  it('Industrialist can pay with wood+ore mix', () => {
+    const G = createInitialState(2);
+    G.players[1].resources.wood = 5;
+    G.players[1].resources.ore = 5;
+    expect(canAffordMandate(G.tiles, G.players[1])).toBe(true);
+    G.players[1].resources.ore = 4;
+    expect(canAffordMandate(G.tiles, G.players[1])).toBe(false);
+  });
+});
+
+describe('rotatePoliticsEndOfRound', () => {
+  it('Mandate rotates off track and returns to bottom of deck', () => {
+    const G = createInitialState(2);
+    G.politicsRow = ['Mandate', 'Bribe', 'Graft', 'Import'];
+    G.politicsDeck = ['Export', 'Zoning'];
+
+    rotatePoliticsEndOfRound(G);
+
+    expect(G.politicsRow[0]).toBe('Bribe');
+    expect(G.politicsRow[3]).not.toBeNull();
+    expect(G.politicsDeck[G.politicsDeck.length - 1]).toBe('Mandate');
+  });
+
+  it('does not place duplicate Mandate if one is already visible', () => {
+    const G = createInitialState(2);
+    G.thresholdReached = true;
+    G.revealedPoliticsSinceThreshold = 3;
+    G.mandateIntervalIndex = 0;
+    G.politicsRow = ['Bribe', 'Mandate', 'Graft', 'Import'];
+    G.politicsDeck = ['Export', 'Zoning'];
+
+    rotatePoliticsEndOfRound(G);
+
+    const mandateCount = G.politicsRow.filter(c => c === 'Mandate').length;
+    expect(mandateCount).toBeLessThanOrEqual(1);
   });
 });

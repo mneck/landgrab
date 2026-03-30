@@ -192,6 +192,53 @@ export function revealAdjacentFog(
   return newTiles;
 }
 
+export function getPresenceScore(tiles: LandgrabState["tiles"]): number {
+  let score = 0;
+  const reserves: HexCoord[] = [];
+  for (const t of Object.values(tiles)) {
+    if (t.building === "Reserve" && t.buildingOwner === "Chieftain") {
+      score++;
+      reserves.push(t.hex);
+    }
+  }
+  const counted = new Set<string>();
+  for (const rHex of reserves) {
+    for (const nb of hexNeighbors(rHex)) {
+      const k = hexKey(nb);
+      const nt = tiles[k];
+      if (nt?.building === "Village" && nt.buildingOwner === "Chieftain" && !counted.has(k)) {
+        counted.add(k);
+        score++;
+      }
+    }
+  }
+  return score;
+}
+
+export function canAffordMandate(tiles: LandgrabState["tiles"], player: LandgrabState["players"][0]): boolean {
+  const cost = 10 + player.seats;
+  switch (player.type) {
+    case "Hotelier":
+      return player.resources.coins >= cost;
+    case "Industrialist":
+      return (player.resources.wood + player.resources.ore) >= cost;
+    case "Bureaucrat":
+      return player.resources.votes >= cost;
+    case "Chieftain":
+      return getPresenceScore(tiles) >= cost;
+  }
+}
+
+export function getMandateCostLabel(player: LandgrabState["players"][0]): string {
+  const cost = 10 + player.seats;
+  switch (player.type) {
+    case "Hotelier": return `${cost} 💰`;
+    case "Industrialist": return `${cost} 🪵/⚙️`;
+    case "Bureaucrat": return `${cost} 🗳️`;
+    case "Chieftain": return `Presence ≥ ${cost}`;
+  }
+}
+
 // Procurement helper - count buildings for resource generation
 function getProcurementMultiplier(tile: { hasUrbanPlanning?: boolean }): number {
   return tile.hasUrbanPlanning ? 2 : 1;

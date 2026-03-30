@@ -31,10 +31,13 @@
     - [Villages](#villages)
   - [Building cadence after Charter](#building-cadence-after-charter)
   - [A typical turn](#a-typical-turn)
-- [Victory Conditions](#victory-conditions)
+- [Winning the Game](#winning-the-game)
   - [Player counts](#player-counts)
-  - [Mandate](#mandate)
-  - [Promotion](#promotion)
+  - [Mandate Appearance](#mandate-appearance)
+  - [Acquiring a Mandate](#acquiring-a-mandate)
+  - [Activating a Mandate](#activating-a-mandate)
+  - [Restructuring](#restructuring)
+  - [Stimulus](#stimulus)
   - [Seat](#seat)
 - [Network](#network)
   - [Network setup](#network-setup)
@@ -71,7 +74,7 @@ Each player has different winning conditions depending on one of four **Player T
 3. The Chieftain wins by reserving undeveloped hexes on the map.
 4. The Bureaucrat wins by collecting 🗳️.
 
-After collecting a certain number of cards, the player can win the game using the Mandate card to achieve a victory.
+After collecting enough resources, a player can acquire a **Mandate** from the Politics track and activate it to gain a **Seat**. The first player to reach **2 Seats** wins the game.
 
 # Player Types
 There are four player types: the Hotelier, the Industrialist, the Bureaucrat, and the Chieftain. Each player begins with 4 cards in their Tableau.
@@ -210,35 +213,76 @@ After placing with **Charter**, normal placement rules apply. Hotelier, Industri
 
 You may acquire new cards only when rules allow (e.g. Liaison + Politics track, Guide + Network, or card text). Your Tableau may hold at most **8** cards; if you would exceed that, you cannot take the acquisition until you free a slot (for example, when one-shot Events leave your Tableau).
 
-# Victory Conditions
-A player wins by acquiring **3 Seats**. Seats are earned by purchasing and playing **Mandate** cards from the Politics track (see [Mandate](#mandate)).
+# Winning the Game
+
+A player wins by acquiring **2 Seats**. Seats are earned by acquiring and activating **Mandate** cards from the Politics track.
 
 ### Player counts
 - **2 players:** Hotelier, Industrialist  
 - **3 players:** Hotelier, Industrialist, and either Chieftain or Bureaucrat  
 - **4 players:** Hotelier, Industrialist, Chieftain, Bureaucrat  
 
-## Mandate
-Mandate cards are interleaved into the Politics deck on a schedule: the first Mandate appears after 5 regular Politics cards, then after 4, then 3, then 2, and every 2 cards thereafter. When a Mandate is drawn to fill a market slot, it occupies the 4-🗳️ slot, with other cards shifted to cheaper positions if needed. If a Mandate is drawn but one is already visible in the market, the duplicate goes to the bottom of the Politics draw deck and the next card is drawn instead.
+## Mandate Appearance
 
-A Mandate cannot be Bribed or otherwise removed from the market; it can only be purchased. A player may only acquire a Mandate as the **first Action Token placement of their turn**. Resolving a Mandate adds a **Promotion** Event and a **Seat** card to your Tableau (or your score pile, if you track Seats separately—either way, follow Promotion and Seat below). **Your turn ends immediately** after you finish resolving the Mandate and Promotion (you do not place a second Action Token).
+After **50% of the Fog hexes** on the map have been revealed, a **Mandate** card is placed into the rightmost (3 🗳️) slot of the Politics track. After that initial Mandate, additional Mandates appear on a schedule based on how many Event cards have been drawn into the Politics track since the fog threshold was reached:
 
-The cost of a Mandate is based on player type plus the number of Seats you already have (**Seat#**):
+| Mandate # | Cards since threshold |
+|-----------|---------------------|
+| 1st       | 4                   |
+| 2nd       | 7 (4+3)             |
+| 3rd       | 10 (4+3+3)          |
+| 4th+      | every 3 thereafter  |
+
+A Mandate placed into the Politics track behaves like any other Event card: it slides toward cheaper slots as other cards are purchased or rotated, and **it rotates off the track** when it reaches the 0 🗳️ slot at end of round (returning to the bottom of the Politics deck). If a Mandate would be placed but one is already visible on the track, the new Mandate goes to the bottom of the Politics deck instead.
+
+A Mandate **cannot be Bribed** or otherwise removed from the market; it can only be acquired.
+
+## Acquiring a Mandate
+
+A player may only acquire a Mandate as the **first action of their turn** (no Action Tokens may have been placed yet). Acquiring a Mandate does not require using a Tableau card — it is a standalone action that costs 1 of the player's 2 actions for the turn.
+
+The cost of a Mandate is based on player type plus the number of Seats already held (**Seat#**):
 
 | Player Type   | Mandate cost | Notes |
 |---------------|--------------|-------|
 | Hotelier      | 10 💰 + Seat# | Seat# = Seats already held |
 | Industrialist | 10 🪵 and/or ⚙️ + Seat# | Any mix of Wood and Ore |
 | Bureaucrat    | 10 🗳️ + Seat# | |
-| Chieftain     | Presence Score ≥ 10 + Seat# | Presence Score = number of Reserves plus Villages adjacent to a Reserve |
+| Chieftain     | Presence Score ≥ 10 + Seat# | Presence Score = number of Reserves + Villages adjacent to a Reserve |
 
-Pay those costs to the bank (and meet the Presence threshold for the Chieftain) when you take the Mandate from the Politics track.
+Pay those costs to the bank (meet the Presence threshold for the Chieftain) when you take the Mandate from the Politics track. The Mandate is then added to the player's Tableau. The Politics track slot is replenished from the deck as normal.
 
-## Promotion
-When **Promotion** enters your Tableau, resolve it immediately: **remove every Event card from your Tableau** (Personnel stay). Then add a **Dividends** Event card to your Tableau. If this would exceed 8 cards, discard or trash Events you choose until you have room, then add Dividends.
+## Activating a Mandate
+
+Place an Action Token on the Mandate in your Tableau and spend **1 🗳️**:
+
+1. **Remove all Event cards** from your Tableau, including the Mandate itself. (Personnel remain.)
+2. **Add 1 Seat** to your Tableau. The Seat card remains in your Tableau permanently, occupying 1 slot.
+3. **Add 1 Restructuring** Event to your Tableau (if there is room; the 8-card Tableau limit still applies).
+
+Your **Seat count** increases by 1 when the Mandate is activated. At **2 Seats**, you win the game.
+
+Because activating a Mandate purges all your Events (including any other Mandate you may be holding), a player cannot stockpile Mandates — activating one destroys any others.
+
+## Restructuring
+
+**Restructuring** is an Event card added to your Tableau when you activate a Mandate.
+
+When you place an Action Token on Restructuring: **remove 1 Personnel card** of your choice from your Tableau. Then **add 1 Stimulus** Event to your Tableau. Restructuring is then removed from your Tableau.
+
+Restructuring is useful for freeing up Tableau space (e.g. to make room for a second Seat) and for gaining resources through the Stimulus it generates.
+
+## Stimulus
+
+**Stimulus** is an Event card added to your Tableau by Restructuring.
+
+When you place an Action Token on Stimulus: **acquire any mix of 4 resources** (Coins, Wood, Ore, and/or Votes in any combination). Stimulus is then removed from your Tableau.
+
+Stimulus is intentionally faction-neutral — unlike Dividends (which scales with buildings and favors the Hotelier), Stimulus provides a flat resource boost regardless of board position.
 
 ## Seat
-Resolve **Seat** to gain **1 Seat**. After resolving, remove **Seat** from your Tableau (or move it to a scored pile). At **3 Seats**, you win.
+
+A **Seat** card remains in your Tableau permanently after being gained from a Mandate activation. It **cannot be activated** and occupies 1 Tableau slot. At **2 Seats**, you win the game.
 
 # Network
 Personnel are hired through the **Network** row. Use the **Guide's** second "talent scouting" ability to spend 💰 to start a bid.
@@ -337,7 +381,7 @@ On **Liaison**, when you choose the Politics option:
 You still **generate resources** from Liaison when you choose the resource-generation option instead; keep in mind that you can only play 1 Action Token on 1 card each turn, so generating resources prevents a player from using the Liaison to acquire a card from Politics in that turn.
 
 ## Resolving Event cards
-When you place an Action Token on an **Event** in your Tableau, resolve it, then **remove it from your Tableau**. **Mandate**, **Promotion**, and **Seat** follow the special timing in [Victory Conditions](#victory-conditions).
+When you place an Action Token on an **Event** in your Tableau, resolve it, then **remove it from your Tableau**. **Mandate**, **Restructuring**, **Stimulus**, and **Seat** follow the special rules in [Winning the Game](#winning-the-game).
 
 The following Event cards can appear in the Politics track (or enter your Tableau via Network or other effects):
 

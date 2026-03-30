@@ -6,7 +6,7 @@ import { HexMap } from './HexMap';
 import { PoliticsRow } from './PoliticsRow';
 import { NetworkRow } from './NetworkRow';
 import { ResourceMarket } from './ResourceMarket';
-import { getAllowedBuildTypes, hasAnyValidBuildHex } from '../game/gameRules';
+import { getAllowedBuildTypes, hasAnyValidBuildHex, canAffordMandate, getMandateCostLabel } from '../game/gameRules';
 
 export interface LandgrabBoardProps {
   G: LandgrabState;
@@ -346,6 +346,40 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
           </div>
         );
 
+      case 'event_restructuring_choose': {
+        const personnelCards = currentPlayer.tableau.filter(c => c.category === 'Personnel');
+        return (
+          <div className="action-panel">
+            <div className="action-prompt">Restructuring: Choose a Personnel card to remove</div>
+            <div className="action-buttons">
+              {personnelCards.map(c => {
+                const info = CARD_INFO[c.cardType];
+                return (
+                  <button key={c.instanceId} onClick={() => moves.chooseRestructuringTarget(c.instanceId)}>
+                    {info?.icon ?? '?'} {info?.title ?? c.cardType}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      case 'event_stimulus_choose':
+        return (
+          <div className="action-panel">
+            <div className="action-prompt">
+              Stimulus: Pick {pa.remaining} more resource{pa.remaining !== 1 ? 's' : ''} (any mix of 4)
+            </div>
+            <div className="action-buttons">
+              <button onClick={() => moves.chooseStimulusResource('coins')}>💰 Coin</button>
+              <button onClick={() => moves.chooseStimulusResource('wood')}>🪵 Wood</button>
+              <button onClick={() => moves.chooseStimulusResource('ore')}>⚙️ Ore</button>
+              <button onClick={() => moves.chooseStimulusResource('votes')}>🗳️ Vote</button>
+            </div>
+          </div>
+        );
+
       case 'network_bid':
         return (
           <div className="action-panel">
@@ -408,7 +442,9 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
 
                 {renderPendingActionUI()}
 
-                {isMyTurn && G.pendingAction && !NON_CANCELLABLE.has(G.pendingAction.type) && (
+                {isMyTurn && G.pendingAction && !NON_CANCELLABLE.has(G.pendingAction.type)
+                  && !(G.pendingAction.type === 'event_stimulus_choose' && G.pendingAction.remaining < 4)
+                  && (
                   <button className="btn-cancel" onClick={handleCancelAction}>
                     Cancel Action
                   </button>
@@ -421,6 +457,7 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
                   const info = CARD_INFO[card.cardType];
                   const isUsed = G.tokensUsedThisTurn.includes(card.instanceId);
                   const canActivate = !isUsed && G.actionsRemainingThisTurn > 0
+                    && card.cardType !== 'Seat'
                     && (card.cardType !== 'Mandate' || G.tokensUsedThisTurn.length === 0);
                   return (
                     <div className="card-preview">
@@ -446,14 +483,32 @@ export function Board({ G, ctx, moves, playerID }: LandgrabBoardProps) {
                   );
                 })()}
 
-                {isMyTurn && !G.pendingAction && !selectedCardId && (
-                  <>
-                    <div className="select-card-hint">Select a card from your Tableau</div>
-                    <button className="btn-end-turn" onClick={handleEndTurn}>
-                      End Turn
-                    </button>
-                  </>
-                )}
+                {isMyTurn && !G.pendingAction && !selectedCardId && (() => {
+                  const mandateSlotIndex = G.politicsRow.findIndex(c => c === 'Mandate');
+                  const showAcquireMandate = mandateSlotIndex >= 0
+                    && G.tokensUsedThisTurn.length === 0
+                    && G.actionsRemainingThisTurn > 0;
+                  const affordable = showAcquireMandate && canAffordMandate(G.tiles, currentPlayer);
+                  return (
+                    <>
+                      {showAcquireMandate && (
+                        <div className="action-panel">
+                          <button
+                            onClick={() => moves.acquireMandate(mandateSlotIndex)}
+                            disabled={!affordable}
+                            title={affordable ? undefined : 'Cannot afford Mandate cost'}
+                          >
+                            🔖 Acquire Mandate ({getMandateCostLabel(currentPlayer)})
+                          </button>
+                        </div>
+                      )}
+                      <div className="select-card-hint">Select a card from your Tableau</div>
+                      <button className="btn-end-turn" onClick={handleEndTurn}>
+                        End Turn
+                      </button>
+                    </>
+                  );
+                })()}
 
                 <div className="turn-round" style={{ marginTop: '0.5rem' }}>
                   Round {ctx.turn}

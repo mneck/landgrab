@@ -27,7 +27,8 @@ export type PersonnelCardType =
 export type EventCardType =
   | "Charter"
   | "Mandate"
-  | "Promotion"
+  | "Restructuring"
+  | "Stimulus"
   | "Seat"
   | "Dividends"
   | "Bribe"
@@ -113,6 +114,8 @@ export type PendingAction =
   | { type: 'event_taxation_hex'; instanceId: string }
   | { type: 'event_graft_choose'; instanceId: string }
   | { type: 'event_urbanplanning_hex'; instanceId: string }
+  | { type: 'event_restructuring_choose'; instanceId: string }
+  | { type: 'event_stimulus_choose'; instanceId: string; remaining: number }
   | { type: 'broker_choose'; instanceId: string }
   | { type: 'forester_choose'; instanceId: string }
   | { type: 'network_bid'; instanceId: string; slotIndex: number; highestBidder: number | null; highestBid: number; bids: Record<number, number | null> };
@@ -148,7 +151,8 @@ export interface LandgrabState {
 
 // ---- generateIsland (adapted from landgrab_react) ----
 
-export const MANDATE_INTERVALS = [4, 3, 2, 1] as const;
+export const MANDATE_INTERVALS = [4, 3, 3] as const;
+export const MANDATE_RECURRING_INTERVAL = 3;
 export const SEATS_TO_WIN = 2;
 
 function shuffleLocal<T>(array: T[]): T[] {

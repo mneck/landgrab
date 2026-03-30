@@ -17,12 +17,7 @@ const STORAGE_KEY = 'landgrab_save';
 
 interface SavedGame {
   numPlayers: NumPlayers;
-  state: {
-    G: LandgrabState;
-    ctx: { currentPlayer: string; turn: number; numPlayers: number };
-    plugins: Record<string, unknown>;
-    _stateID: number;
-  };
+  state: Record<string, any>;
 }
 
 function loadSavedGame(): SavedGame | null {
@@ -57,7 +52,7 @@ function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean) {
       const saved = loadSavedGame();
       if (saved && saved.numPlayers === numPlayers && saved.state) {
         try {
-          client.store.dispatch({
+          (client.store.dispatch as Function)({
             type: 'SYNC',
             state: saved.state,
             log: [],
@@ -75,7 +70,7 @@ function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           numPlayers,
-          state: { G: state.G, ctx: state.ctx, plugins: state.plugins, _stateID: state._stateID },
+          state: { G: state.G, ctx: state.ctx, plugins: state.plugins, _stateID: state._stateID, _undo: state._undo ?? [], _redo: state._redo ?? [] },
         }));
       } catch { /* quota exceeded, ignore */ }
     });

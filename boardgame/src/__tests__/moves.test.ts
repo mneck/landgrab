@@ -397,7 +397,7 @@ describe('player turn transitions', () => {
 });
 
 describe('win condition', () => {
-  it('sets winner when a player reaches 2 seats via Seat card', () => {
+  it('Seat card cannot be activated (it is permanent)', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);
 
@@ -408,24 +408,278 @@ describe('win condition', () => {
       category: 'Event',
     });
 
-    moves.activateCard({ G, ctx }, 'seat_test');
+    const result = moves.activateCard({ G, ctx }, 'seat_test');
+    expect(result).toBe(INVALID_MOVE);
+    expect(G.players[0].seats).toBe(1);
+  });
+
+  it('sets winner when Mandate activation reaches 2 seats', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].seats = 1;
+    G.players[0].resources.votes = 5;
+    G.players[0].tableau.push({
+      instanceId: 'mandate_test',
+      cardType: 'Mandate',
+      category: 'Event',
+    });
+
+    moves.activateCard({ G, ctx }, 'mandate_test');
     expect(G.players[0].seats).toBe(2);
     expect(G.winner).toBe('Hotelier');
   });
 
-  it('does not set winner if seats < 2', () => {
+  it('does not set winner after first Mandate activation', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);
 
     G.players[0].seats = 0;
+    G.players[0].resources.votes = 5;
     G.players[0].tableau.push({
-      instanceId: 'seat_test',
-      cardType: 'Seat',
+      instanceId: 'mandate_test',
+      cardType: 'Mandate',
       category: 'Event',
     });
 
-    moves.activateCard({ G, ctx }, 'seat_test');
+    moves.activateCard({ G, ctx }, 'mandate_test');
     expect(G.players[0].seats).toBe(1);
     expect(G.winner).toBeUndefined();
+    // Seat card should be in tableau
+    expect(G.players[0].tableau.some(c => c.cardType === 'Seat')).toBe(true);
+    // Restructuring should be in tableau
+    expect(G.players[0].tableau.some(c => c.cardType === 'Restructuring')).toBe(true);
+  });
+
+  it('Mandate activation purges all Event cards from tableau', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].resources.votes = 5;
+    G.players[0].tableau.push(
+      { instanceId: 'mandate_test', cardType: 'Mandate', category: 'Event' },
+      { instanceId: 'div_test', cardType: 'Dividends', category: 'Event' },
+      { instanceId: 'bribe_test', cardType: 'Bribe', category: 'Event' },
+    );
+
+    const personnelCount = G.players[0].tableau.filter(c => c.category === 'Personnel').length;
+    moves.activateCard({ G, ctx }, 'mandate_test');
+
+    // All Events purged except the newly added Seat and Restructuring
+    const events = G.players[0].tableau.filter(c => c.category === 'Event');
+    expect(events.every(c => c.cardType === 'Seat' || c.cardType === 'Restructuring')).toBe(true);
+    // Personnel unchanged
+    expect(G.players[0].tableau.filter(c => c.category === 'Personnel').length).toBe(personnelCount);
+  });
+
+  it('Mandate activation fails without votes', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].resources.votes = 0;
+    G.players[0].tableau.push({
+      instanceId: 'mandate_test',
+      cardType: 'Mandate',
+      category: 'Event',
+    });
+
+    const result = moves.activateCard({ G, ctx }, 'mandate_test');
+    expect(result).toBe(INVALID_MOVE);
+    expect(G.players[0].seats).toBe(0);
+  });
+});
+
+describe('acquireMandate', () => {
+  it('Hotelier acquires Mandate from Politics track by paying coins', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.politicsRow[2] = 'Mandate';
+    G.players[0].resources.coins = 15;
+
+    moves.acquireMandate({ G, ctx }, 2);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
+    expect(G.players[0].resources.coins).toBe(5);
+    expect(G.politicsRow[2]).not.toBe('Mandate');
+    expect(G.actionsRemainingThisTurn).toBe(1);
+  });
+
+  it('rejects Mandate acquisition if not first action', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.politicsRow[2] = 'Mandate';
+    G.players[0].resources.coins = 15;
+    G.tokensUsedThisTurn = ['some_card'];
+
+    const result = moves.acquireMandate({ G, ctx }, 2);
+    expect(result).toBe(INVALID_MOVE);
+  });
+
+  it('rejects Mandate acquisition if slot is not Mandate', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].resources.coins = 15;
+
+    const result = moves.acquireMandate({ G, ctx }, 0);
+    expect(result).toBe(INVALID_MOVE);
+  });
+
+  it('rejects Mandate acquisition if player cannot afford it', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.politicsRow[2] = 'Mandate';
+    G.players[0].resources.coins = 5;
+
+    const result = moves.acquireMandate({ G, ctx }, 2);
+    expect(result).toBe(INVALID_MOVE);
+  });
+
+  it('Industrialist pays wood and ore for Mandate', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(1, 2);
+
+    G.politicsRow[1] = 'Mandate';
+    G.players[1].resources.wood = 6;
+    G.players[1].resources.ore = 5;
+
+    moves.acquireMandate({ G, ctx }, 1);
+    expect(G.players[1].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
+    expect(G.players[1].resources.wood + G.players[1].resources.ore).toBe(1);
+  });
+
+  it('escalating cost: 2nd Mandate costs 11 for Hotelier', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.politicsRow[0] = 'Mandate';
+    G.players[0].seats = 1;
+    G.players[0].resources.coins = 11;
+
+    moves.acquireMandate({ G, ctx }, 0);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
+    expect(G.players[0].resources.coins).toBe(0);
+  });
+});
+
+describe('Restructuring', () => {
+  it('opens personnel selection when activated', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].tableau.push({
+      instanceId: 'restructuring_test',
+      cardType: 'Restructuring',
+      category: 'Event',
+    });
+
+    moves.activateCard({ G, ctx }, 'restructuring_test');
+    expect(G.pendingAction?.type).toBe('event_restructuring_choose');
+  });
+
+  it('removes chosen Personnel and adds Stimulus', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].tableau.push({
+      instanceId: 'restructuring_test',
+      cardType: 'Restructuring',
+      category: 'Event',
+    });
+
+    G.pendingAction = { type: 'event_restructuring_choose', instanceId: 'restructuring_test' };
+    G.tokensUsedThisTurn = ['restructuring_test'];
+    G.actionsRemainingThisTurn = 1;
+
+    const builderCard = G.players[0].tableau.find(c => c.cardType === 'Builder')!;
+    moves.chooseRestructuringTarget({ G, ctx }, builderCard.instanceId);
+
+    expect(G.players[0].tableau.some(c => c.cardType === 'Builder')).toBe(false);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Stimulus')).toBe(true);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Restructuring')).toBe(false);
+    expect(G.pendingAction).toBeNull();
+  });
+
+  it('rejects non-Personnel card as target', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].tableau.push(
+      { instanceId: 'restructuring_test', cardType: 'Restructuring', category: 'Event' },
+      { instanceId: 'seat_test', cardType: 'Seat', category: 'Event' },
+    );
+
+    G.pendingAction = { type: 'event_restructuring_choose', instanceId: 'restructuring_test' };
+
+    const result = moves.chooseRestructuringTarget({ G, ctx }, 'seat_test');
+    expect(result).toBe(INVALID_MOVE);
+  });
+});
+
+describe('Stimulus', () => {
+  it('grants 4 resources chosen one at a time', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].tableau.push({
+      instanceId: 'stimulus_test',
+      cardType: 'Stimulus',
+      category: 'Event',
+    });
+
+    moves.activateCard({ G, ctx }, 'stimulus_test');
+    expect(G.pendingAction?.type).toBe('event_stimulus_choose');
+
+    const startCoins = G.players[0].resources.coins;
+    const startWood = G.players[0].resources.wood;
+
+    moves.chooseStimulusResource({ G, ctx }, 'coins');
+    expect(G.players[0].resources.coins).toBe(startCoins + 1);
+    expect(G.pendingAction).not.toBeNull();
+
+    moves.chooseStimulusResource({ G, ctx }, 'wood');
+    moves.chooseStimulusResource({ G, ctx }, 'coins');
+    moves.chooseStimulusResource({ G, ctx }, 'votes');
+
+    expect(G.pendingAction).toBeNull();
+    expect(G.players[0].resources.coins).toBe(startCoins + 2);
+    expect(G.players[0].resources.wood).toBe(startWood + 1);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Stimulus')).toBe(false);
+  });
+
+  it('cannot be cancelled after partially picking resources', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].tableau.push({
+      instanceId: 'stimulus_test',
+      cardType: 'Stimulus',
+      category: 'Event',
+    });
+
+    moves.activateCard({ G, ctx }, 'stimulus_test');
+    moves.chooseStimulusResource({ G, ctx }, 'coins');
+
+    const result = moves.cancelAction({ G, ctx });
+    expect(result).toBe(INVALID_MOVE);
+  });
+
+  it('can be cancelled before picking any resources', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].tableau.push({
+      instanceId: 'stimulus_test',
+      cardType: 'Stimulus',
+      category: 'Event',
+    });
+
+    moves.activateCard({ G, ctx }, 'stimulus_test');
+    moves.cancelAction({ G, ctx });
+
+    expect(G.pendingAction).toBeNull();
+    expect(G.actionsRemainingThisTurn).toBe(2);
   });
 });

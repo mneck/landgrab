@@ -5,3 +5,25 @@ A Tableau can have a maximum of 8 cards. A player with 8 cards in their Tableau 
 🪵 ⚙️ 💰 🗳️
 
 ⚡ 👤
+
+
+
+Keep the current interval-based Mandate schedule rather than waiting for 100% fog (avoids stalling)
+Keep the escalating cost (10 + Seat#)
+Consider keeping Promotion as the intermediary (Mandate → Promotion clears Events → Seat) to prevent stockpiling
+The 2-Seat win condition works well with the added tempo cost
+
+Please update @boardgame/rules/rules_bg.md to include these changes. you can include a section called "Winning the Game"
+
+Here's how I'm thinking of the winning dynamic:
+1. Spend resources to acquire Mandate;
+2. Move an Action Token on Mandate and spend 1 Vote: Remove other Events from the Player's Tableau, including Mandate; add 1 Seat to the Player's Tableau and 1 Restructuring. If there is only space for 1 card in the Tableau, only add 1 Restructuring.
+Restructuring (event): Remove any number 1 Personnel card from your Tableau. Add 1 Dividends to your Tableau. Dividends (event): Acquire any mix of 4 resources (e.g. 1 Vote & 3 Coins; OR 2 Wood & 2 ore)
+- Then the Seat sits in the Player's Tableau, taking up 1 space. Restructuring is useful because it can help free up space in the Player's Tableau, if needed, to add another Seat. Also, if a Player has 2 Mandates in their Tableau and activates 1 of them, the other Mandate (along with all other Event cards) will be removed from the Player's Tableau. This might be done to deny another player the option to get a Seat.
+3. Then a Player will need to compete with other players to get the next seat. However, since that Player has just spent quite a significant number of resources and lost a number of events, it may be difficult for her to catch up and get the next Mandate before the other player. This should allow for a pretty balanced win to happen.
+
+After threshold: every N event cards drawn (intervals of 4, 3, 2, 1, then every 2)	- I think this would be too frequent. Maybe it should just be a matter of getting a Mandate of 4,3,3,3 - then the rarity of the Mandate means players need to get the card opportunistically. I also think that the Mandate should leave the Events track after it reaches the "0 Votes" position, like a normal Event card - players should not have such easy access to it - there should be some competition for it.
+
+I was also thinking of adding an "Executive" to the Personnel market at some point, which can be used to generate Mandates - but maybe this would be too overpowering if one player gets the Executive.
+
+What do you think about these suggestions?

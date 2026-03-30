@@ -11,6 +11,8 @@ import {
   revealAdjacentFog,
   pickRevealedTileType,
   runProcurementForPlayer,
+  canAffordMandate as canAffordMandateCheck,
+  getPresenceScore,
 } from './gameRules';
 import {
   updateFogCount,
@@ -93,71 +95,54 @@ function resolveLandClaims(G: LandgrabState, playerIndex: number, instanceId: st
   removeFromTableau(G, playerIndex, instanceId);
 }
 
-// Mandate: player pays resources to get a Seat
-function resolveMandate(G: LandgrabState, playerIndex: number, instanceId: string): boolean {
+function payMandateCost(G: LandgrabState, playerIndex: number): boolean {
   const player = G.players[playerIndex];
-  const seatNum = player.seats;
-
+  if (!canAffordMandateCheck(G.tiles, player)) return false;
+  const cost = 10 + player.seats;
   switch (player.type) {
-    case 'Hotelier': {
-      const cost = 10 + seatNum;
-      if (player.resources.coins < cost) return false;
+    case 'Hotelier':
       player.resources.coins -= cost;
-      break;
-    }
+      return true;
     case 'Industrialist': {
-      const cost = 10 + seatNum;
-      const totalResources = player.resources.wood + player.resources.ore;
-      if (totalResources < cost) return false;
-      // Spend wood first, then ore
       let remaining = cost;
       const woodSpend = Math.min(player.resources.wood, remaining);
       player.resources.wood -= woodSpend;
       remaining -= woodSpend;
       player.resources.ore -= remaining;
-      break;
+      return true;
     }
-    case 'Bureaucrat': {
-      const cost = 10 + seatNum;
-      if (player.resources.votes < cost) return false;
+    case 'Bureaucrat':
       player.resources.votes -= cost;
-      break;
-    }
-    case 'Chieftain': {
-      // Need presence score >= 10 + seatNum
-      let score = 0;
-      const reserves = [];
-      for (const t of Object.values(G.tiles)) {
-        if (t.building === 'Reserve' && t.buildingOwner === 'Chieftain') {
-          score++;
-          reserves.push(t.hex);
-        }
-      }
-      const countedVillages = new Set<string>();
-      for (const rHex of reserves) {
-        for (const nb of hexNeighbors(rHex)) {
-          const k = hexKey(nb);
-          const nt = G.tiles[k];
-          if (nt?.building === 'Village' && nt.buildingOwner === 'Chieftain' && !countedVillages.has(k)) {
-            countedVillages.add(k);
-            score++;
-          }
-        }
-      }
-      if (score < 10 + seatNum) return false;
-      break;
-    }
+      return true;
+    case 'Chieftain':
+      return true;
   }
+}
+
+function activateMandate(G: LandgrabState, playerIndex: number, instanceId: string): boolean {
+  const player = G.players[playerIndex];
+  if (player.resources.votes < 1) return false;
+  player.resources.votes -= 1;
+
+  player.tableau = player.tableau.filter(c => c.category !== 'Event');
 
   player.seats++;
-  // Add Promotion + Seat cards to tableau
-  player.tableau.push({
-    instanceId: `Seat_${playerIndex}_${Date.now()}`,
-    cardType: 'Seat' as EventCardType,
-    category: 'Event',
-  });
-  // Remove mandate from tableau
-  removeFromTableau(G, playerIndex, instanceId);
+
+  if (player.tableau.length < 8) {
+    player.tableau.push({
+      instanceId: `Seat_${playerIndex}_${Date.now()}`,
+      cardType: 'Seat' as EventCardType,
+      category: 'Event',
+    });
+  }
+  if (player.tableau.length < 8) {
+    player.tableau.push({
+      instanceId: `Restructuring_${playerIndex}_${Date.now()}`,
+      cardType: 'Restructuring' as EventCardType,
+      category: 'Event',
+    });
+  }
+
   checkWinCondition(G);
   return true;
 }
@@ -273,14 +258,16 @@ export const moves = {
         resolveLandClaims(G, playerIndex, instanceId);
         break;
       case 'Mandate':
-        resolveMandate(G, playerIndex, instanceId);
+        if (!activateMandate(G, playerIndex, instanceId)) return INVALID_MOVE;
+        break;
+      case 'Restructuring':
+        G.pendingAction = { type: 'event_restructuring_choose', instanceId };
+        break;
+      case 'Stimulus':
+        G.pendingAction = { type: 'event_stimulus_choose', instanceId, remaining: 4 };
         break;
       case 'Seat':
-        // Play Seat: gain 1 seat
-        player.seats++;
-        removeFromTableau(G, playerIndex, instanceId);
-        checkWinCondition(G);
-        break;
+        return INVALID_MOVE;
       default:
         removeFromTableau(G, playerIndex, instanceId);
         break;
@@ -668,12 +655,75 @@ export const moves = {
     G.pendingAction = null;
   },
 
+  acquireMandate: ({ G, ctx }: MoveArgs, slotIndex: number) => {
+    const playerIndex = parseInt(ctx.currentPlayer);
+    if (G.pendingAction) return INVALID_MOVE;
+    if (G.tokensUsedThisTurn.length > 0) return INVALID_MOVE;
+    if (G.actionsRemainingThisTurn === 0) return INVALID_MOVE;
+
+    if (slotIndex < 0 || slotIndex > 3) return INVALID_MOVE;
+    const card = G.politicsRow[slotIndex];
+    if (card !== 'Mandate') return INVALID_MOVE;
+
+    const player = G.players[playerIndex];
+    if (player.tableau.length >= 8) return INVALID_MOVE;
+    if (!payMandateCost(G, playerIndex)) return INVALID_MOVE;
+
+    player.tableau.push({
+      instanceId: `Mandate_${playerIndex}_${Date.now()}`,
+      cardType: 'Mandate' as EventCardType,
+      category: 'Event',
+    });
+
+    const nextCard = G.politicsDeck.shift() ?? null;
+    G.politicsRow[slotIndex] = nextCard;
+
+    G.actionsRemainingThisTurn -= 1;
+  },
+
+  chooseRestructuringTarget: ({ G, ctx }: MoveArgs, targetInstanceId: string) => {
+    const playerIndex = parseInt(ctx.currentPlayer);
+    if (!G.pendingAction || G.pendingAction.type !== 'event_restructuring_choose') return INVALID_MOVE;
+    const instanceId = G.pendingAction.instanceId;
+    const player = G.players[playerIndex];
+    const target = player.tableau.find(c => c.instanceId === targetInstanceId && c.category === 'Personnel');
+    if (!target) return INVALID_MOVE;
+
+    removeFromTableau(G, playerIndex, targetInstanceId);
+
+    if (player.tableau.length < 8) {
+      player.tableau.push({
+        instanceId: `Stimulus_${playerIndex}_${Date.now()}`,
+        cardType: 'Stimulus' as EventCardType,
+        category: 'Event',
+      });
+    }
+
+    removeFromTableau(G, playerIndex, instanceId);
+    G.pendingAction = null;
+  },
+
+  chooseStimulusResource: ({ G, ctx }: MoveArgs, resource: 'coins' | 'wood' | 'ore' | 'votes') => {
+    const playerIndex = parseInt(ctx.currentPlayer);
+    if (!G.pendingAction || G.pendingAction.type !== 'event_stimulus_choose') return INVALID_MOVE;
+    const pa = G.pendingAction;
+
+    if (!['coins', 'wood', 'ore', 'votes'].includes(resource)) return INVALID_MOVE;
+    G.players[playerIndex].resources[resource] += 1;
+    pa.remaining -= 1;
+
+    if (pa.remaining <= 0) {
+      removeFromTableau(G, playerIndex, pa.instanceId);
+      G.pendingAction = null;
+    }
+  },
+
   cancelAction: ({ G, ctx }: MoveArgs) => {
     if (!G.pendingAction) return INVALID_MOVE;
 
-    // Can't cancel after a market transaction has already been processed
     const NON_CANCELLABLE = new Set(['builder_market_buy', 'builder_market_sell']);
     if (NON_CANCELLABLE.has(G.pendingAction.type)) return INVALID_MOVE;
+    if (G.pendingAction.type === 'event_stimulus_choose' && G.pendingAction.remaining < 4) return INVALID_MOVE;
 
     const playerIndex = parseInt(ctx.currentPlayer);
     const instanceId = G.pendingAction.instanceId;
