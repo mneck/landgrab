@@ -115,10 +115,11 @@ export default function App() {
   const [started, setStarted] = useState(false);
   const [restoreSave, setRestoreSave] = useState(false);
   const [gameKey, setGameKey] = useState(0);
-  const [savedGame] = useState(() => loadSavedGame());
+  const [savedGame, setSavedGame] = useState(() => loadSavedGame());
 
   const handleNewGame = useCallback(() => {
     clearSavedGame();
+    setSavedGame(null);
     setStarted(false);
     setNumPlayers(null);
     setRestoreSave(false);
