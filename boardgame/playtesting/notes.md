@@ -42,7 +42,7 @@ Default **`npm test`** runs `playtesting/batch.test.ts` (single-game smoke) but 
 | `simulator.ts` | `runBotGame`, `runBatch`, aggregates wins and errors |
 | `batch.test.ts` | Single-game smoke; included in default `npm test` |
 | `cli.test.ts` | Large batch via env vars; run with `npm run playtest` (excluded from default `npm test`) |
-| `playtestGame.ts` | `LandgrabPlaytestGame` — one Mandate wins; used by `runBotGame({ fastWin: true })` for smoke |
+| `playtestGame.ts` | `LandgrabPlaytestGame` — smoke tableaux (Builder/Elder, Liaison, Guide, Charter); Mandate added to tableau after each Charter placement; 1-seat win; `runBotGame({ fastWin: true })` |
 | `notes.md` | This file |
 
 ## Extending

@@ -219,12 +219,20 @@ export interface BatchSummary {
 export async function runBatch(
   numPlayers: 2 | 3 | 4,
   games: number,
-  options?: { maxSteps?: number; onProgress?: (done: number, total: number) => void }
+  options?: {
+    maxSteps?: number;
+    fastWin?: boolean;
+    onProgress?: (done: number, total: number) => void;
+  }
 ): Promise<BatchSummary> {
   const results: BotGameResult[] = [];
   const errors: string[] = [];
   for (let i = 0; i < games; i++) {
-    const r = await runBotGame({ numPlayers, maxSteps: options?.maxSteps });
+    const r = await runBotGame({
+      numPlayers,
+      maxSteps: options?.maxSteps,
+      fastWin: options?.fastWin,
+    });
     results.push(r);
     if (!r.ok && r.error) errors.push(r.error);
     options?.onProgress?.(i + 1, games);
