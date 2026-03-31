@@ -21,6 +21,15 @@ export interface RunBotGameOptions {
    * Default false uses normal 2-seat win — for batch balance runs.
    */
   fastWin?: boolean;
+  /**
+   * Log each move (throttled after {@link verboseStepLimit}) to stderr so you can see
+   * where a run stops (INVALID_MOVE, null AI, maxSteps).
+   */
+  verbose?: boolean;
+  /** Max lines of per-step detail before switching to every-`verboseStride` progress (default 400). */
+  verboseStepLimit?: number;
+  /** After `verboseStepLimit`, log one line every this many steps (default 1000). */
+  verboseStride?: number;
 }
 
 export interface BotGameResult {
@@ -73,8 +82,26 @@ let matchSeq = 0;
 /**
  * Run one full game: all seats use the same getAIMove strategy.
  */
+function playtestLog(
+  verbose: boolean | undefined,
+  msg: string,
+  ...args: unknown[]
+): void {
+  if (!verbose) return;
+  if (args.length) console.error('[playtest]', msg, ...args);
+  else console.error('[playtest]', msg);
+}
+
 export async function runBotGame(options: RunBotGameOptions): Promise<BotGameResult> {
-  const { numPlayers, maxSteps = 50_000, fastWin } = options;
+  const {
+    numPlayers,
+    maxSteps = 50_000,
+    fastWin,
+    verbose,
+    verboseStepLimit = 400,
+    verboseStride = 1000,
+  } = options;
+  const v = verbose === true;
   const game = fastWin ? LandgrabPlaytestGame : LandgrabGame;
   const mp = Local();
   const matchID = `playtest-${++matchSeq}-${Date.now()}`;
@@ -91,6 +118,11 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
   }
   clients.forEach((c) => c.start());
 
+  playtestLog(
+    v,
+    `start matchID=${matchID} numPlayers=${numPlayers} fastWin=${Boolean(fastWin)} maxSteps=${maxSteps} game=${fastWin ? 'LandgrabPlaytestGame' : 'LandgrabGame'}`
+  );
+
   let steps = 0;
   let lastStateId = -1;
 
@@ -99,6 +131,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       const ref = clients[0];
       const state = ref.getState();
       if (!state) {
+        playtestLog(v, `STOP: null state at step ${steps}`);
         return {
           ok: false,
           winner: null,
@@ -111,6 +144,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
 
       const go = (state.ctx as { gameover?: { winner: PlayerType } }).gameover;
       if (go?.winner) {
+        playtestLog(v, `END: ctx.gameover winner=${go.winner} steps=${steps} ctx.turn=${state.ctx.turn}`);
         clients.forEach((c) => c.stop());
         return {
           ok: true,
@@ -123,6 +157,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
 
       const g = state.G as LandgrabState;
       if (g.winner) {
+        playtestLog(v, `END: G.winner=${g.winner} steps=${steps} ctx.turn=${state.ctx.turn}`);
         clients.forEach((c) => c.stop());
         return {
           ok: true,
@@ -137,6 +172,10 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       const pid = controllingPlayerIndex(ctxFull);
       const aiMove = getAIMove(g, pid);
       if (!aiMove) {
+        playtestLog(
+          v,
+          `STOP: getAIMove returned null at step ${steps} turn=${state.ctx.turn} pid=${pid} pending=${g.pendingAction?.type ?? 'none'} actions=${g.actionsRemainingThisTurn}`
+        );
         clients.forEach((c) => c.stop());
         return {
           ok: false,
@@ -151,6 +190,10 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       const mover = clients[pid];
       const moveFn = (mover.moves as Record<string, (...a: unknown[]) => unknown>)[aiMove.move];
       if (typeof moveFn !== 'function') {
+        playtestLog(
+          v,
+          `STOP: unknown move "${aiMove.move}" at step ${steps} pid=${pid} (network stage?)`
+        );
         clients.forEach((c) => c.stop());
         return {
           ok: false,
@@ -162,12 +205,31 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         };
       }
 
+      const pendingBefore = g.pendingAction?.type ?? null;
+      const detail =
+        steps < verboseStepLimit ||
+        (verboseStride > 0 && steps > 0 && steps % verboseStride === 0);
+      if (v && detail) {
+        const shortArgs =
+          aiMove.args.length > 0
+            ? JSON.stringify(aiMove.args).slice(0, 120)
+            : '';
+        playtestLog(
+          v,
+          `step ${steps} turn=${state.ctx.turn} pid=${pid} P${g.players[pid]?.type} ${aiMove.move}(${shortArgs}) pending=${pendingBefore} actions=${g.actionsRemainingThisTurn}`
+        );
+      }
+
       moveFn(...aiMove.args);
       steps++;
 
       const after = ref.getState();
       const sid = after?._stateID ?? -1;
       if (sid === lastStateId && aiMove.move !== 'endTurn') {
+        playtestLog(
+          v,
+          `STOP: state did not advance (INVALID_MOVE?) after step ${steps} move=${aiMove.move} args=${JSON.stringify(aiMove.args)} sid=${sid} lastSid=${lastStateId}`
+        );
         // Possible INVALID_MOVE no-op; still allow endTurn idempotency quirks
         clients.forEach((c) => c.stop());
         return {
@@ -182,6 +244,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       lastStateId = sid;
     }
 
+    playtestLog(v, `STOP: maxSteps (${maxSteps}) reached steps=${steps} lastTurn=${clients[0].getState()?.ctx.turn ?? '?'}`);
     clients.forEach((c) => c.stop());
     return {
       ok: false,
@@ -192,6 +255,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       error: `maxSteps (${maxSteps}) exceeded`,
     };
   } catch (e) {
+    playtestLog(v, `STOP: exception at step ${steps}`, e);
     clients.forEach((c) => c.stop());
     return {
       ok: false,

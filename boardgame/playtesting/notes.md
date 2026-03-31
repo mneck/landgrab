@@ -18,6 +18,12 @@ PLAYTEST_GAMES=1 PLAYTEST_PLAYERS=2 npm run playtest
 
 Default **`npm test`** runs `playtesting/batch.test.ts` (single-game smoke) but **excludes** `cli.test.ts` so CI stays fast.
 
+**Debug one normal-rules game** (stderr logs every move, then throttled; shows `STOP:` if the bot halts):
+
+```bash
+npm run playtest:verbose-one
+```
+
 ## What to look for
 
 | Signal | What it might mean |

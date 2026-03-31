@@ -11,10 +11,11 @@
     "preview": "vite preview",
     "serve": "NODE_ENV=production tsx server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude '**/playtesting/cli.test.ts'",
+    "test": "vitest run --exclude '**/playtesting/cli.test.ts' --exclude '**/playtesting/verbose-one.test.ts'",
     "test:watch": "vitest",
     "test:playtest-batch": "vitest run playtesting/cli.test.ts",
-    "playtest": "vitest run playtesting/cli.test.ts"
+    "playtest": "vitest run playtesting/cli.test.ts",
+    "playtest:verbose-one": "vitest run playtesting/verbose-one.test.ts --reporter=verbose"
   },
   "dependencies": {
     "boardgame.io": "^0.50.2",
