@@ -11,25 +11,52 @@ import { useAIPlayer } from '../ai/aiRunner';
 
 export interface LandgrabBoardProps {
   G: LandgrabState;
-  ctx: { currentPlayer: string; turn: number; numPlayers: number };
+  ctx: {
+    currentPlayer: string;
+    turn: number;
+    numPlayers: number;
+    playOrder?: string[];
+    activePlayers?: null | Record<string, string>;
+  };
   moves: Record<string, (...args: any[]) => any>;
   playerID?: string | null;
   aiPlayerIndices?: number[];
+}
+
+function getActiveNetworkBidder(ctx: LandgrabBoardProps['ctx']): string | null {
+  const ap = ctx.activePlayers;
+  if (!ap) return null;
+  const found = Object.entries(ap).find(([, stage]) => stage === 'networkBid');
+  return found ? found[0] : null;
 }
 
 export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: LandgrabBoardProps) {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  const currentPlayerIndex = parseInt(ctx.currentPlayer);
+  const currentPlayerIndex = parseInt(ctx.currentPlayer, 10);
   const myPlayerIndex = playerID !== undefined && playerID !== null
-    ? parseInt(playerID)
+    ? parseInt(playerID, 10)
     : currentPlayerIndex;
   const isMyTurn = myPlayerIndex === currentPlayerIndex;
   const currentPlayer = G.players[currentPlayerIndex];
 
-  const { isAITurn } = useAIPlayer({ G, ctx, moves, aiPlayerIndices });
-  const humanCanAct = isMyTurn && !isAITurn;
+  const activeNetworkBidder = getActiveNetworkBidder(ctx);
+  const inNetworkBid = G.pendingAction?.type === 'network_bid' && activeNetworkBidder !== null;
+
+  const { isAITurn } = useAIPlayer({
+    G,
+    ctx,
+    moves,
+    aiPlayerIndices,
+    activeNetworkBidder,
+  });
+
+  const humanCanAct = !isAITurn && (
+    inNetworkBid
+      ? (playerID != null && playerID !== '' ? playerID === activeNetworkBidder : true)
+      : isMyTurn
+  );
 
   function handleHexClick(hexKey: string) {
     const pa = G.pendingAction;
@@ -39,6 +66,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
       'charter_place', 'builder_build_hex', 'elder_village_hex', 'elder_reserve_hex',
       'guide_reveal_hex', 'event_zoning_hex', 'event_conservation_hex',
       'event_logging_hex', 'event_forestry_hex', 'event_taxation_hex', 'event_urbanplanning_hex',
+      'event_airstrip_hex',
     ];
 
     if (hexPlacingActions.includes(pa.type)) {
@@ -320,6 +348,16 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
           </div>
         );
 
+      case 'event_airstrip_hex':
+        return (
+          <div className="action-panel">
+            <div className="action-prompt">
+              Airstrip: Click a Sand or Field hex to place Infrastructure
+              <span className="cost-badge">1 coin + 1 wood + 1 ore</span>
+            </div>
+          </div>
+        );
+
       case 'event_urbanplanning_hex':
         return (
           <div className="action-panel">
@@ -559,9 +597,14 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
               networkRow={G.networkRow}
               pendingAction={G.pendingAction}
               isCurrentPlayerTurn={humanCanAct}
-              playerCoins={currentPlayer.resources.coins}
+              activeNetworkBidder={activeNetworkBidder}
+              bidderCoins={
+                activeNetworkBidder != null
+                  ? G.players[parseInt(activeNetworkBidder, 10)]?.resources.coins ?? 0
+                  : currentPlayer.resources.coins
+              }
               onSelectSlot={(slotIndex) => moves.selectNetworkCard(slotIndex)}
-              onPlaceBid={(amount) => moves.placeBid(amount)}
+              onSubmitBid={(amount) => moves.submitNetworkBid(amount)}
             />
 
             <ResourceMarket woodMarket={G.woodMarket} oreMarket={G.oreMarket} />

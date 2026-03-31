@@ -7,6 +7,7 @@ import {
   canPlaceBuild,
   canPlaceReserve,
   canPlaceConservation,
+  canPlaceAirstrip,
   getAllowedBuildTypes,
   revealAdjacentFog,
   pickRevealedTileType,
@@ -119,6 +120,58 @@ function payMandateCost(G: LandgrabState, playerIndex: number): boolean {
   }
 }
 
+/** Initiator first, then rest of play order. */
+function networkBiddingOrder(playOrder: string[], initiatorPlayerIndex: number): string[] {
+  const initiator = String(initiatorPlayerIndex);
+  const idx = playOrder.indexOf(initiator);
+  if (idx < 0) return [...playOrder];
+  return [...playOrder.slice(idx), ...playOrder.slice(0, idx)];
+}
+
+function resolveNetworkAuction(
+  G: LandgrabState,
+  playOrder: string[],
+  pa: { slotIndex: number; bids: Record<string, number | null> }
+): void {
+  const card = G.networkRow[pa.slotIndex];
+  if (!card) {
+    G.pendingAction = null;
+    return;
+  }
+
+  let maxBid = -1;
+  for (const pid of playOrder) {
+    const amt = pa.bids[pid];
+    if (amt !== null && amt !== undefined && amt >= 1) {
+      maxBid = Math.max(maxBid, amt);
+    }
+  }
+
+  if (maxBid < 1) {
+    G.pendingAction = null;
+    return;
+  }
+
+  const tied = playOrder.filter(pid => pa.bids[pid] === maxBid);
+  let winner = tied[0];
+  for (const pid of playOrder) {
+    if (tied.includes(pid)) {
+      winner = pid;
+      break;
+    }
+  }
+
+  const wIdx = parseInt(winner, 10);
+  G.players[wIdx].resources.coins -= maxBid;
+  G.players[wIdx].tableau.push({
+    instanceId: `${card}_${wIdx}_${Date.now()}`,
+    cardType: card as PersonnelCardType,
+    category: 'Personnel',
+  });
+  G.networkRow[pa.slotIndex] = G.networkDeck.shift() ?? null;
+  G.pendingAction = null;
+}
+
 function activateMandate(G: LandgrabState, playerIndex: number, instanceId: string): boolean {
   const player = G.players[playerIndex];
   if (player.resources.votes < 1) return false;
@@ -150,7 +203,23 @@ function activateMandate(G: LandgrabState, playerIndex: number, instanceId: stri
 
 // ---- Moves ----
 
-type MoveArgs = { G: LandgrabState; ctx: { currentPlayer: string; numPlayers: number }; events?: { endTurn: () => void } };
+type CtxShape = {
+  currentPlayer: string;
+  numPlayers: number;
+  playOrder: string[];
+  activePlayers?: null | Record<string, string>;
+};
+
+type MoveArgs = {
+  G: LandgrabState;
+  ctx: CtxShape;
+  events?: {
+    endTurn: () => void;
+    setActivePlayers: (arg: unknown) => void;
+  };
+};
+
+type StageMoveArgs = MoveArgs & { playerID: string };
 
 export const moves = {
   activateCard: ({ G, ctx }: MoveArgs, instanceId: string) => {
@@ -213,6 +282,13 @@ export const moves = {
         removeFromTableau(G, playerIndex, instanceId);
         G.pendingAction = { type: 'charter_place', instanceId };
         break;
+      case 'Airstrip': {
+        const p = G.players[playerIndex];
+        if (p.resources.coins < 1 || p.resources.wood < 1 || p.resources.ore < 1) return INVALID_MOVE;
+        removeFromTableau(G, playerIndex, instanceId);
+        G.pendingAction = { type: 'event_airstrip_hex', instanceId };
+        break;
+      }
       case 'Dividends':
         resolveDividends(G, playerIndex, instanceId);
         break;
@@ -396,6 +472,15 @@ export const moves = {
       removeFromTableau(G, playerIndex, instanceId);
       G.pendingAction = null;
     }
+    else if (type === 'event_export_choose') {
+      const instanceId = G.pendingAction.instanceId;
+      if (option !== 'wood' && option !== 'ore') return INVALID_MOVE;
+      if (G.players[playerIndex].resources[option] < 1) return INVALID_MOVE;
+      G.players[playerIndex].resources[option] -= 1;
+      G.players[playerIndex].resources.coins += 1;
+      removeFromTableau(G, playerIndex, instanceId);
+      G.pendingAction = null;
+    }
     else if (type === 'event_graft_choose') {
       const instanceId = G.pendingAction.instanceId;
       if (option === 'coin_to_vote') {
@@ -535,6 +620,15 @@ export const moves = {
       removeFromTableau(G, playerIndex, pa.instanceId);
       G.pendingAction = null;
     }
+    else if (pa.type === 'event_airstrip_hex') {
+      if (!canPlaceAirstrip(G.tiles, hexFromKey(targetHexKey))) return INVALID_MOVE;
+      if (player.resources.wood < 1 || player.resources.ore < 1 || player.resources.coins < 1) return INVALID_MOVE;
+      player.resources.wood -= 1;
+      player.resources.ore -= 1;
+      player.resources.coins -= 1;
+      G.tiles[targetHexKey].building = 'Infrastructure';
+      G.pendingAction = null;
+    }
     else if (pa.type === 'event_urbanplanning_hex') {
       const tile = G.tiles[targetHexKey];
       if (!tile || tile.buildingOwner !== playerType) return INVALID_MOVE;
@@ -587,45 +681,33 @@ export const moves = {
     G.pendingAction = null;
   },
 
-  selectNetworkCard: ({ G, ctx }: MoveArgs, slotIndex: number) => {
-    const playerIndex = parseInt(ctx.currentPlayer);
+  selectNetworkCard: ({ G, ctx, events }: MoveArgs, slotIndex: number) => {
+    const playerIndex = parseInt(ctx.currentPlayer, 10);
     if (!G.pendingAction || G.pendingAction.type !== 'guide_network') return INVALID_MOVE;
     const card = G.networkRow[slotIndex];
     if (!card) return INVALID_MOVE;
+    if (!events?.setActivePlayers) return INVALID_MOVE;
+
+    const bids: Record<string, number | null> = {};
+    for (let i = 0; i < ctx.numPlayers; i++) {
+      bids[String(i)] = null;
+    }
 
     G.pendingAction = {
       type: 'network_bid',
       instanceId: G.pendingAction.instanceId,
       slotIndex,
-      highestBidder: null,
-      highestBid: 0,
-      bids: {},
+      initiatorPlayerIndex: playerIndex,
+      bids,
     };
-  },
 
-  placeBid: ({ G, ctx }: MoveArgs, amount: number) => {
-    const playerIndex = parseInt(ctx.currentPlayer);
-    if (!G.pendingAction || G.pendingAction.type !== 'network_bid') return INVALID_MOVE;
-    const pa = G.pendingAction;
-    if (amount < 1) return INVALID_MOVE;
-    if (amount <= pa.highestBid) return INVALID_MOVE;
-    if (G.players[playerIndex].resources.coins < amount) return INVALID_MOVE;
-
-    pa.highestBidder = playerIndex;
-    pa.highestBid = amount;
-    pa.bids[playerIndex] = amount;
-
-    const card = G.networkRow[pa.slotIndex];
-    if (!card) return INVALID_MOVE;
-    G.players[playerIndex].resources.coins -= amount;
-    G.players[playerIndex].tableau.push({
-      instanceId: `${card}_${playerIndex}_${Date.now()}`,
-      cardType: card as PersonnelCardType,
-      category: 'Personnel',
+    const order = networkBiddingOrder(ctx.playOrder, playerIndex);
+    const first = order[0];
+    events.setActivePlayers({
+      value: { [first]: 'networkBid' },
+      minMoves: 1,
+      maxMoves: 1,
     });
-
-    G.networkRow[pa.slotIndex] = G.networkDeck.shift() ?? null;
-    G.pendingAction = null;
   },
 
   marketBuy: ({ G, ctx }: MoveArgs, resource: 'wood' | 'ore', amount: number) => {
@@ -698,16 +780,24 @@ export const moves = {
 
     const NON_CANCELLABLE = new Set(['builder_market_buy', 'builder_market_sell']);
     if (NON_CANCELLABLE.has(G.pendingAction.type)) return INVALID_MOVE;
+    if (G.pendingAction.type === 'network_bid') return INVALID_MOVE;
     if (G.pendingAction.type === 'event_stimulus_choose' && G.pendingAction.remaining < 4) return INVALID_MOVE;
 
     const playerIndex = parseInt(ctx.currentPlayer);
     const instanceId = G.pendingAction.instanceId;
 
-    // Charter was removed from tableau on activation — re-add it
     if (G.pendingAction.type === 'charter_place') {
       G.players[playerIndex].tableau.push({
         instanceId,
         cardType: 'Charter',
+        category: 'Event',
+      });
+    }
+
+    if (G.pendingAction.type === 'event_airstrip_hex') {
+      G.players[playerIndex].tableau.push({
+        instanceId,
+        cardType: 'Airstrip',
         category: 'Event',
       });
     }
@@ -724,5 +814,43 @@ export const moves = {
       rotatePoliticsEndOfRound(G);
     }
     events?.endTurn();
+  },
+};
+
+/** Stage-only move: each player submits a blind bid in order (initiator first). */
+export const networkBidMoves = {
+  submitNetworkBid({ G, ctx, events, playerID }: StageMoveArgs, amount: number) {
+    if (!G.pendingAction || G.pendingAction.type !== 'network_bid') return INVALID_MOVE;
+    if (!events?.setActivePlayers) return INVALID_MOVE;
+
+    const pa = G.pendingAction;
+    if (pa.bids[playerID] !== null) return INVALID_MOVE;
+
+    const initiatorPid = String(pa.initiatorPlayerIndex);
+    if (playerID === initiatorPid) {
+      if (amount < 1) return INVALID_MOVE;
+    } else {
+      if (amount < 0) return INVALID_MOVE;
+    }
+
+    const player = G.players[parseInt(playerID, 10)];
+    if (amount > 0 && player.resources.coins < amount) return INVALID_MOVE;
+
+    pa.bids[playerID] = amount;
+
+    const order = networkBiddingOrder(ctx.playOrder, pa.initiatorPlayerIndex);
+    const idx = order.indexOf(playerID);
+    const nextPid = idx >= 0 ? order[idx + 1] : undefined;
+
+    if (nextPid !== undefined) {
+      events.setActivePlayers({
+        value: { [nextPid]: 'networkBid' },
+        minMoves: 1,
+        maxMoves: 1,
+      });
+    } else {
+      resolveNetworkAuction(G, ctx.playOrder, pa);
+      events.setActivePlayers({ revert: true });
+    }
   },
 };

@@ -161,6 +161,21 @@ export function countReserves(tiles: LandgrabState["tiles"], playerType: string)
   ).length;
 }
 
+export function canPlaceAirstrip(
+  tiles: LandgrabState["tiles"],
+  hex: HexCoord
+): boolean {
+  const key = hexKey(hex);
+  const tile = tiles[key];
+  if (!tile || tile.building) return false;
+  if (!["Field", "Sand"].includes(tile.type)) return false;
+  for (const neighbor of hexNeighbors(hex)) {
+    const nt = tiles[hexKey(neighbor)];
+    if (nt?.type === "Fog") return false;
+  }
+  return true;
+}
+
 export function canPlaceConservation(
   tiles: LandgrabState["tiles"],
   hex: HexCoord

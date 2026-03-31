@@ -361,8 +361,8 @@ The four starting Politics cards are:
 
 1. Graft  
 2. Import  
-3. Roads & Sewage  
-4. Favour  
+3. Airstrip  
+4. Expropriation  
 
 The Politics track holds **4 Event cards** that players acquire by paying **🗳️** listed on each slot—this is the **Politics** option from **Liaison** (see [Starting cards](#starting-cards)). After a player acquires a card from the Politics track and their turn ends, slide remaining cards toward the cheaper slots and draw a new card into the rightmost (3 🗳️) slot.
 
@@ -405,3 +405,4 @@ The following Event cards can appear in the Politics track (or enter your Tablea
 18. **Export**: Sell 1–3 🪵 and/or ⚙️ (any mix) for the same number of 💰. Sold resources do **not** return to the Resource Market.  
 19. **Logging**: Convert a Forest hex to a Field hex. Take 1 🪵 from the bank.  
 20. **Forestry**: Convert an empty Field hex to a Forest hex.
+21. **Airstrip**: Pay 1 💰, 1 🪵, and 1 ⚙️ to place an unowned Infrastructure on any Sand or Field hex. The Infrastructure does not need to be adjacent to another building. Cannot be placed adjacent to Fog. Any player can place a building adjacent to this Infrastructure.

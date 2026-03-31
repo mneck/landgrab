@@ -8,6 +8,7 @@ import {
   canPlaceBuild,
   canPlaceReserve,
   canPlaceConservation,
+  canPlaceAirstrip,
   getAllowedBuildTypes,
 } from '../game/gameRules';
 
@@ -123,6 +124,12 @@ function computeValidHexes(
       for (const k of allKeys) {
         const t = tiles[k];
         if (t.building === 'Reserve' && t.buildingOwner === playerType) valid.add(k);
+      }
+      break;
+    }
+    case 'event_airstrip_hex': {
+      for (const k of allKeys) {
+        if (canPlaceAirstrip(tiles, hexFromKey(k))) valid.add(k);
       }
       break;
     }

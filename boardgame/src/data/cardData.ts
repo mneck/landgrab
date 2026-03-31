@@ -258,6 +258,14 @@ export const CARD_INFO: Record<string, CardInfo> = {
     image: "",
     category: "event",
   },
+  Airstrip: {
+    title: "Airstrip",
+    flavor: "Now arriving: opportunity.",
+    description: "Pay 1 Coin + 1 Wood + 1 Ore to place an unowned Infrastructure on Sand or Field. Does not need adjacency. Cannot be adjacent to Fog.",
+    icon: "🛬",
+    image: "",
+    category: "event",
+  },
   Mandate: {
     title: "Mandate",
     flavor: "Your successes are recognized.",
@@ -276,7 +284,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   },
   Stimulus: {
     title: "Stimulus",
-    flavor: "A shot in the arm.",
+    flavor: "",
     description: "Acquire any mix of 4 resources (Coins, Wood, Ore, and/or Votes).",
     icon: "💉",
     image: "",
@@ -284,7 +292,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   },
   Seat: {
     title: "Seat",
-    flavor: "A place at the table.",
+    flavor: "A seat at the table.",
     description: "Permanent. Cannot be activated. Acquire 2 Seats to win the game.",
     icon: "💺",
     image: "",

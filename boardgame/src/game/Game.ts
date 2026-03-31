@@ -1,7 +1,7 @@
 import type { Game } from 'boardgame.io';
 import type { LandgrabState } from './types';
 import { createInitialState } from './setup';
-import { moves } from './moves';
+import { moves, networkBidMoves } from './moves';
 
 export const LandgrabGame: Game<LandgrabState> = {
   name: 'landgrab',
@@ -11,6 +11,11 @@ export const LandgrabGame: Game<LandgrabState> = {
   moves: moves,
 
   turn: {
+    stages: {
+      networkBid: {
+        moves: networkBidMoves,
+      },
+    },
     onBegin: ({ G, ctx }) => {
       G.tokensUsedThisTurn = [];
       G.actionsRemainingThisTurn = 2;

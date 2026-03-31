@@ -50,7 +50,8 @@ export type EventCardType =
   | "Protests"
   | "Taxation"
   | "Levy"
-  | "Expropriation";
+  | "Expropriation"
+  | "Airstrip";
 
 export type CardType = PersonnelCardType | EventCardType;
 
@@ -114,11 +115,12 @@ export type PendingAction =
   | { type: 'event_taxation_hex'; instanceId: string }
   | { type: 'event_graft_choose'; instanceId: string }
   | { type: 'event_urbanplanning_hex'; instanceId: string }
+  | { type: 'event_airstrip_hex'; instanceId: string }
   | { type: 'event_restructuring_choose'; instanceId: string }
   | { type: 'event_stimulus_choose'; instanceId: string; remaining: number }
   | { type: 'broker_choose'; instanceId: string }
   | { type: 'forester_choose'; instanceId: string }
-  | { type: 'network_bid'; instanceId: string; slotIndex: number; highestBidder: number | null; highestBid: number; bids: Record<number, number | null> };
+  | { type: 'network_bid'; instanceId: string; slotIndex: number; initiatorPlayerIndex: number; bids: Record<string, number | null> };
 
 export interface LandgrabState {
   tiles: Record<string, Tile>;

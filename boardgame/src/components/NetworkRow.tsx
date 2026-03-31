@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { NetworkSlot, PendingAction } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
 
@@ -6,22 +6,40 @@ interface NetworkRowProps {
   networkRow: NetworkSlot[];
   pendingAction: PendingAction | null;
   isCurrentPlayerTurn: boolean;
-  playerCoins: number;
+  activeNetworkBidder: string | null;
+  bidderCoins: number;
   onSelectSlot: (slotIndex: number) => void;
-  onPlaceBid: (amount: number) => void;
+  onSubmitBid: (amount: number) => void;
 }
 
 export function NetworkRow({
   networkRow,
   pendingAction,
   isCurrentPlayerTurn,
-  playerCoins,
+  activeNetworkBidder,
+  bidderCoins,
   onSelectSlot,
-  onPlaceBid,
+  onSubmitBid,
 }: NetworkRowProps) {
   const [bidAmount, setBidAmount] = useState(1);
   const isNetworkPhase = pendingAction?.type === 'guide_network';
   const isBidPhase = pendingAction?.type === 'network_bid';
+
+  const initiatorIndex =
+    pendingAction?.type === 'network_bid' ? pendingAction.initiatorPlayerIndex : -1;
+  const bidderIsInitiator =
+    isBidPhase &&
+    activeNetworkBidder !== null &&
+    parseInt(activeNetworkBidder, 10) === initiatorIndex;
+
+  const minBid = bidderIsInitiator ? 1 : 0;
+  const maxBid = bidderCoins;
+
+  useEffect(() => {
+    if (isBidPhase) {
+      setBidAmount(bidderIsInitiator ? 1 : 0);
+    }
+  }, [isBidPhase, bidderIsInitiator, activeNetworkBidder]);
 
   return (
     <div className="market-row">
@@ -65,13 +83,22 @@ export function NetworkRow({
 
       {isBidPhase && isCurrentPlayerTurn && pendingAction && pendingAction.type === 'network_bid' && (
         <div className="bid-panel">
-          <span>Bid for <strong>{networkRow[pendingAction.slotIndex]}</strong>:</span>
+          <span>
+            Blind bid — <strong>{networkRow[pendingAction.slotIndex]}</strong>
+            {activeNetworkBidder != null && (
+              <span className="bid-turn-hint">
+                {' '}(Player {parseInt(activeNetworkBidder, 10) + 1}
+                {bidderIsInitiator ? ', must bid ≥1' : ' — pass or bid'})
+              </span>
+            )}
+            :
+          </span>
           <input
             type="number"
-            min={pendingAction.highestBid + 1}
-            max={playerCoins}
+            min={minBid}
+            max={maxBid}
             value={bidAmount}
-            onChange={e => setBidAmount(parseInt(e.target.value) || 1)}
+            onChange={e => setBidAmount(Math.max(minBid, parseInt(e.target.value, 10) || minBid))}
             className="bid-input"
           />
           <button
@@ -86,12 +113,22 @@ export function NetworkRow({
               fontWeight: 600,
               cursor: 'pointer',
             }}
-            onClick={() => onPlaceBid(bidAmount)}
-            disabled={bidAmount <= pendingAction.highestBid || bidAmount > playerCoins}
+            onClick={() => onSubmitBid(bidAmount)}
+            disabled={bidAmount < minBid || bidAmount > maxBid || (bidAmount > 0 && bidAmount > bidderCoins)}
           >
-            Place Bid ({bidAmount} coins)
+            Submit bid ({bidAmount} coins)
           </button>
-          <span className="bid-info">You have {playerCoins} coins</span>
+          {!bidderIsInitiator && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ marginLeft: '0.35rem', fontSize: '0.75rem' }}
+              onClick={() => onSubmitBid(0)}
+            >
+              Pass
+            </button>
+          )}
+          <span className="bid-info">You have {bidderCoins} coins</span>
         </div>
       )}
     </div>

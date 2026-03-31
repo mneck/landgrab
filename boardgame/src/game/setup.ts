@@ -40,12 +40,12 @@ export function createInitialState(numPlayers: number): LandgrabState {
   ];
   const networkDeck = shuffle([...networkDeckPool]);
 
-  const politicsRow = ['Graft', 'Import', 'Import', 'Logging'];
+  const politicsRow = ['Graft', 'Import', 'Airstrip', 'Expropriation'];
   const politicsPool: string[] = [
     'Bribe', 'Zoning', 'Conservation', 'UrbanPlanning', 'Dividends',
     'NGOBacking', 'Propaganda', 'Graft', 'LocalElections', 'Reorganization',
     'Import', 'Export', 'Logging', 'Forestry', 'LandClaims', 'Subsidy',
-    'Boycotting', 'Protests', 'Taxation', 'Levy', 'Expropriation',
+    'Boycotting', 'Protests', 'Taxation', 'Levy', 'Expropriation', 'Airstrip',
   ];
   const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
 

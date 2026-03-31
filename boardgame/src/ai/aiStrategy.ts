@@ -3,7 +3,7 @@ import { hexFromKey, hexKey, hexNeighbors, hexDistance } from '../utils/hexGrid'
 import type { HexCoord } from '../utils/hexGrid';
 import {
   canPlaceCharter, getCharterBuilding, canPlaceBuild, canPlaceReserve,
-  canPlaceConservation, getAllowedBuildTypes, hasAnyValidBuildHex,
+  canPlaceConservation, canPlaceAirstrip, getAllowedBuildTypes, hasAnyValidBuildHex,
   canAffordMandate,
 } from '../game/gameRules';
 
@@ -38,6 +38,7 @@ const CARD_PRIORITY: Record<string, number> = {
   Dividends: 80, Subsidy: 80, NGOBacking: 80, LocalElections: 80,
   LandClaims: 75, Boycotting: 75, Protests: 75, Levy: 75, Expropriation: 75,
   Graft: 70, Import: 70, Export: 70,
+  Airstrip: 68,
   Logging: 65, Forestry: 65, Conservation: 65,
   Zoning: 60, UrbanPlanning: 60, Taxation: 60, Bribe: 60,
   Propaganda: 55,
@@ -146,8 +147,17 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
       return slot !== null ? { move: 'selectNetworkCard', args: [slot] } : { move: 'cancelAction', args: [] };
     }
 
-    case 'network_bid':
-      return { move: 'placeBid', args: [Math.min(pa.highestBid + 1, Math.max(1, Math.floor(player.resources.coins / 3)))] };
+    case 'network_bid': {
+      const initiator = pa.initiatorPlayerIndex === playerIndex;
+      const coins = player.resources.coins;
+      if (!initiator && coins < 1) {
+        return { move: 'submitNetworkBid', args: [0] };
+      }
+      const bid = initiator
+        ? Math.min(Math.max(1, Math.floor(coins / 4)), coins)
+        : Math.min(Math.max(0, Math.floor(coins / 5)), coins);
+      return { move: 'submitNetworkBid', args: [Math.max(initiator ? 1 : 0, bid)] };
+    }
 
     case 'elder_choose': {
       const hasFog = Object.values(G.tiles).some(t => t.type === 'Fog');
@@ -192,6 +202,11 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
 
     case 'event_forestry_hex': {
       const hex = pickForestryHex(G);
+      return hex ? { move: 'placeOnHex', args: [hex] } : { move: 'cancelAction', args: [] };
+    }
+
+    case 'event_airstrip_hex': {
+      const hex = pickAirstripHex(G);
       return hex ? { move: 'placeOnHex', args: [hex] } : { move: 'cancelAction', args: [] };
     }
 
@@ -464,6 +479,28 @@ function pickUrbanPlanningHex(G: LandgrabState, playerType: PlayerType, resource
     if (tile.buildingOwner === playerType && productionTypes.includes(tile.building!) && !tile.hasUrbanPlanning) return k;
   }
   return null;
+}
+
+function pickAirstripHex(G: LandgrabState): string | null {
+  const center = { q: 0, r: 0 };
+  let bestKey: string | null = null;
+  let bestScore = -Infinity;
+
+  for (const k of Object.keys(G.tiles)) {
+    if (!canPlaceAirstrip(G.tiles, hexFromKey(k))) continue;
+    const hex = hexFromKey(k);
+    let score = Math.max(0, 5 - hexDistance(hex, center));
+    for (const nb of hexNeighbors(hex)) {
+      const nt = G.tiles[hexKey(nb)];
+      if (!nt) continue;
+      if (['Field', 'Sand'].includes(nt.type) && !nt.building) score += 1;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = k;
+    }
+  }
+  return bestKey;
 }
 
 function pickStimulusResource(playerType: PlayerType, resources: LandgrabState['players'][0]['resources']): 'coins' | 'wood' | 'ore' | 'votes' {
