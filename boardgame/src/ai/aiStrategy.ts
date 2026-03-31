@@ -64,6 +64,9 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     }
     if (c.cardType === 'Airstrip' && !canActivateAirstrip(G, player)) return false;
     if (c.cardType === 'Fisheries' && !canActivateFisheries(G, playerIndex)) return false;
+    if (c.cardType === 'Import' && player.resources.coins < 1) return false;
+    /** matches moves.activateCard → event_export_choose (must sell ≥1 wood or ore) */
+    if (c.cardType === 'Export' && player.resources.wood < 1 && player.resources.ore < 1) return false;
     return true;
   });
 
