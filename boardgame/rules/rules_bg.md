@@ -219,7 +219,7 @@ A player wins by acquiring **2 Seats**. Seats are earned by acquiring and activa
 
 ### Player counts
 - **2 players:** Hotelier, Industrialist  
-- **3 players:** Hotelier, Industrialist, and either Chieftain or Bureaucrat  
+- **3 players:** Hotelier, Industrialist, Chieftain  
 - **4 players:** Hotelier, Industrialist, Chieftain, Bureaucrat  
 
 ## Mandate Appearance
@@ -295,7 +295,7 @@ At the start of the game, the Network row is comprised of:
 1. Broker
 2. Forester
 3. Fixer
-4. Adman
+4. Advocate
 
 ## Network bidding (Guide)
 Instead of taking the Guide's Expedition option, you may use a Guide to bid on a Personnel card from the Network row:
@@ -376,7 +376,7 @@ On **Liaison**, when you choose the Politics option:
 
 - Pay **🗳️** equal to the slot's cost (0, 1, 2, or 3).  
 - Add that Event card **to your Tableau** (maximum 8 cards total).  
-- If a **non-Bureaucrat** player paid **2 or 3 🗳️** for that card, the **Bureaucrat gains 1 🗳️** from the bank.
+- If a **non-Bureaucrat** player paid **1, 2, or 3 🗳️** for that card, those **🗳️** are paid to the **Bureaucrat** (if the Bureaucrat is in the game).
 
 You still **generate resources** from Liaison when you choose the resource-generation option instead; keep in mind that you can only play 1 Action Token on 1 card each turn, so generating resources prevents a player from using the Liaison to acquire a card from Politics in that turn.
 
@@ -406,3 +406,4 @@ The following Event cards can appear in the Politics track (or enter your Tablea
 19. **Logging**: Convert a Forest hex to a Field hex. Take 1 🪵 from the bank.  
 20. **Forestry**: Convert an empty Field hex to a Forest hex.
 21. **Airstrip**: Pay 1 💰, 1 🪵, and 1 ⚙️ to place an unowned Infrastructure on any Sand or Field hex. The Infrastructure does not need to be adjacent to another building. Cannot be placed adjacent to Fog. Any player can place a building adjacent to this Infrastructure.
+22. **Fisheries**: Place a **Fisheries** building on a **Water** hex adjacent to one of your buildings. Fisheries adjacent to a **Resort** reduce that Resort’s procurement (same penalty category as adjacent Industrial Zones / Infrastructure in the app).

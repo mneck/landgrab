@@ -183,6 +183,18 @@ describe('Card selection priority', () => {
     expect(result.move).toBe('activateCard');
     expect(result.args[0]).toBe('Graft_0_t');
   });
+
+  it('skips UrbanPlanning when no eligible production hex or resources', () => {
+    const G = makeState(2);
+    G.players[0].tableau = [
+      { instanceId: 'UP_0_t', cardType: 'UrbanPlanning', category: 'Event' },
+      { instanceId: 'Graft_0_t', cardType: 'Graft', category: 'Event' },
+    ];
+    G.players[0].resources = { coins: 0, wood: 0, ore: 0, votes: 1 };
+    const result = getAIMove(G, 0)!;
+    expect(result.move).toBe('activateCard');
+    expect(result.args[0]).toBe('Graft_0_t');
+  });
 });
 
 // ── Pending action resolution ──
