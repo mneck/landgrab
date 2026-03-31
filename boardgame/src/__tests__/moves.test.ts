@@ -566,6 +566,21 @@ describe('Mandate acquisition via Liaison', () => {
     expect(G.players[0].resources.votes).toBe(1);
     expect(G.players[0].tableau.some(c => c.cardType === 'Mandate')).toBe(true);
   });
+
+  it('shifts politics row left and draws into the expensive slot (Liaison purchase)', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    G.politicsRow = ['Graft', 'Import', 'Airstrip', 'Expropriation'];
+    G.politicsDeck = ['Zoning', 'Bribe', 'Rest'];
+    G.players[0].resources.votes = 2;
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'liaison_0' };
+
+    moves.selectPoliticsCard({ G, ctx }, 1);
+
+    expect(G.politicsRow).toEqual(['Graft', 'Airstrip', 'Expropriation', 'Zoning']);
+    expect(G.politicsDeck).toEqual(['Bribe', 'Rest']);
+    expect(G.players[0].tableau.some(c => c.cardType === 'Import')).toBe(true);
+  });
 });
 
 describe('Restructuring', () => {

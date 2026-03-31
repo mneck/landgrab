@@ -10,9 +10,45 @@ import type { LandgrabState } from '../src/game/types';
 import type { PlayerType } from '../src/game/types';
 import { getAIMove } from '../src/ai/aiStrategy';
 
+/**
+ * Bot games should finish well under this; going further usually means an AI cancel/reactivate loop.
+ * Override {@link RunBotGameOptions.maxSteps} for stress runs.
+ */
+export const DEFAULT_PLAYTEST_MAX_STEPS = 500;
+
+const MOVE_HISTORY_LEN = 40;
+
+function formatLoopReview(params: {
+  steps: number;
+  maxSteps: number;
+  G: LandgrabState;
+  ctxTurn: number;
+  currentPlayer: string;
+  activePlayers: Record<string, string> | null | undefined;
+  recentMoves: string[];
+}): string {
+  const { steps, maxSteps, G, ctxTurn, currentPlayer, activePlayers, recentMoves } = params;
+  const lines: string[] = [
+    `[playtest] LOOP REVIEW: aborted after ${steps}/${maxSteps} actions (likely stuck loop)`,
+    `[playtest] ctx.turn=${ctxTurn} currentPlayer=${currentPlayer} activePlayers=${activePlayers ? JSON.stringify(activePlayers) : 'null'}`,
+    `[playtest] pendingAction=${G.pendingAction ? JSON.stringify(G.pendingAction) : 'null'} actionsRemainingThisTurn=${G.actionsRemainingThisTurn}`,
+  ];
+  for (let i = 0; i < G.players.length; i++) {
+    const p = G.players[i];
+    lines.push(
+      `[playtest] P${i} ${p.type} coins=${p.resources.coins} wood=${p.resources.wood} ore=${p.resources.ore} votes=${p.resources.votes} tableau=${p.tableau.length}`
+    );
+  }
+  lines.push(`[playtest] Last ${recentMoves.length} moves (oldest → newest):`);
+  for (const line of recentMoves) {
+    lines.push(`[playtest]   ${line}`);
+  }
+  return lines.join('\n');
+}
+
 export interface RunBotGameOptions {
   numPlayers: 2 | 3 | 4;
-  /** Abort if no winner after this many move attempts (safety). */
+  /** Abort if no winner after this many move attempts (safety). Default {@link DEFAULT_PLAYTEST_MAX_STEPS}. */
   maxSteps?: number;
   /** Optional label for logging. */
   label?: string;
@@ -42,6 +78,8 @@ export interface BotGameResult {
   /** Set when maxSteps hit without gameover.winner */
   aborted: boolean;
   error?: string;
+  /** When aborted due to maxSteps: snapshot + recent moves (same text as stderr). */
+  loopReview?: string;
 }
 
 type BGClient = ReturnType<typeof Client>;
@@ -95,7 +133,7 @@ function playtestLog(
 export async function runBotGame(options: RunBotGameOptions): Promise<BotGameResult> {
   const {
     numPlayers,
-    maxSteps = 50_000,
+    maxSteps = DEFAULT_PLAYTEST_MAX_STEPS,
     fastWin,
     verbose,
     verboseStepLimit = 400,
@@ -125,6 +163,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
 
   let steps = 0;
   let lastStateId = -1;
+  const recentMoves: string[] = [];
 
   try {
     while (steps < maxSteps) {
@@ -223,6 +262,13 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       moveFn(...aiMove.args);
       steps++;
 
+      {
+        const gAfter = getG(ref);
+        const entry = `step ${steps - 1}→${steps} ${aiMove.move}(${JSON.stringify(aiMove.args).slice(0, 100)}) pending→${gAfter.pendingAction?.type ?? 'null'} actions=${gAfter.actionsRemainingThisTurn}`;
+        recentMoves.push(entry);
+        if (recentMoves.length > MOVE_HISTORY_LEN) recentMoves.shift();
+      }
+
       const after = ref.getState();
       const sid = after?._stateID ?? -1;
       if (sid === lastStateId && aiMove.move !== 'endTurn') {
@@ -244,15 +290,34 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       lastStateId = sid;
     }
 
-    playtestLog(v, `STOP: maxSteps (${maxSteps}) reached steps=${steps} lastTurn=${clients[0].getState()?.ctx.turn ?? '?'}`);
+    const endState = clients[0].getState();
+    const endG = endState ? (endState.G as LandgrabState) : null;
+    const endCtx = endState?.ctx as
+      | { turn: number; currentPlayer: string; activePlayers?: null | Record<string, string> }
+      | undefined;
+    playtestLog(v, `STOP: maxSteps (${maxSteps}) reached steps=${steps} lastTurn=${endCtx?.turn ?? '?'}`);
+    const loopReview =
+      endG && endCtx
+        ? formatLoopReview({
+            steps,
+            maxSteps,
+            G: endG,
+            ctxTurn: endCtx.turn,
+            currentPlayer: endCtx.currentPlayer,
+            activePlayers: endCtx.activePlayers ?? null,
+            recentMoves,
+          })
+        : `[playtest] LOOP REVIEW: state unavailable (steps=${steps})`;
+    console.error(loopReview);
     clients.forEach((c) => c.stop());
     return {
       ok: false,
       winner: null,
-      turns: clients[0].getState()?.ctx.turn ?? 0,
+      turns: endCtx?.turn ?? 0,
       steps,
       aborted: true,
       error: `maxSteps (${maxSteps}) exceeded`,
+      loopReview,
     };
   } catch (e) {
     playtestLog(v, `STOP: exception at step ${steps}`, e);

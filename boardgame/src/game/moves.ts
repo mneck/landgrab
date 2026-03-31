@@ -18,6 +18,7 @@ import {
 import {
   updateFogCount,
   rotatePoliticsEndOfRound,
+  shiftPoliticsRowAfterPurchase,
   buyFromMarket,
   sellToMarket,
 } from './gameActions';
@@ -510,10 +511,7 @@ export const moves = {
       if (!card || card === 'Mandate') return INVALID_MOVE;
       if (G.players[playerIndex].resources.coins < 1) return INVALID_MOVE;
       G.players[playerIndex].resources.coins -= 1;
-      // Shift remaining cards left and draw a new one
-      G.politicsRow.splice(slotIndex, 1);
-      const drawn = G.politicsDeck.shift() ?? null;
-      G.politicsRow.push(drawn);
+      shiftPoliticsRowAfterPurchase(G, slotIndex);
       removeFromTableau(G, playerIndex, instanceId);
       G.pendingAction = null;
     }
@@ -687,8 +685,7 @@ export const moves = {
       }
     }
 
-    const nextCard = G.politicsDeck.shift() ?? null;
-    G.politicsRow[slotIndex] = nextCard;
+    shiftPoliticsRowAfterPurchase(G, slotIndex);
 
     G.pendingAction = null;
   },

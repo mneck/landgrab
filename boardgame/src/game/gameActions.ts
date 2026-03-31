@@ -31,6 +31,17 @@ function getMandateMilestone(intervalIndex: number): number {
   return base + (intervalIndex - MANDATE_INTERVALS.length + 1) * MANDATE_RECURRING_INTERVAL;
 }
 
+/**
+ * After a Politics Event is taken from slotIndex (Liaison votes or Bribe coin),
+ * remove that card, shift remaining cards toward the cheaper slots, draw one replacement into the most expensive slot.
+ */
+export function shiftPoliticsRowAfterPurchase(G: LandgrabState, slotIndex: number): void {
+  if (slotIndex < 0 || slotIndex > 3) return;
+  G.politicsRow.splice(slotIndex, 1);
+  const drawn = G.politicsDeck.shift() ?? null;
+  G.politicsRow.push(drawn);
+}
+
 /** End-of-round rotation: remove Slot 0, shift left, draw 1 into Slot 3 */
 export function rotatePoliticsEndOfRound(G: LandgrabState): void {
   const removed = G.politicsRow[0];

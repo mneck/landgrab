@@ -130,9 +130,9 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
 
     case 'liaison_choose': {
       const hasBuildings = Object.values(G.tiles).some(t => t.buildingOwner === player.type);
-      if (hasBuildings && player.tableau.length < 7 && player.resources.votes >= 1) {
-        const hasPoliticsCards = G.politicsRow.some(c => c !== null);
-        if (hasPoliticsCards) return { move: 'chooseOption', args: ['politics'] };
+      const politicsSlot = pickBestPoliticsSlot(G, playerIndex);
+      if (hasBuildings && player.tableau.length < 7 && politicsSlot !== null) {
+        return { move: 'chooseOption', args: ['politics'] };
       }
       return { move: 'chooseOption', args: ['generate'] };
     }

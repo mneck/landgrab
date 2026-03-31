@@ -124,6 +124,10 @@ describe('createInitialState', () => {
       expect(state.politicsRow).toHaveLength(4);
     });
 
+    it('starts politics row as Graft, Import, Airstrip, Expropriation', () => {
+      expect(state.politicsRow).toEqual(['Graft', 'Import', 'Airstrip', 'Expropriation']);
+    });
+
     it('initialises wood and ore markets', () => {
       expect(state.woodMarket).toEqual([0, 0, 1, 1]);
       expect(state.oreMarket).toEqual([0, 0, 1, 1]);

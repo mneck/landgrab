@@ -275,6 +275,16 @@ describe('liaison_choose', () => {
     expect(getAIMove(G, 0)!.args[0]).toBe('generate');
   });
 
+  it('falls back to generate when cards exist but no slot is affordable', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 0);
+    G.players[0].resources.votes = 1;
+    G.politicsRow = [null, null, null, 'Graft'];
+    const liaison = G.players[0].tableau.find(c => c.cardType === 'Liaison')!;
+    G.pendingAction = { type: 'liaison_choose', instanceId: liaison.instanceId };
+    expect(getAIMove(G, 0)!.args[0]).toBe('generate');
+  });
+
   it('falls back to generate when tableau is nearly full', () => {
     const G = makeState(2);
     placeCharterForPlayer(G, 0);
