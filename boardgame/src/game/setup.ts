@@ -1,4 +1,5 @@
 import type { LandgrabState, PlayerState, TableauCard, CardType, PersonnelCardType, PlayerType } from './types';
+import { SEATS_TO_WIN } from './types';
 import { generateIsland } from './types';
 import { shuffle } from './gameActions';
 
@@ -13,7 +14,10 @@ function createStartingTableau(type: PlayerType, playerIdx: number): TableauCard
   }));
 }
 
-export function createInitialState(numPlayers: number): LandgrabState {
+export function createInitialState(
+  numPlayers: number,
+  options?: { winSeatThreshold?: number }
+): LandgrabState {
   const mapRadius = 2 + numPlayers;
   const fogRadius = mapRadius - 2;
 
@@ -46,6 +50,7 @@ export function createInitialState(numPlayers: number): LandgrabState {
     'NGOBacking', 'Propaganda', 'Graft', 'LocalElections', 'Reorganization',
     'Import', 'Export', 'Logging', 'Forestry', 'LandClaims', 'Subsidy',
     'Boycotting', 'Protests', 'Taxation', 'Levy', 'Expropriation', 'Airstrip',
+    'Fisheries',
   ];
   const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
 
@@ -61,6 +66,7 @@ export function createInitialState(numPlayers: number): LandgrabState {
     thresholdReached: false,
     revealedPoliticsSinceThreshold: 0,
     mandateIntervalIndex: 0,
+    winSeatThreshold: options?.winSeatThreshold ?? SEATS_TO_WIN,
     players,
     tokensUsedThisTurn: [],
     actionsRemainingThisTurn: 2,

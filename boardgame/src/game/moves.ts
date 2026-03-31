@@ -1,6 +1,5 @@
 import { INVALID_MOVE } from 'boardgame.io/core';
 import type { LandgrabState, BuildingType, EventCardType, PersonnelCardType } from './types';
-import { SEATS_TO_WIN } from './types';
 import {
   getCharterBuilding,
   canPlaceCharter,
@@ -8,6 +7,7 @@ import {
   canPlaceReserve,
   canPlaceConservation,
   canPlaceAirstrip,
+  canPlaceFisheries,
   getAllowedBuildTypes,
   revealAdjacentFog,
   pickRevealedTileType,
@@ -32,8 +32,9 @@ function removeFromTableau(G: LandgrabState, playerIndex: number, instanceId: st
 }
 
 function checkWinCondition(G: LandgrabState): void {
+  const need = G.winSeatThreshold;
   for (const p of G.players) {
-    if (p.seats >= SEATS_TO_WIN) {
+    if (p.seats >= need) {
       G.winner = p.type;
     }
   }
@@ -287,6 +288,11 @@ export const moves = {
         if (p.resources.coins < 1 || p.resources.wood < 1 || p.resources.ore < 1) return INVALID_MOVE;
         removeFromTableau(G, playerIndex, instanceId);
         G.pendingAction = { type: 'event_airstrip_hex', instanceId };
+        break;
+      }
+      case 'Fisheries': {
+        removeFromTableau(G, playerIndex, instanceId);
+        G.pendingAction = { type: 'event_fisheries_hex', instanceId };
         break;
       }
       case 'Dividends':
@@ -629,6 +635,12 @@ export const moves = {
       G.tiles[targetHexKey].building = 'Infrastructure';
       G.pendingAction = null;
     }
+    else if (pa.type === 'event_fisheries_hex') {
+      if (!canPlaceFisheries(G.tiles, hexFromKey(targetHexKey), playerType)) return INVALID_MOVE;
+      G.tiles[targetHexKey].building = 'Fisheries';
+      G.tiles[targetHexKey].buildingOwner = playerType;
+      G.pendingAction = null;
+    }
     else if (pa.type === 'event_urbanplanning_hex') {
       const tile = G.tiles[targetHexKey];
       if (!tile || tile.buildingOwner !== playerType) return INVALID_MOVE;
@@ -798,6 +810,14 @@ export const moves = {
       G.players[playerIndex].tableau.push({
         instanceId,
         cardType: 'Airstrip',
+        category: 'Event',
+      });
+    }
+
+    if (G.pendingAction.type === 'event_fisheries_hex') {
+      G.players[playerIndex].tableau.push({
+        instanceId,
+        cardType: 'Fisheries',
         category: 'Event',
       });
     }

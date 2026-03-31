@@ -431,6 +431,24 @@ describe('win condition', () => {
     expect(G.winner).toBe('Hotelier');
   });
 
+  it('sets winner when winSeatThreshold is 1 after first Mandate', () => {
+    const G = createInitialState(2, { winSeatThreshold: 1 });
+    const ctx = makeCtx(0, 2);
+
+    G.players[0].seats = 0;
+    G.players[0].resources.votes = 5;
+    G.players[0].resources.coins = 15;
+    G.players[0].tableau.push({
+      instanceId: 'mandate_one',
+      cardType: 'Mandate',
+      category: 'Event',
+    });
+
+    moves.activateCard({ G, ctx }, 'mandate_one');
+    expect(G.players[0].seats).toBe(1);
+    expect(G.winner).toBe('Hotelier');
+  });
+
   it('does not set winner after first Mandate activation', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);

@@ -66,7 +66,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
       'charter_place', 'builder_build_hex', 'elder_village_hex', 'elder_reserve_hex',
       'guide_reveal_hex', 'event_zoning_hex', 'event_conservation_hex',
       'event_logging_hex', 'event_forestry_hex', 'event_taxation_hex', 'event_urbanplanning_hex',
-      'event_airstrip_hex',
+      'event_airstrip_hex', 'event_fisheries_hex',
     ];
 
     if (hexPlacingActions.includes(pa.type)) {
@@ -358,6 +358,15 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
           </div>
         );
 
+      case 'event_fisheries_hex':
+        return (
+          <div className="action-panel">
+            <div className="action-prompt">
+              Fisheries: Click a Water hex adjacent to one of your buildings
+            </div>
+          </div>
+        );
+
       case 'event_urbanplanning_hex':
         return (
           <div className="action-panel">
@@ -435,13 +444,11 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
     }
   }
 
-  const SEATS_TO_WIN = 2;
-
   if (G.winner) {
     return (
       <div className="game-over">
         <h1>Game Over</h1>
-        <p className="winner-announce">{G.winner} wins with {SEATS_TO_WIN} Seats!</p>
+        <p className="winner-announce">{G.winner} wins with {G.winSeatThreshold} Seats!</p>
       </div>
     );
   }

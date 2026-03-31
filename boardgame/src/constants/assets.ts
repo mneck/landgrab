@@ -18,6 +18,7 @@ export const BUILDING_ASSETS: Record<string, string> = {
   Housing: `${ASSETS}/hexes/resort_tiles/resort_homes_disc.png`,
   IndustrialZone: `${ASSETS}/hexes/industry_tiles/industry_disc.png`,
   Farm: `${ASSETS}/hexes/industry_tiles/industry_farm_disc.png`,
+  Fisheries: `${ASSETS}/hexes/shared_tiles/fisheries_disc.png`,
   Village: `${ASSETS}/hexes/indigenous_tiles/indigenous_disc.png`,
   Reserve: `${ASSETS}/hexes/indigenous_tiles/reserve.png`,
   Infrastructure: `${ASSETS}/hexes/government_tiles/infrastructure_disc.png`,

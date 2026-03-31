@@ -176,6 +176,25 @@ export function canPlaceAirstrip(
   return true;
 }
 
+/** Fisheries building: Water hex, empty, adjacent to any building you own; no Fog neighbor on this hex. */
+export function canPlaceFisheries(
+  tiles: LandgrabState["tiles"],
+  hex: HexCoord,
+  playerType: PlayerType
+): boolean {
+  const key = hexKey(hex);
+  const tile = tiles[key];
+  if (!tile || tile.type !== "Water" || tile.building) return false;
+  for (const neighbor of hexNeighbors(hex)) {
+    const nt = tiles[hexKey(neighbor)];
+    if (nt?.type === "Fog") return false;
+  }
+  return hexNeighbors(hex).some((nb) => {
+    const nt = tiles[hexKey(nb)];
+    return !!(nt?.building && nt.buildingOwner === playerType);
+  });
+}
+
 export function canPlaceConservation(
   tiles: LandgrabState["tiles"],
   hex: HexCoord
@@ -300,7 +319,12 @@ export function runProcurementForPlayer(
           const nt = tiles[hexKey(nb)];
           if (!nt || nt.building === "Reserve") continue;
           if (["Forest", "Water", "Mountain"].includes(nt.type)) prod += 1;
-          if (nt.building === "IndustrialZone" || nt.building === "Infrastructure") prod -= 1;
+          if (
+            nt.building === "IndustrialZone" ||
+            nt.building === "Infrastructure" ||
+            nt.building === "Fisheries"
+          )
+            prod -= 1;
         }
         if (t.type === "Sand") {
           for (const nb of hexNeighbors(t.hex)) {

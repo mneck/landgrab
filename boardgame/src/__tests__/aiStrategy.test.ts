@@ -147,6 +147,18 @@ describe('Card selection priority', () => {
     expect(result.move).toBe('activateCard');
     expect(result.args[0]).toBe(divCard.instanceId);
   });
+
+  it('skips Airstrip when resource cost cannot be paid', () => {
+    const G = makeState(2);
+    G.players[0].tableau = [
+      { instanceId: 'Airstrip_0_t', cardType: 'Airstrip', category: 'Event' },
+      { instanceId: 'Graft_0_t', cardType: 'Graft', category: 'Event' },
+    ];
+    G.players[0].resources = { coins: 0, wood: 1, ore: 1, votes: 1 };
+    const result = getAIMove(G, 0)!;
+    expect(result.move).toBe('activateCard');
+    expect(result.args[0]).toBe('Graft_0_t');
+  });
 });
 
 // ── Pending action resolution ──
@@ -435,6 +447,15 @@ describe('Market actions', () => {
     G.pendingAction = { type: 'builder_market_choose', instanceId: 'b' };
     expect(getAIMove(G, 0)!.args[0]).toBe('sell_wood');
   });
+
+  it('builder_market_choose: cancels when no trade is possible', () => {
+    const G = makeState(2);
+    G.pendingAction = { type: 'builder_market_choose', instanceId: 'b' };
+    G.players[0].resources = { coins: 10, wood: 0, ore: 0, votes: 1 };
+    G.woodMarket = [0, 0, 0, 0];
+    G.oreMarket = [0, 0, 0, 0];
+    expect(getAIMove(G, 0)!.move).toBe('cancelAction');
+  });
 });
 
 describe('Event card decisions', () => {
@@ -452,11 +473,25 @@ describe('Event card decisions', () => {
     expect(getAIMove(G, 0)!.args[0]).toBe('wood');
   });
 
+  it('event_import_choose: cancels when no coins', () => {
+    const G = makeState(2);
+    G.players[0].resources = { coins: 0, wood: 1, ore: 1, votes: 1 };
+    G.pendingAction = { type: 'event_import_choose', instanceId: 'imp' };
+    expect(getAIMove(G, 0)!.move).toBe('cancelAction');
+  });
+
   it('event_export_choose: picks higher resource', () => {
     const G = makeState(2);
     G.players[0].resources = { coins: 5, wood: 1, ore: 4, votes: 1 };
     G.pendingAction = { type: 'event_export_choose', instanceId: 'exp' };
     expect(getAIMove(G, 0)!.args[0]).toBe('ore');
+  });
+
+  it('event_export_choose: cancels when no wood or ore to sell', () => {
+    const G = makeState(2);
+    G.players[0].resources = { coins: 5, wood: 0, ore: 0, votes: 1 };
+    G.pendingAction = { type: 'event_export_choose', instanceId: 'exp' };
+    expect(getAIMove(G, 0)!.move).toBe('cancelAction');
   });
 
   it('event_graft_choose: converts coin to vote when coins > votes', () => {

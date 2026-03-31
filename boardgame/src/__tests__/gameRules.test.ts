@@ -5,9 +5,11 @@ import {
   canPlaceCharter,
   canPlaceReserve,
   canPlaceConservation,
+  canPlaceFisheries,
   getCharterBuilding,
   countProductionAndSupport,
   canAffordMandate,
+  runProcurementForPlayer,
   BUILD_OPTIONS,
 } from '../game/gameRules';
 import { rotatePoliticsEndOfRound } from '../game/gameActions';
@@ -261,6 +263,62 @@ describe('countProductionAndSupport', () => {
       production: 0,
       support: 0,
     });
+  });
+});
+
+describe('Fisheries', () => {
+  it('can be placed on Water adjacent to a building you own', () => {
+    const G = createInitialState(2);
+    let fieldKey: string | null = null;
+    let waterKey: string | null = null;
+    for (const [k, t] of Object.entries(G.tiles)) {
+      if (t.type !== 'Field' || t.building) continue;
+      for (const nb of hexNeighbors(t.hex)) {
+        const wk = hexKey(nb);
+        const wt = G.tiles[wk];
+        if (wt?.type === 'Water' && !wt.building) {
+          fieldKey = k;
+          waterKey = wk;
+          break;
+        }
+      }
+      if (fieldKey) break;
+    }
+    expect(fieldKey && waterKey).toBeTruthy();
+    G.tiles[fieldKey!].building = 'Resort';
+    G.tiles[fieldKey!].buildingOwner = 'Hotelier';
+    expect(canPlaceFisheries(G.tiles, G.tiles[waterKey!].hex, 'Hotelier')).toBe(true);
+  });
+
+  it('reduces Resort procurement by 1 when adjacent Water has Fisheries', () => {
+    const G = createInitialState(2);
+    let resortKey: string | null = null;
+    let waterKey: string | null = null;
+    for (const [k, t] of Object.entries(G.tiles)) {
+      if (t.type !== 'Field' || t.building) continue;
+      for (const nb of hexNeighbors(t.hex)) {
+        const wk = hexKey(nb);
+        const wt = G.tiles[wk];
+        if (wt?.type === 'Water' && !wt.building) {
+          resortKey = k;
+          waterKey = wk;
+          break;
+        }
+      }
+      if (resortKey) break;
+    }
+    expect(resortKey && waterKey).toBeTruthy();
+    G.tiles[resortKey!].building = 'Resort';
+    G.tiles[resortKey!].buildingOwner = 'Hotelier';
+
+    const base = { coins: 0, wood: 0, ore: 0, votes: 0 };
+    const before = runProcurementForPlayer(G.tiles, 'Hotelier', base, undefined, 0);
+
+    G.tiles[waterKey!].building = 'Fisheries';
+    G.tiles[waterKey!].buildingOwner = 'Industrialist';
+
+    const after = runProcurementForPlayer(G.tiles, 'Hotelier', base, undefined, 0);
+    expect(after.coins).toBe(before.coins - 1);
   });
 });
 

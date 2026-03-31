@@ -104,6 +104,10 @@ describe('createInitialState', () => {
       expect(state.winner).toBeUndefined();
     });
 
+    it('defaults winSeatThreshold to 2 seats', () => {
+      expect(state.winSeatThreshold).toBe(2);
+    });
+
     it('starts with no fog revealed', () => {
       expect(state.fogRevealed).toBe(0);
     });

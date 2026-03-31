@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { defaultExclude } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -18,5 +19,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    /** Long batch runner; use `npm run test:playtest-batch` or `npm run playtest` (see playtesting/cli.test.ts env vars). */
+    exclude: [...defaultExclude, '**/playtesting/cli.test.ts'],
   },
 });

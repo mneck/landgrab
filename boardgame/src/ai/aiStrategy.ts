@@ -3,9 +3,10 @@ import { hexFromKey, hexKey, hexNeighbors, hexDistance } from '../utils/hexGrid'
 import type { HexCoord } from '../utils/hexGrid';
 import {
   canPlaceCharter, getCharterBuilding, canPlaceBuild, canPlaceReserve,
-  canPlaceConservation, canPlaceAirstrip, getAllowedBuildTypes, hasAnyValidBuildHex,
+  canPlaceConservation, canPlaceAirstrip, canPlaceFisheries, getAllowedBuildTypes, hasAnyValidBuildHex,
   canAffordMandate,
 } from '../game/gameRules';
+import { buyFromMarket, sellToMarket } from '../game/gameActions';
 
 export interface AIMove {
   move: string;
@@ -39,6 +40,7 @@ const CARD_PRIORITY: Record<string, number> = {
   LandClaims: 75, Boycotting: 75, Protests: 75, Levy: 75, Expropriation: 75,
   Graft: 70, Import: 70, Export: 70,
   Airstrip: 68,
+  Fisheries: 67,
   Logging: 65, Forestry: 65, Conservation: 65,
   Zoning: 60, UrbanPlanning: 60, Taxation: 60, Bribe: 60,
   Propaganda: 55,
@@ -60,6 +62,8 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     if (c.cardType === 'Mandate') {
       return player.resources.votes >= 1 && canAffordMandate(G.tiles, player);
     }
+    if (c.cardType === 'Airstrip' && !canActivateAirstrip(G, player)) return false;
+    if (c.cardType === 'Fisheries' && !canActivateFisheries(G, playerIndex)) return false;
     return true;
   });
 
@@ -109,7 +113,9 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
 
     case 'builder_market_choose': {
       const action = pickMarketAction(G, playerIndex);
-      return { move: 'chooseOption', args: [action] };
+      return action
+        ? { move: 'chooseOption', args: [action] }
+        : { move: 'cancelAction', args: [] };
     }
 
     case 'builder_market_buy':
@@ -210,11 +216,25 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
       return hex ? { move: 'placeOnHex', args: [hex] } : { move: 'cancelAction', args: [] };
     }
 
-    case 'event_import_choose':
-      return { move: 'chooseOption', args: [player.resources.wood <= player.resources.ore ? 'wood' : 'ore'] };
+    case 'event_fisheries_hex': {
+      const hex = pickFisheriesHex(G, playerIndex);
+      return hex ? { move: 'placeOnHex', args: [hex] } : { move: 'cancelAction', args: [] };
+    }
 
-    case 'event_export_choose':
-      return { move: 'chooseOption', args: [player.resources.wood >= player.resources.ore ? 'wood' : 'ore'] };
+    case 'event_import_choose': {
+      if (player.resources.coins < 1) return { move: 'cancelAction', args: [] };
+      const pick: 'wood' | 'ore' =
+        player.resources.wood <= player.resources.ore ? 'wood' : 'ore';
+      return { move: 'chooseOption', args: [pick] };
+    }
+
+    case 'event_export_choose': {
+      const { wood, ore } = player.resources;
+      if (wood < 1 && ore < 1) return { move: 'cancelAction', args: [] };
+      let pick: 'wood' | 'ore' = wood >= ore ? 'wood' : 'ore';
+      if (player.resources[pick] < 1) pick = pick === 'wood' ? 'ore' : 'wood';
+      return { move: 'chooseOption', args: [pick] };
+    }
 
     case 'event_graft_choose':
       return { move: 'chooseOption', args: [player.resources.coins > player.resources.votes ? 'coin_to_vote' : 'vote_to_coin'] };
@@ -311,7 +331,12 @@ function scoreBuildHex(G: LandgrabState, k: string, playerType: PlayerType, buil
 
     if (buildingType === 'Resort') {
       if (['Forest', 'Water', 'Mountain'].includes(nt.type)) score += 2;
-      if (nt.building === 'IndustrialZone' || nt.building === 'Infrastructure') score -= 1;
+      if (
+        nt.building === 'IndustrialZone' ||
+        nt.building === 'Infrastructure' ||
+        nt.building === 'Fisheries'
+      )
+        score -= 1;
     } else if (buildingType === 'IndustrialZone') {
       if (nt.type === 'Forest') score += 2;
       if (nt.type === 'Mountain') score += 2;
@@ -342,14 +367,37 @@ function pickBestBuildHex(G: LandgrabState, playerIndex: number, buildingType: B
   return bestKey;
 }
 
-function pickMarketAction(G: LandgrabState, playerIndex: number): string {
+function pickMarketAction(G: LandgrabState, playerIndex: number): string | null {
   const res = G.players[playerIndex].resources;
-  if (res.wood < 1 && res.coins >= 1) return 'buy_wood';
-  if (res.ore < 1 && res.coins >= 1) return 'buy_ore';
-  if (res.wood > 3) return 'sell_wood';
-  if (res.ore > 3) return 'sell_ore';
-  if (res.coins >= 2) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
-  return res.wood >= res.ore ? 'sell_wood' : 'sell_ore';
+
+  const canBuyWood = (): boolean => {
+    const r = buyFromMarket(G.woodMarket, 1);
+    return r !== null && res.coins >= r.totalCost;
+  };
+  const canBuyOre = (): boolean => {
+    const r = buyFromMarket(G.oreMarket, 1);
+    return r !== null && res.coins >= r.totalCost;
+  };
+  const canSellWood = (): boolean =>
+    res.wood >= 1 && sellToMarket(G.woodMarket, 1) !== null;
+  const canSellOre = (): boolean =>
+    res.ore >= 1 && sellToMarket(G.oreMarket, 1) !== null;
+
+  if (res.wood < 1 && canBuyWood()) return 'buy_wood';
+  if (res.ore < 1 && canBuyOre()) return 'buy_ore';
+  if (res.wood > 3 && canSellWood()) return 'sell_wood';
+  if (res.ore > 3 && canSellOre()) return 'sell_ore';
+  if (res.coins >= 2) {
+    if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
+    if (canBuyWood()) return 'buy_wood';
+    if (canBuyOre()) return 'buy_ore';
+  }
+  if (canSellWood() && canSellOre()) return res.wood >= res.ore ? 'sell_wood' : 'sell_ore';
+  if (canSellWood()) return 'sell_wood';
+  if (canSellOre()) return 'sell_ore';
+  if (canBuyWood()) return 'buy_wood';
+  if (canBuyOre()) return 'buy_ore';
+  return null;
 }
 
 function pickBestPoliticsSlot(G: LandgrabState, playerIndex: number): number | null {
@@ -481,6 +529,32 @@ function pickUrbanPlanningHex(G: LandgrabState, playerType: PlayerType, resource
   return null;
 }
 
+function pickFisheriesHex(G: LandgrabState, playerIndex: number): string | null {
+  const playerType = G.players[playerIndex].type;
+  const center = { q: 0, r: 0 };
+  let bestKey: string | null = null;
+  let bestScore = -Infinity;
+
+  for (const k of Object.keys(G.tiles)) {
+    if (!canPlaceFisheries(G.tiles, hexFromKey(k), playerType)) continue;
+    const hex = hexFromKey(k);
+    let score = Math.max(0, 5 - hexDistance(hex, center));
+    for (const nb of hexNeighbors(hex)) {
+      const nt = G.tiles[hexKey(nb)];
+      if (nt?.building === 'Resort' && nt.buildingOwner !== playerType) score += 6;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = k;
+    }
+  }
+  return bestKey;
+}
+
+function canActivateFisheries(G: LandgrabState, playerIndex: number): boolean {
+  return pickFisheriesHex(G, playerIndex) !== null;
+}
+
 function pickAirstripHex(G: LandgrabState): string | null {
   const center = { q: 0, r: 0 };
   let bestKey: string | null = null;
@@ -501,6 +575,15 @@ function pickAirstripHex(G: LandgrabState): string | null {
     }
   }
   return bestKey;
+}
+
+/**
+ * True iff `activateCard` would accept Airstrip now: resource cost in moves.ts and at least one
+ * Field/Sand hex with no Fog neighbor (same predicate as pickAirstripHex).
+ */
+function canActivateAirstrip(G: LandgrabState, player: LandgrabState['players'][0]): boolean {
+  if (player.resources.coins < 1 || player.resources.wood < 1 || player.resources.ore < 1) return false;
+  return pickAirstripHex(G) !== null;
 }
 
 function pickStimulusResource(playerType: PlayerType, resources: LandgrabState['players'][0]['resources']): 'coins' | 'wood' | 'ore' | 'votes' {

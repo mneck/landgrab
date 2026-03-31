@@ -9,6 +9,7 @@ import {
   canPlaceReserve,
   canPlaceConservation,
   canPlaceAirstrip,
+  canPlaceFisheries,
   getAllowedBuildTypes,
 } from '../game/gameRules';
 
@@ -130,6 +131,12 @@ function computeValidHexes(
     case 'event_airstrip_hex': {
       for (const k of allKeys) {
         if (canPlaceAirstrip(tiles, hexFromKey(k))) valid.add(k);
+      }
+      break;
+    }
+    case 'event_fisheries_hex': {
+      for (const k of allKeys) {
+        if (canPlaceFisheries(tiles, hexFromKey(k), playerType)) valid.add(k);
       }
       break;
     }

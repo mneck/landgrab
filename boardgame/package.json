@@ -12,7 +12,9 @@
     "serve": "NODE_ENV=production tsx server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:playtest-batch": "vitest run playtesting/cli.test.ts",
+    "playtest": "vitest run playtesting/cli.test.ts"
   },
   "dependencies": {
     "boardgame.io": "^0.50.2",

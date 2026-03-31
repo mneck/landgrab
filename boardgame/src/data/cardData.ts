@@ -266,6 +266,15 @@ export const CARD_INFO: Record<string, CardInfo> = {
     image: "",
     category: "event",
   },
+  Fisheries: {
+    title: "Fisheries",
+    flavor: "",
+    description:
+      "Place a Fisheries building on a Water hex adjacent to one of your buildings. Any Fisheries adjacent to a Resort reduces that Resort's procurement by 1 (same as an Industrial Zone).",
+    icon: "🎣",
+    image: "",
+    category: "event",
+  },
   Mandate: {
     title: "Mandate",
     flavor: "Your successes are recognized.",

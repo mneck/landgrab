@@ -9,6 +9,7 @@ export type BuildingType =
   | "Housing"
   | "IndustrialZone"
   | "Farm"
+  | "Fisheries"
   | "Infrastructure"
   | "CivicOffice"
   | "Reserve";
@@ -51,7 +52,8 @@ export type EventCardType =
   | "Taxation"
   | "Levy"
   | "Expropriation"
-  | "Airstrip";
+  | "Airstrip"
+  | "Fisheries";
 
 export type CardType = PersonnelCardType | EventCardType;
 
@@ -116,6 +118,7 @@ export type PendingAction =
   | { type: 'event_graft_choose'; instanceId: string }
   | { type: 'event_urbanplanning_hex'; instanceId: string }
   | { type: 'event_airstrip_hex'; instanceId: string }
+  | { type: 'event_fisheries_hex'; instanceId: string }
   | { type: 'event_restructuring_choose'; instanceId: string }
   | { type: 'event_stimulus_choose'; instanceId: string; remaining: number }
   | { type: 'broker_choose'; instanceId: string }
@@ -147,6 +150,9 @@ export interface LandgrabState {
 
   landClaimsUntilPlayer?: number;
   boycottEffect?: { boycotterType: PlayerType; targetPlayerIndex: number };
+
+  /** Seats required to win (default {@link SEATS_TO_WIN}; playtests may use 1 for shorter games). */
+  winSeatThreshold: number;
 
   winner?: PlayerType;
 }
