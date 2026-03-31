@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createInitialState } from '../game/setup';
 import { moves } from '../game/moves';
 import { INVALID_MOVE } from 'boardgame.io/core';
@@ -580,6 +580,24 @@ describe('Mandate acquisition via Liaison', () => {
     expect(G.politicsRow).toEqual(['Graft', 'Airstrip', 'Expropriation', 'Zoning']);
     expect(G.politicsDeck).toEqual(['Bribe', 'Rest']);
     expect(G.players[0].tableau.some(c => c.cardType === 'Import')).toBe(true);
+  });
+
+  it('prepends Graft and a random politics event to the deck after taking Mandate', () => {
+    const G = createInitialState(2);
+    const ctx = makeCtx(0, 2);
+    G.politicsRow = ['Bribe', 'Zoning', 'Mandate', 'Import'];
+    G.politicsDeck = ['X', 'Y'];
+    G.players[0].resources.votes = 5;
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'liaison_0' };
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    moves.selectPoliticsCard({ G, ctx }, 2);
+
+    vi.restoreAllMocks();
+    expect(G.politicsDeck[0]).toBe('Graft');
+    expect(G.politicsDeck[1]).toBe('Bribe');
+    // 'X' was drawn to fill the row; remainder is only 'Y'
+    expect(G.politicsDeck.slice(2)).toEqual(['Y']);
   });
 });
 

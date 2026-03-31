@@ -19,6 +19,7 @@ import {
   updateFogCount,
   rotatePoliticsEndOfRound,
   shiftPoliticsRowAfterPurchase,
+  injectPostMandateVoteFunnel,
   buyFromMarket,
   sellToMarket,
 } from './gameActions';
@@ -686,6 +687,10 @@ export const moves = {
     }
 
     shiftPoliticsRowAfterPurchase(G, slotIndex);
+
+    if (card === 'Mandate') {
+      injectPostMandateVoteFunnel(G);
+    }
 
     G.pendingAction = null;
   },

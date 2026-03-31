@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getAllowedBuildTypes,
   canPlaceBuild,
@@ -351,16 +351,20 @@ describe('canAffordMandate', () => {
 });
 
 describe('rotatePoliticsEndOfRound', () => {
-  it('Mandate rotates off track and returns to bottom of deck', () => {
+  it('Mandate rotates off track and returns to bottom of deck; prepends Graft and a random event', () => {
     const G = createInitialState(2);
     G.politicsRow = ['Mandate', 'Bribe', 'Graft', 'Import'];
     G.politicsDeck = ['Export', 'Zoning'];
+    vi.spyOn(Math, 'random').mockReturnValue(0);
 
     rotatePoliticsEndOfRound(G);
 
+    vi.restoreAllMocks();
     expect(G.politicsRow[0]).toBe('Bribe');
     expect(G.politicsRow[3]).not.toBeNull();
     expect(G.politicsDeck[G.politicsDeck.length - 1]).toBe('Mandate');
+    expect(G.politicsDeck[0]).toBe('Graft');
+    expect(G.politicsDeck[1]).toBe('Bribe');
   });
 
   it('does not place duplicate Mandate if one is already visible', () => {

@@ -32,6 +32,48 @@ function getMandateMilestone(intervalIndex: number): number {
 }
 
 /**
+ * Politics cards eligible for the random slot after a Mandate (matches setup pool minus Mandate/Graft —
+ * Graft is always injected first so players can convert coins to votes).
+ */
+const POST_MANDATE_RANDOM_EVENT_CANDIDATES: string[] = [
+  'Bribe',
+  'Zoning',
+  'Conservation',
+  'UrbanPlanning',
+  'Dividends',
+  'NGOBacking',
+  'Propaganda',
+  'LocalElections',
+  'Reorganization',
+  'Import',
+  'Export',
+  'Logging',
+  'Forestry',
+  'LandClaims',
+  'Subsidy',
+  'Boycotting',
+  'Protests',
+  'Taxation',
+  'Levy',
+  'Expropriation',
+  'Airstrip',
+  'Fisheries',
+];
+
+/**
+ * After a Mandate leaves the politics row (purchased with Liaison or rotated off at end of round),
+ * prepend Graft then a random event to the top of the politics deck so upcoming draws keep offering
+ * coin→vote and other events before the next Mandate cycle.
+ */
+export function injectPostMandateVoteFunnel(G: LandgrabState): void {
+  if (POST_MANDATE_RANDOM_EVENT_CANDIDATES.length === 0) return;
+  const idx = Math.floor(Math.random() * POST_MANDATE_RANDOM_EVENT_CANDIDATES.length);
+  const randomEvent = POST_MANDATE_RANDOM_EVENT_CANDIDATES[idx]!;
+  G.politicsDeck.unshift(randomEvent);
+  G.politicsDeck.unshift('Graft');
+}
+
+/**
  * After a Politics Event is taken from slotIndex (Liaison votes or Bribe coin),
  * remove that card, shift remaining cards toward the cheaper slots, draw one replacement into the most expensive slot.
  */
@@ -56,6 +98,7 @@ export function rotatePoliticsEndOfRound(G: LandgrabState): void {
 
   if (removed === 'Mandate') {
     G.politicsDeck.push('Mandate');
+    injectPostMandateVoteFunnel(G);
   }
 
   if (G.thresholdReached) {

@@ -15,8 +15,75 @@ export interface AIMove {
 
 const NON_ACTIVATABLE: Set<CardType> = new Set(['Seat']);
 
-/** Stop micro-trading in Builder market before playtest hoard abort (see playtesting/simulator RESOURCE_HOARD_THRESHOLD). */
+/** Politics cards that add or convert to votes — take with Liaison before random events when votes < 4. */
+const VOTE_FUNNEL_POLITICS = new Set<string>(['Graft', 'LocalElections', 'NGOBacking', 'Propaganda']);
+
+/** Stop endless Builder market micro-trades when resources are already high (buys only once stockpile handling runs). */
 const MARKET_WIND_DOWN_THRESHOLD = 45;
+
+/**
+ * Bots should pursue Mandate (politics / activation) before any resource climbs this high.
+ * Stays below the playtest hoard guard and the design target of ~20.
+ */
+const MANDATE_RESOURCE_ALERT = 15;
+
+function maxResourceValue(player: LandgrabState['players'][0]): number {
+  const r = player.resources;
+  return Math.max(r.coins, r.wood, r.ore, r.votes);
+}
+
+/** True when the player is stockpiling any resource — switch from engine building to Mandate / politics / dumps. */
+function mandateStockpileRisk(player: LandgrabState['players'][0]): boolean {
+  return maxResourceValue(player) >= MANDATE_RESOURCE_ALERT;
+}
+
+/**
+ * Prefer Builder→market before building when wood/ore are climbing. Liaison generate can add many units in
+ * one action; waiting until max≥15 (mandateStockpileRisk) lets resources jump from ~12 to 150+ in a turn.
+ */
+function builderShouldPreferMarketBeforeBuild(player: LandgrabState['players'][0]): boolean {
+  if (mandateStockpileRisk(player)) return true;
+  if (maxResourceValue(player) >= 10) return true;
+  const { wood, ore } = player.resources;
+  return wood >= 8 || ore >= 8;
+}
+
+/** Coins are the top resource — build to spend them instead of looping on market buys/sells. */
+function builderShouldSinkCoinsViaBuild(player: LandgrabState['players'][0], canBuild: boolean): boolean {
+  if (!canBuild) return false;
+  const r = player.resources;
+  return r.coins >= 120 && r.coins === maxResourceValue(player);
+}
+
+/** Wood/ore are very high — build to consume them; market churn cannot keep up with Liaison generate. */
+function builderShouldBuildToConsumeCommodities(player: LandgrabState['players'][0], canBuild: boolean): boolean {
+  if (!canBuild) return false;
+  const { wood, ore } = player.resources;
+  return wood >= 55 || ore >= 55;
+}
+
+function hasMandateInTableau(player: LandgrabState['players'][0]): boolean {
+  return player.tableau.some(c => c.cardType === 'Mandate');
+}
+
+/**
+ * Do not take Import (or Broker→Import) while already rich or when votes are needed to play Mandate / take politics.
+ */
+function shouldBlockImport(G: LandgrabState, playerIndex: number): boolean {
+  const p = G.players[playerIndex];
+  if (mandateStockpileRisk(p)) return true;
+  if (p.resources.votes >= 1) return false;
+  return hasMandateInTableau(p) || politicsRowHasMandate(G);
+}
+
+/**
+ * Broker is reusable personnel; when Import is blocked we only add Export. Do not re-activate Broker
+ * while an Export from a prior Broker is still in the tableau — play those first or the AI loops forever.
+ */
+function shouldSkipBrokerUntilExportsCleared(G: LandgrabState, playerIndex: number): boolean {
+  if (!shouldBlockImport(G, playerIndex)) return false;
+  return G.players[playerIndex].tableau.some(c => c.cardType === 'Export');
+}
 
 export function getAIMove(G: LandgrabState, playerIndex: number): AIMove | null {
   const player = G.players[playerIndex];
@@ -34,28 +101,135 @@ export function getAIMove(G: LandgrabState, playerIndex: number): AIMove | null 
   return { move: 'activateCard', args: [card.instanceId] };
 }
 
-// ---- Card selection ----
+// ---- Card selection (simple win path) ----
+//
+// 1. Charter → open the board
+// 2. Builder + Liaison generate → resources
+// 3. Liaison politics when Mandate is on the row OR vote-funnel cards (Graft, …) are affordable (votes < 4)
+// 4. Graft → votes when needed for that Mandate
+// 5. Play Mandate for a seat; repeat from (2)
+// Personnel that only add more cards to the tableau (Broker, Guide, …) stay last.
 
-/** Win-focused: Mandate beats everything when playable; Charter opens the board; Liaison feeds votes. */
-const CARD_PRIORITY: Record<string, number> = {
-  Mandate: 120,
-  Charter: 100,
-  Dividends: 78, Subsidy: 78, NGOBacking: 78, LocalElections: 78,
-  LandClaims: 73, Boycotting: 73, Protests: 73, Levy: 73, Expropriation: 73,
-  Graft: 72, Import: 72, Export: 72,
-  Airstrip: 68,
-  Fisheries: 67,
-  Logging: 64, Forestry: 64, Conservation: 64,
-  Zoning: 58, UrbanPlanning: 58, Taxation: 58, Bribe: 58,
-  Propaganda: 52,
-  Liaison: 52,
-  Restructuring: 48, Stimulus: 48,
-  Builder: 22,
-  Elder: 24,
-  Guide: 20,
-  Broker: 15, Forester: 15, Fixer: 15, Consultant: 15, Advocate: 15,
-  Reorganization: 10,
-};
+function canActivateBribe(G: LandgrabState, player: LandgrabState['players'][0]): boolean {
+  if (player.resources.coins < 1) return false;
+  return G.politicsRow.some(c => c !== null && c !== 'Mandate');
+}
+
+function canActivateElder(G: LandgrabState): boolean {
+  const hasFog = Object.values(G.tiles).some(t => t.type === 'Fog');
+  if (hasFog) return pickFogHex(G) !== null;
+  return pickReserveHex(G) !== null;
+}
+
+function politicsRowHasMandate(G: LandgrabState): boolean {
+  return G.politicsRow.some(c => c === 'Mandate');
+}
+
+/** True if Mandate is on the politics track but this player lacks the votes for its slot. */
+function votesShortForMandatePolitics(G: LandgrabState, playerIndex: number): boolean {
+  const player = G.players[playerIndex];
+  const VOTE_COSTS = [0, 1, 2, 3];
+  for (let i = 0; i < 4; i++) {
+    if (G.politicsRow[i] !== 'Mandate') continue;
+    const cost = VOTE_COSTS[i] ?? 0;
+    if (player.resources.votes < cost) return true;
+  }
+  return false;
+}
+
+/** Affordable vote-funnel card on the politics row (for Liaison politics before Mandate appears). */
+function liaisonShouldTakePoliticsForVotePath(G: LandgrabState, playerIndex: number): boolean {
+  const player = G.players[playerIndex];
+  if (player.resources.votes >= 4) return false;
+  const VOTE_COSTS = [0, 1, 2, 3];
+  for (let i = 0; i < 4; i++) {
+    const card = G.politicsRow[i];
+    if (!card || !VOTE_FUNNEL_POLITICS.has(card)) continue;
+    const cost = VOTE_COSTS[i] ?? 0;
+    if (player.resources.votes >= cost) return true;
+  }
+  return false;
+}
+
+/** Network / recruit personnel — lowest priority; bots should not spam these before the engine + Mandate path. */
+function isCardAcquisitionPersonnel(cardType: CardType): boolean {
+  return (
+    cardType === 'Broker' ||
+    cardType === 'Forester' ||
+    cardType === 'Guide' ||
+    cardType === 'Consultant' ||
+    cardType === 'Advocate' ||
+    cardType === 'Fixer'
+  );
+}
+
+/** Higher = play first. Single ladder: Mandate → Charter → (take Mandate / votes) → Builder → Liaison generate → events → recruiters last. */
+function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCard): number {
+  const player = G.players[playerIndex];
+
+  if (c.cardType === 'Mandate' && player.resources.votes >= 1 && canAffordMandate(G.tiles, player)) {
+    return 100_000;
+  }
+
+  if (c.cardType === 'Charter') {
+    return 90_000;
+  }
+
+  const mandateOnRow = politicsRowHasMandate(G);
+  const votePathPolitics = mandateOnRow || liaisonShouldTakePoliticsForVotePath(G, playerIndex);
+  const canTakePolitics = pickBestPoliticsSlot(G, playerIndex) !== null;
+  const hasBuildings = Object.values(G.tiles).some(t => t.buildingOwner === player.type);
+  const tableauOk = player.tableau.length < 7;
+  const fogRemains = Object.values(G.tiles).some(t => t.type === 'Fog');
+
+  if (
+    c.cardType === 'Guide' &&
+    !G.thresholdReached &&
+    fogRemains &&
+    hasBuildings
+  ) {
+    return 84_000;
+  }
+
+  if (c.cardType === 'Liaison' && votePathPolitics && hasBuildings && tableauOk && canTakePolitics) {
+    return 85_000;
+  }
+
+  if (
+    c.cardType === 'Graft' &&
+    mandateOnRow &&
+    votesShortForMandatePolitics(G, playerIndex) &&
+    player.resources.coins >= 1
+  ) {
+    return 82_000;
+  }
+
+  if (c.cardType === 'Builder') {
+    return 80_000;
+  }
+
+  if (c.cardType === 'Elder' && canActivateElder(G)) {
+    return 79_000;
+  }
+
+  if (c.cardType === 'Liaison') {
+    return 75_000;
+  }
+
+  if (c.cardType === 'Graft' && player.resources.coins >= 1) {
+    return 70_000;
+  }
+
+  if (c.category === 'Event') {
+    return 60_000;
+  }
+
+  if (isCardAcquisitionPersonnel(c.cardType)) {
+    return 1_000;
+  }
+
+  return 5_000;
+}
 
 function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard | null {
   const player = G.players[playerIndex];
@@ -69,25 +243,32 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     if (c.cardType === 'Airstrip' && !canActivateAirstrip(G, player)) return false;
     if (c.cardType === 'Fisheries' && !canActivateFisheries(G, playerIndex)) return false;
     if (c.cardType === 'Import' && player.resources.coins < 1) return false;
+    if (c.cardType === 'Import' && shouldBlockImport(G, playerIndex)) return false;
+    if (c.cardType === 'Broker' && shouldSkipBrokerUntilExportsCleared(G, playerIndex)) return false;
     /** matches moves.activateCard → event_export_choose (must sell ≥1 wood or ore) */
     if (c.cardType === 'Export' && player.resources.wood < 1 && player.resources.ore < 1) return false;
     if (c.cardType === 'UrbanPlanning' && pickUrbanPlanningHex(G, player.type, player.resources) === null) {
       return false;
     }
     if (c.cardType === 'Taxation' && pickTaxationHex(G, player.type) === null) return false;
+    if (c.cardType === 'Logging' && pickLoggingHex(G) === null) return false;
+    if (c.cardType === 'Forestry' && pickForestryHex(G) === null) return false;
+    if (c.cardType === 'Conservation' && pickConservationHex(G) === null) return false;
+    if (c.cardType === 'Zoning' && pickZoningHex(G, player.type) === null) return false;
+    if (c.cardType === 'Bribe' && !canActivateBribe(G, player)) return false;
+    if (c.cardType === 'Elder' && !canActivateElder(G)) return false;
+    if (c.cardType === 'Guide') {
+      const hasFog = Object.values(G.tiles).some(t => t.type === 'Fog');
+      if (hasFog && pickRevealHex(G) === null) return false;
+    }
     return true;
   });
 
   if (usable.length === 0) return null;
 
-  usable.sort((a, b) => {
-    const pa = CARD_PRIORITY[a.cardType] ?? 0;
-    const pb = CARD_PRIORITY[b.cardType] ?? 0;
-    if (pb !== pa) return pb - pa;
-    if (a.cardType === 'Mandate') return -1;
-    if (b.cardType === 'Mandate') return 1;
-    return 0;
-  });
+  usable.sort(
+    (a, b) => simpleFlowPriority(G, playerIndex, b) - simpleFlowPriority(G, playerIndex, a)
+  );
 
   for (const card of usable) {
     if (card.cardType === 'Builder') {
@@ -119,6 +300,15 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
     case 'builder_choose': {
       const canBuild = hasAnyValidBuildHex(G.tiles, player.type, G.landClaimsUntilPlayer !== undefined)
         && player.resources.wood >= 1 && player.resources.ore >= 1 && player.resources.coins >= 1;
+      const marketMove = pickMarketAction(G, playerIndex);
+      const shouldTrimStockpile =
+        builderShouldPreferMarketBeforeBuild(player) &&
+        marketMove !== null &&
+        !builderShouldSinkCoinsViaBuild(player, canBuild) &&
+        !builderShouldBuildToConsumeCommodities(player, canBuild);
+      if (shouldTrimStockpile) {
+        return { move: 'chooseOption', args: ['market'] };
+      }
       return { move: 'chooseOption', args: [canBuild ? 'build' : 'market'] };
     }
 
@@ -147,7 +337,12 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
     case 'liaison_choose': {
       const hasBuildings = Object.values(G.tiles).some(t => t.buildingOwner === player.type);
       const politicsSlot = pickBestPoliticsSlot(G, playerIndex);
-      if (hasBuildings && player.tableau.length < 7 && politicsSlot !== null) {
+      const takePolitics =
+        hasBuildings &&
+        player.tableau.length < 7 &&
+        politicsSlot !== null &&
+        (politicsRowHasMandate(G) || liaisonShouldTakePoliticsForVotePath(G, playerIndex));
+      if (takePolitics) {
         return { move: 'chooseOption', args: ['politics'] };
       }
       return { move: 'chooseOption', args: ['generate'] };
@@ -160,8 +355,10 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
 
     case 'guide_choose': {
       const hasFog = Object.values(G.tiles).some(t => t.type === 'Fog');
+      const networkSlot = pickNetworkSlot(G);
+      const canTakeNetwork = networkSlot !== null && player.resources.coins >= 2;
       if (hasFog) return { move: 'chooseOption', args: ['reveal'] };
-      if (player.resources.coins >= 2) return { move: 'chooseOption', args: ['network'] };
+      if (canTakeNetwork) return { move: 'chooseOption', args: ['network'] };
       return { move: 'chooseOption', args: ['reveal'] };
     }
 
@@ -244,6 +441,7 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
     }
 
     case 'event_import_choose': {
+      if (shouldBlockImport(G, playerIndex)) return { move: 'cancelAction', args: [] };
       if (player.resources.coins < 1) return { move: 'cancelAction', args: [] };
       const pick: 'wood' | 'ore' =
         player.resources.wood <= player.resources.ore ? 'wood' : 'ore';
@@ -258,8 +456,22 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
       return { move: 'chooseOption', args: [pick] };
     }
 
-    case 'event_graft_choose':
-      return { move: 'chooseOption', args: [player.resources.coins > player.resources.votes ? 'coin_to_vote' : 'vote_to_coin'] };
+    case 'event_graft_choose': {
+      if (
+        politicsRowHasMandate(G) &&
+        votesShortForMandatePolitics(G, playerIndex) &&
+        player.resources.coins >= 1
+      ) {
+        return { move: 'chooseOption', args: ['coin_to_vote'] };
+      }
+      if (mandateStockpileRisk(player) && player.resources.coins >= 1) {
+        return { move: 'chooseOption', args: ['coin_to_vote'] };
+      }
+      return {
+        move: 'chooseOption',
+        args: [player.resources.coins > player.resources.votes ? 'coin_to_vote' : 'vote_to_coin'],
+      };
+    }
 
     case 'event_taxation_hex': {
       const hex = pickTaxationHex(G, player.type);
@@ -275,7 +487,7 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
       const personnel = player.tableau.filter(c => c.category === 'Personnel');
       if (personnel.length === 0) return { move: 'cancelAction', args: [] };
       const least = personnel.reduce((a, b) =>
-        (CARD_PRIORITY[a.cardType] ?? 0) < (CARD_PRIORITY[b.cardType] ?? 0) ? a : b
+        simpleFlowPriority(G, playerIndex, a) < simpleFlowPriority(G, playerIndex, b) ? a : b
       );
       return { move: 'chooseRestructuringTarget', args: [least.instanceId] };
     }
@@ -285,8 +497,12 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
       return { move: 'chooseStimulusResource', args: [res] };
     }
 
-    case 'broker_choose':
+    case 'broker_choose': {
+      if (shouldBlockImport(G, playerIndex)) {
+        return { move: 'chooseOption', args: ['export'] };
+      }
       return { move: 'chooseOption', args: ['import'] };
+    }
 
     case 'forester_choose':
       return { move: 'chooseOption', args: ['logging'] };
@@ -391,15 +607,9 @@ function pickBestBuildHex(G: LandgrabState, playerIndex: number, buildingType: B
 
 function pickMarketAction(G: LandgrabState, playerIndex: number): string | null {
   const res = G.players[playerIndex].resources;
-
-  if (
-    res.coins >= MARKET_WIND_DOWN_THRESHOLD ||
-    res.wood >= MARKET_WIND_DOWN_THRESHOLD ||
-    res.ore >= MARKET_WIND_DOWN_THRESHOLD ||
-    res.votes >= MARKET_WIND_DOWN_THRESHOLD
-  ) {
-    return null;
-  }
+  const maxR = Math.max(res.coins, res.wood, res.ore, res.votes);
+  const stockpileRisk = maxR >= MANDATE_RESOURCE_ALERT;
+  const windDown = maxR >= MARKET_WIND_DOWN_THRESHOLD;
 
   const canBuyWood = (): boolean => {
     const r = buyFromMarket(G.woodMarket, 1);
@@ -414,18 +624,72 @@ function pickMarketAction(G: LandgrabState, playerIndex: number): string | null 
   const canSellOre = (): boolean =>
     res.ore >= 1 && sellToMarket(G.oreMarket, 1) !== null;
 
+  /** Selling adds coins; when coins already meet/exceed both commodities, never sell (also covers low maxR with huge ore). */
+  const skipCommoditySells =
+    res.coins >= 120 && res.coins >= res.wood && res.coins >= res.ore;
+
+  // Dump wood/ore when elevated — old logic returned null for *any* high resource and blocked ore dumps (hoard abort).
+  const woodOreElevated =
+    res.wood >= MANDATE_RESOURCE_ALERT || res.ore >= MANDATE_RESOURCE_ALERT;
+  if (stockpileRisk || windDown) {
+    // When coins tie maxR but wood/ore do not, selling would push coins past the hoard cap — sink coins first.
+    const commodityAtMax = res.wood === maxR || res.ore === maxR;
+    const coinsAtMax = res.coins === maxR;
+    if (!commodityAtMax && coinsAtMax && res.coins >= MANDATE_RESOURCE_ALERT) {
+      if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
+      if (canBuyWood()) return 'buy_wood';
+      if (canBuyOre()) return 'buy_ore';
+    }
+    if (!skipCommoditySells) {
+      if (res.wood > 3 && canSellWood() && res.ore > 3 && canSellOre()) {
+        return res.wood >= res.ore ? 'sell_wood' : 'sell_ore';
+      }
+      if (res.wood > 3 && canSellWood()) return 'sell_wood';
+      if (res.ore > 3 && canSellOre()) return 'sell_ore';
+      // Trim 1–3 wood/ore only when wood/ore (not coins/votes) are what triggered the alert
+      if (stockpileRisk && woodOreElevated) {
+        if (res.wood >= res.ore && res.wood >= 1 && canSellWood()) return 'sell_wood';
+        if (res.ore >= res.wood && res.ore >= 1 && canSellOre()) return 'sell_ore';
+        if (res.wood >= 1 && canSellWood()) return 'sell_wood';
+        if (res.ore >= 1 && canSellOre()) return 'sell_ore';
+      }
+    }
+    if (windDown) {
+      // High maxR from coins alone used to return null here — no sells apply, so coins climb to the hoard cap.
+      if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
+      if (canBuyWood()) return 'buy_wood';
+      if (canBuyOre()) return 'buy_ore';
+      return null;
+    }
+  }
+
+  // Coins (or votes) triggered stockpileRisk but wood/ore are not elevated — sink coins into commodities.
+  if (stockpileRisk && res.coins >= MANDATE_RESOURCE_ALERT && !woodOreElevated) {
+    if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
+    if (canBuyWood()) return 'buy_wood';
+    if (canBuyOre()) return 'buy_ore';
+  }
+
+  if (stockpileRisk) {
+    return null;
+  }
+
   if (res.wood < 1 && canBuyWood()) return 'buy_wood';
   if (res.ore < 1 && canBuyOre()) return 'buy_ore';
-  if (res.wood > 3 && canSellWood()) return 'sell_wood';
-  if (res.ore > 3 && canSellOre()) return 'sell_ore';
+  if (!skipCommoditySells) {
+    if (res.wood > 3 && canSellWood()) return 'sell_wood';
+    if (res.ore > 3 && canSellOre()) return 'sell_ore';
+  }
   if (res.coins >= 2) {
     if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
     if (canBuyWood()) return 'buy_wood';
     if (canBuyOre()) return 'buy_ore';
   }
-  if (canSellWood() && canSellOre()) return res.wood >= res.ore ? 'sell_wood' : 'sell_ore';
-  if (canSellWood()) return 'sell_wood';
-  if (canSellOre()) return 'sell_ore';
+  if (!skipCommoditySells) {
+    if (canSellWood() && canSellOre()) return res.wood >= res.ore ? 'sell_wood' : 'sell_ore';
+    if (canSellWood()) return 'sell_wood';
+    if (canSellOre()) return 'sell_ore';
+  }
   if (canBuyWood()) return 'buy_wood';
   if (canBuyOre()) return 'buy_ore';
   return null;
@@ -442,6 +706,15 @@ function pickBestPoliticsSlot(G: LandgrabState, playerIndex: number): number | n
     if (card !== 'Mandate') continue;
     const cost = VOTE_COSTS[i] ?? 0;
     if (player.resources.votes >= cost) return i;
+  }
+
+  if (player.resources.votes < 4) {
+    for (let i = 0; i < 4; i++) {
+      const card = G.politicsRow[i];
+      if (!card || !VOTE_FUNNEL_POLITICS.has(card)) continue;
+      const cost = VOTE_COSTS[i] ?? 0;
+      if (player.resources.votes >= cost) return i;
+    }
   }
 
   for (let i = 0; i < 4; i++) {

@@ -6,29 +6,45 @@ import { Client } from 'boardgame.io/client';
 import { Local } from 'boardgame.io/multiplayer';
 import { LandgrabGame } from '../src/game/Game';
 import { LandgrabPlaytestGame } from './playtestGame';
-import type { LandgrabState } from '../src/game/types';
-import type { PlayerType } from '../src/game/types';
+import type { LandgrabState, PlayerResources, PlayerType, CardType } from '../src/game/types';
 import { getAIMove } from '../src/ai/aiStrategy';
 
 /**
- * Bot games should finish well under this; going further usually means an AI cancel/reactivate loop.
- * Override {@link RunBotGameOptions.maxSteps} for stress runs.
+ * No default step cap — runs until a winner or {@link RESOURCE_HOARD_CAP} is exceeded.
+ * Pass a finite {@link RunBotGameOptions.maxSteps} only if you need an emergency bound.
  */
-export const DEFAULT_PLAYTEST_MAX_STEPS = 100_000;
+export const DEFAULT_PLAYTEST_MAX_STEPS = Number.POSITIVE_INFINITY;
 
-/** Abort if any player reaches this count in coins, wood, ore, or votes (degenerate hoarding). */
-export const RESOURCE_HOARD_THRESHOLD = 50;
+/** Abort when any player has **more than** this many coins, wood, ore, or votes (degenerate hoarding). */
+export const RESOURCE_HOARD_CAP = 150;
 
 const MOVE_HISTORY_LEN = 40;
 
-function anyPlayerOverResourceThreshold(G: LandgrabState, threshold: number): boolean {
+function anyPlayerOverResourceCap(G: LandgrabState, cap: number): boolean {
   for (const p of G.players) {
     const r = p.resources;
-    if (r.coins >= threshold || r.wood >= threshold || r.ore >= threshold || r.votes >= threshold) {
-      return true;
-    }
+    if (r.coins > cap || r.wood > cap || r.ore > cap || r.votes > cap) return true;
   }
   return false;
+}
+
+/** Snapshot of each player’s resources at end of a playthrough (for playtest reports). */
+export interface PlayerResourceSnapshot {
+  playerIndex: number;
+  type: PlayerType;
+  resources: PlayerResources;
+  seats: number;
+  tableau: CardType[];
+}
+
+export function snapshotPlayerResources(G: LandgrabState): PlayerResourceSnapshot[] {
+  return G.players.map((p, playerIndex) => ({
+    playerIndex,
+    type: p.type,
+    resources: { ...p.resources },
+    seats: p.seats,
+    tableau: p.tableau.map((c) => c.cardType),
+  }));
 }
 
 function formatLoopReview(params: {
@@ -43,9 +59,13 @@ function formatLoopReview(params: {
   headline?: string;
 }): string {
   const { steps, maxSteps, G, ctxTurn, currentPlayer, activePlayers, recentMoves } = params;
+  const limit =
+    Number.isFinite(maxSteps) && maxSteps !== Number.POSITIVE_INFINITY
+      ? `${maxSteps}`
+      : 'no step limit';
   const headline =
     params.headline ??
-    `[playtest] LOOP REVIEW: aborted after ${steps}/${maxSteps} actions (likely stuck loop)`;
+    `[playtest] LOOP REVIEW: aborted after ${steps} actions (${limit}; likely stuck loop)`;
   const lines: string[] = [
     headline,
     `[playtest] ctx.turn=${ctxTurn} currentPlayer=${currentPlayer} activePlayers=${activePlayers ? JSON.stringify(activePlayers) : 'null'}`,
@@ -66,7 +86,10 @@ function formatLoopReview(params: {
 
 export interface RunBotGameOptions {
   numPlayers: 2 | 3 | 4;
-  /** Abort if no winner after this many move attempts (safety). Default {@link DEFAULT_PLAYTEST_MAX_STEPS}. */
+  /**
+   * Optional hard cap on move attempts (default: none — {@link DEFAULT_PLAYTEST_MAX_STEPS}).
+   * Prefer {@link RESOURCE_HOARD_CAP} to catch degenerate games.
+   */
   maxSteps?: number;
   /** Optional label for logging. */
   label?: string;
@@ -93,11 +116,13 @@ export interface BotGameResult {
   turns: number;
   /** Total move attempts (steps). */
   steps: number;
-  /** Set when maxSteps hit without gameover.winner */
+  /** Set when stopped without a winner (maxSteps, resource hoard, etc.). */
   aborted: boolean;
   error?: string;
-  /** When aborted due to maxSteps: snapshot + recent moves (same text as stderr). */
+  /** When aborted: snapshot + recent moves. */
   loopReview?: string;
+  /** Per-player resources when the run ended (omitted if state was unavailable). */
+  playerResourcesEnd?: PlayerResourceSnapshot[];
 }
 
 type BGClient = ReturnType<typeof Client>;
@@ -176,7 +201,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
 
   playtestLog(
     v,
-    `start matchID=${matchID} numPlayers=${numPlayers} fastWin=${Boolean(fastWin)} maxSteps=${maxSteps} game=${fastWin ? 'LandgrabPlaytestGame' : 'LandgrabGame'}`
+    `start matchID=${matchID} numPlayers=${numPlayers} fastWin=${Boolean(fastWin)} maxSteps=${Number.isFinite(maxSteps) ? maxSteps : 'Infinity'} hoardCap=${RESOURCE_HOARD_CAP} game=${fastWin ? 'LandgrabPlaytestGame' : 'LandgrabGame'}`
   );
 
   let steps = 0;
@@ -202,6 +227,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       const go = (state.ctx as { gameover?: { winner: PlayerType } }).gameover;
       if (go?.winner) {
         playtestLog(v, `END: ctx.gameover winner=${go.winner} steps=${steps} ctx.turn=${state.ctx.turn}`);
+        const gEnd = state.G as LandgrabState;
         clients.forEach((c) => c.stop());
         return {
           ok: true,
@@ -209,6 +235,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           turns: state.ctx.turn,
           steps,
           aborted: false,
+          playerResourcesEnd: snapshotPlayerResources(gEnd),
         };
       }
 
@@ -222,13 +249,14 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           turns: state.ctx.turn,
           steps,
           aborted: false,
+          playerResourcesEnd: snapshotPlayerResources(g),
         };
       }
 
-      if (anyPlayerOverResourceThreshold(g, RESOURCE_HOARD_THRESHOLD)) {
+      if (anyPlayerOverResourceCap(g, RESOURCE_HOARD_CAP)) {
         playtestLog(
           v,
-          `STOP: resource hoarding (>=${RESOURCE_HOARD_THRESHOLD} of one type) steps=${steps} turn=${state.ctx.turn}`
+          `STOP: resource hoard (>${RESOURCE_HOARD_CAP} of one type) steps=${steps} turn=${state.ctx.turn}`
         );
         const loopReview = formatLoopReview({
           steps,
@@ -238,7 +266,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           currentPlayer: (state.ctx as { currentPlayer: string }).currentPlayer,
           activePlayers: (state.ctx as { activePlayers?: null | Record<string, string> }).activePlayers,
           recentMoves,
-          headline: `[playtest] HOARD REVIEW: aborted — player has >= ${RESOURCE_HOARD_THRESHOLD} of one resource (steps=${steps})`,
+          headline: `[playtest] HOARD REVIEW: aborted — a player has more than ${RESOURCE_HOARD_CAP} of one resource (steps=${steps})`,
         });
         console.log(loopReview);
         clients.forEach((c) => c.stop());
@@ -248,8 +276,9 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           turns: state.ctx.turn,
           steps,
           aborted: true,
-          error: `Resource hoarding: a player has >= ${RESOURCE_HOARD_THRESHOLD} coins, wood, ore, or votes`,
+          error: `Resource hoard: more than ${RESOURCE_HOARD_CAP} of one resource type`,
           loopReview,
+          playerResourcesEnd: snapshotPlayerResources(g),
         };
       }
 
@@ -269,6 +298,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           steps,
           aborted: false,
           error: 'getAIMove returned null',
+          playerResourcesEnd: snapshotPlayerResources(g),
         };
       }
 
@@ -287,6 +317,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           steps,
           aborted: false,
           error: `Unknown move: ${aiMove.move}`,
+          playerResourcesEnd: snapshotPlayerResources(g),
         };
       }
 
@@ -324,6 +355,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         );
         // Possible INVALID_MOVE no-op; still allow endTurn idempotency quirks
         clients.forEach((c) => c.stop());
+        const gStuck = after?.G as LandgrabState | undefined;
         return {
           ok: false,
           winner: null,
@@ -331,6 +363,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           steps,
           aborted: false,
           error: `State did not advance after ${aiMove.move} (possible INVALID_MOVE)`,
+          playerResourcesEnd: gStuck ? snapshotPlayerResources(gStuck) : undefined,
         };
       }
       lastStateId = sid;
@@ -341,7 +374,10 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
     const endCtx = endState?.ctx as
       | { turn: number; currentPlayer: string; activePlayers?: null | Record<string, string> }
       | undefined;
-    playtestLog(v, `STOP: maxSteps (${maxSteps}) reached steps=${steps} lastTurn=${endCtx?.turn ?? '?'}`);
+    playtestLog(
+      v,
+      `STOP: maxSteps (${Number.isFinite(maxSteps) ? maxSteps : 'Infinity'}) reached steps=${steps} lastTurn=${endCtx?.turn ?? '?'}`
+    );
     const loopReview =
       endG && endCtx
         ? formatLoopReview({
@@ -362,11 +398,22 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       turns: endCtx?.turn ?? 0,
       steps,
       aborted: true,
-      error: `maxSteps (${maxSteps}) exceeded`,
+      error:
+        Number.isFinite(maxSteps) && maxSteps !== Number.POSITIVE_INFINITY
+          ? `maxSteps (${maxSteps}) exceeded`
+          : 'maxSteps exceeded',
       loopReview,
+      playerResourcesEnd: endG ? snapshotPlayerResources(endG) : undefined,
     };
   } catch (e) {
     console.log('[playtest] STOP: exception at step', steps, e);
+    let playerResourcesEnd: PlayerResourceSnapshot[] | undefined;
+    try {
+      const s = clients[0]?.getState();
+      if (s?.G) playerResourcesEnd = snapshotPlayerResources(s.G as LandgrabState);
+    } catch {
+      /* ignore */
+    }
     clients.forEach((c) => c.stop());
     return {
       ok: false,
@@ -375,6 +422,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       steps,
       aborted: false,
       error: e instanceof Error ? e.message : String(e),
+      playerResourcesEnd,
     };
   }
 }

@@ -7,7 +7,7 @@
  * Env:
  *   PLAYTEST_GAMES   (default 100)
  *   PLAYTEST_PLAYERS 2 | 3 | 4 (default 2)
- *   PLAYTEST_MAX_STEPS per game (default 100000; lower for quick smoke)
+ *   PLAYTEST_MAX_STEPS per game (omit or "Infinity" for no cap; use a number for batch safety)
  */
 
 import { describe, it } from 'vitest';
@@ -20,10 +20,19 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function envMaxSteps(): number {
+  const v = process.env.PLAYTEST_MAX_STEPS;
+  if (v === undefined || v === '' || v === 'Infinity' || v === 'unlimited') {
+    return Number.POSITIVE_INFINITY;
+  }
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+}
+
 describe('playtest CLI', () => {
   it('runs batch (configure via env)', async () => {
     const games = envInt('PLAYTEST_GAMES', 100);
-    const maxSteps = envInt('PLAYTEST_MAX_STEPS', 100_000);
+    const maxSteps = envMaxSteps();
     const p = envInt('PLAYTEST_PLAYERS', 2);
     const numPlayers = (p === 3 ? 3 : p === 4 ? 4 : 2) as 2 | 3 | 4;
 
