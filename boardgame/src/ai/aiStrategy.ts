@@ -15,6 +15,9 @@ export interface AIMove {
 
 const NON_ACTIVATABLE: Set<CardType> = new Set(['Seat']);
 
+/** Stop micro-trading in Builder market before playtest hoard abort (see playtesting/simulator RESOURCE_HOARD_THRESHOLD). */
+const MARKET_WIND_DOWN_THRESHOLD = 45;
+
 export function getAIMove(G: LandgrabState, playerIndex: number): AIMove | null {
   const player = G.players[playerIndex];
   const pa = G.pendingAction;
@@ -33,21 +36,22 @@ export function getAIMove(G: LandgrabState, playerIndex: number): AIMove | null 
 
 // ---- Card selection ----
 
+/** Win-focused: Mandate beats everything when playable; Charter opens the board; Liaison feeds votes. */
 const CARD_PRIORITY: Record<string, number> = {
+  Mandate: 120,
   Charter: 100,
-  Mandate: 90,
-  Dividends: 80, Subsidy: 80, NGOBacking: 80, LocalElections: 80,
-  LandClaims: 75, Boycotting: 75, Protests: 75, Levy: 75, Expropriation: 75,
-  Graft: 70, Import: 70, Export: 70,
+  Dividends: 78, Subsidy: 78, NGOBacking: 78, LocalElections: 78,
+  LandClaims: 73, Boycotting: 73, Protests: 73, Levy: 73, Expropriation: 73,
+  Graft: 72, Import: 72, Export: 72,
   Airstrip: 68,
   Fisheries: 67,
-  Logging: 65, Forestry: 65, Conservation: 65,
-  Zoning: 60, UrbanPlanning: 60, Taxation: 60, Bribe: 60,
-  Propaganda: 55,
-  Restructuring: 50, Stimulus: 50,
-  Liaison: 40,
-  Builder: 30,
-  Elder: 25,
+  Logging: 64, Forestry: 64, Conservation: 64,
+  Zoning: 58, UrbanPlanning: 58, Taxation: 58, Bribe: 58,
+  Propaganda: 52,
+  Liaison: 52,
+  Restructuring: 48, Stimulus: 48,
+  Builder: 22,
+  Elder: 24,
   Guide: 20,
   Broker: 15, Forester: 15, Fixer: 15, Consultant: 15, Advocate: 15,
   Reorganization: 10,
@@ -70,23 +74,35 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     if (c.cardType === 'UrbanPlanning' && pickUrbanPlanningHex(G, player.type, player.resources) === null) {
       return false;
     }
+    if (c.cardType === 'Taxation' && pickTaxationHex(G, player.type) === null) return false;
     return true;
   });
 
   if (usable.length === 0) return null;
 
-  usable.sort((a, b) => (CARD_PRIORITY[b.cardType] ?? 0) - (CARD_PRIORITY[a.cardType] ?? 0));
+  usable.sort((a, b) => {
+    const pa = CARD_PRIORITY[a.cardType] ?? 0;
+    const pb = CARD_PRIORITY[b.cardType] ?? 0;
+    if (pb !== pa) return pb - pa;
+    if (a.cardType === 'Mandate') return -1;
+    if (b.cardType === 'Mandate') return 1;
+    return 0;
+  });
 
   for (const card of usable) {
     if (card.cardType === 'Builder') {
-      const canBuild = hasAnyValidBuildHex(G.tiles, player.type, G.landClaimsUntilPlayer !== undefined)
-        && player.resources.wood >= 1 && player.resources.ore >= 1 && player.resources.coins >= 1;
-      if (!canBuild && player.resources.coins < 1) continue;
+      const canBuild =
+        hasAnyValidBuildHex(G.tiles, player.type, G.landClaimsUntilPlayer !== undefined) &&
+        player.resources.wood >= 1 &&
+        player.resources.ore >= 1 &&
+        player.resources.coins >= 1;
+      /** matches builder_choose → market when !canBuild; skip if market has no action (avoids cancel loop) */
+      if (!canBuild && pickMarketAction(G, playerIndex) === null) continue;
     }
     return card;
   }
 
-  return usable[0] ?? null;
+  return null;
 }
 
 // ---- Pending action resolution ----
@@ -376,6 +392,15 @@ function pickBestBuildHex(G: LandgrabState, playerIndex: number, buildingType: B
 function pickMarketAction(G: LandgrabState, playerIndex: number): string | null {
   const res = G.players[playerIndex].resources;
 
+  if (
+    res.coins >= MARKET_WIND_DOWN_THRESHOLD ||
+    res.wood >= MARKET_WIND_DOWN_THRESHOLD ||
+    res.ore >= MARKET_WIND_DOWN_THRESHOLD ||
+    res.votes >= MARKET_WIND_DOWN_THRESHOLD
+  ) {
+    return null;
+  }
+
   const canBuyWood = (): boolean => {
     const r = buyFromMarket(G.woodMarket, 1);
     return r !== null && res.coins >= r.totalCost;
@@ -410,11 +435,20 @@ function pickBestPoliticsSlot(G: LandgrabState, playerIndex: number): number | n
   const player = G.players[playerIndex];
   const VOTE_COSTS = [0, 1, 2, 3];
 
+  if (player.tableau.length >= 8) return null;
+
+  for (let i = 0; i < 4; i++) {
+    const card = G.politicsRow[i];
+    if (card !== 'Mandate') continue;
+    const cost = VOTE_COSTS[i] ?? 0;
+    if (player.resources.votes >= cost) return i;
+  }
+
   for (let i = 0; i < 4; i++) {
     const card = G.politicsRow[i];
     if (!card) continue;
     const cost = VOTE_COSTS[i] ?? 0;
-    if (player.resources.votes >= cost && player.tableau.length < 8) return i;
+    if (player.resources.votes >= cost) return i;
   }
   return null;
 }

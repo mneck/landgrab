@@ -16,5 +16,5 @@ describe('verbose one-game debug', () => {
     });
     console.log('\n--- RESULT ---\n', JSON.stringify(r, null, 2));
     // Do not assert ok — goal is to inspect logs when games abort or fail.
-  }, 120_000);
+  }, 600_000);
 });

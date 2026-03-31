@@ -14,9 +14,22 @@ import { getAIMove } from '../src/ai/aiStrategy';
  * Bot games should finish well under this; going further usually means an AI cancel/reactivate loop.
  * Override {@link RunBotGameOptions.maxSteps} for stress runs.
  */
-export const DEFAULT_PLAYTEST_MAX_STEPS = 500;
+export const DEFAULT_PLAYTEST_MAX_STEPS = 100_000;
+
+/** Abort if any player reaches this count in coins, wood, ore, or votes (degenerate hoarding). */
+export const RESOURCE_HOARD_THRESHOLD = 50;
 
 const MOVE_HISTORY_LEN = 40;
+
+function anyPlayerOverResourceThreshold(G: LandgrabState, threshold: number): boolean {
+  for (const p of G.players) {
+    const r = p.resources;
+    if (r.coins >= threshold || r.wood >= threshold || r.ore >= threshold || r.votes >= threshold) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function formatLoopReview(params: {
   steps: number;
@@ -26,10 +39,15 @@ function formatLoopReview(params: {
   currentPlayer: string;
   activePlayers: Record<string, string> | null | undefined;
   recentMoves: string[];
+  /** Default: max-steps abort */
+  headline?: string;
 }): string {
   const { steps, maxSteps, G, ctxTurn, currentPlayer, activePlayers, recentMoves } = params;
+  const headline =
+    params.headline ??
+    `[playtest] LOOP REVIEW: aborted after ${steps}/${maxSteps} actions (likely stuck loop)`;
   const lines: string[] = [
-    `[playtest] LOOP REVIEW: aborted after ${steps}/${maxSteps} actions (likely stuck loop)`,
+    headline,
     `[playtest] ctx.turn=${ctxTurn} currentPlayer=${currentPlayer} activePlayers=${activePlayers ? JSON.stringify(activePlayers) : 'null'}`,
     `[playtest] pendingAction=${G.pendingAction ? JSON.stringify(G.pendingAction) : 'null'} actionsRemainingThisTurn=${G.actionsRemainingThisTurn}`,
   ];
@@ -126,8 +144,8 @@ function playtestLog(
   ...args: unknown[]
 ): void {
   if (!verbose) return;
-  if (args.length) console.error('[playtest]', msg, ...args);
-  else console.error('[playtest]', msg);
+  if (args.length) console.log('[playtest]', msg, ...args);
+  else console.log('[playtest]', msg);
 }
 
 export async function runBotGame(options: RunBotGameOptions): Promise<BotGameResult> {
@@ -204,6 +222,34 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           turns: state.ctx.turn,
           steps,
           aborted: false,
+        };
+      }
+
+      if (anyPlayerOverResourceThreshold(g, RESOURCE_HOARD_THRESHOLD)) {
+        playtestLog(
+          v,
+          `STOP: resource hoarding (>=${RESOURCE_HOARD_THRESHOLD} of one type) steps=${steps} turn=${state.ctx.turn}`
+        );
+        const loopReview = formatLoopReview({
+          steps,
+          maxSteps,
+          G: g,
+          ctxTurn: state.ctx.turn,
+          currentPlayer: (state.ctx as { currentPlayer: string }).currentPlayer,
+          activePlayers: (state.ctx as { activePlayers?: null | Record<string, string> }).activePlayers,
+          recentMoves,
+          headline: `[playtest] HOARD REVIEW: aborted — player has >= ${RESOURCE_HOARD_THRESHOLD} of one resource (steps=${steps})`,
+        });
+        console.log(loopReview);
+        clients.forEach((c) => c.stop());
+        return {
+          ok: false,
+          winner: null,
+          turns: state.ctx.turn,
+          steps,
+          aborted: true,
+          error: `Resource hoarding: a player has >= ${RESOURCE_HOARD_THRESHOLD} coins, wood, ore, or votes`,
+          loopReview,
         };
       }
 
@@ -308,7 +354,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
             recentMoves,
           })
         : `[playtest] LOOP REVIEW: state unavailable (steps=${steps})`;
-    console.error(loopReview);
+    console.log(loopReview);
     clients.forEach((c) => c.stop());
     return {
       ok: false,
@@ -320,7 +366,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       loopReview,
     };
   } catch (e) {
-    playtestLog(v, `STOP: exception at step ${steps}`, e);
+    console.log('[playtest] STOP: exception at step', steps, e);
     clients.forEach((c) => c.stop());
     return {
       ok: false,

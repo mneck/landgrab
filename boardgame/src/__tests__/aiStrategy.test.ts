@@ -195,6 +195,17 @@ describe('Card selection priority', () => {
     expect(result.move).toBe('activateCard');
     expect(result.args[0]).toBe('Graft_0_t');
   });
+
+  it('skips Taxation when no owned Reserve with a valid taxation hex', () => {
+    const G = makeState(2);
+    G.players[0].tableau = [
+      { instanceId: 'Tax_0_t', cardType: 'Taxation', category: 'Event' },
+      { instanceId: 'Graft_0_t', cardType: 'Graft', category: 'Event' },
+    ];
+    const result = getAIMove(G, 0)!;
+    expect(result.move).toBe('activateCard');
+    expect(result.args[0]).toBe('Graft_0_t');
+  });
 });
 
 // ── Pending action resolution ──
@@ -315,6 +326,16 @@ describe('liaison_politics', () => {
     G.pendingAction = { type: 'liaison_politics', instanceId: 'l' };
     const result = getAIMove(G, 0)!;
     expect(result.args[0]).toBe(1);
+  });
+
+  it('prefers Mandate slot over cheaper events when affordable', () => {
+    const G = makeState(2);
+    G.players[0].resources.votes = 5;
+    G.politicsRow = ['Graft', 'Import', 'Mandate', 'Logging'];
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'l' };
+    const result = getAIMove(G, 0)!;
+    expect(result.move).toBe('selectPoliticsCard');
+    expect(result.args[0]).toBe(2);
   });
 
   it('cancels when no votes for any available slot', () => {
@@ -502,6 +523,13 @@ describe('Market actions', () => {
     G.oreMarket = [0, 0, 0, 0];
     expect(getAIMove(G, 0)!.move).toBe('cancelAction');
   });
+
+  it('builder_market_choose: cancels when any resource is very high (wind down trading)', () => {
+    const G = makeState(2);
+    G.pendingAction = { type: 'builder_market_choose', instanceId: 'b' };
+    G.players[0].resources = { coins: 46, wood: 1, ore: 1, votes: 1 };
+    expect(getAIMove(G, 0)!.move).toBe('cancelAction');
+  });
 });
 
 describe('Event card decisions', () => {
@@ -600,7 +628,7 @@ describe('event_restructuring_choose', () => {
     G.pendingAction = { type: 'event_restructuring_choose', instanceId: 'r' };
     const result = getAIMove(G, 0)!;
     expect(result.move).toBe('chooseRestructuringTarget');
-    // Fixer has priority 15, which is lower than Builder(30), Guide(20), Liaison(40)
+    // Fixer has priority 15, which is lower than Builder(22), Guide(20), Liaison(52)
     expect(result.args[0]).toBe('Fixer_0_test');
   });
 
