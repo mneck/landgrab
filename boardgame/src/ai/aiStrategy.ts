@@ -19,14 +19,26 @@ const NON_ACTIVATABLE: Set<CardType> = new Set(['Seat']);
 const VOTE_FUNNEL_POLITICS = new Set<string>(['Graft', 'LocalElections', 'NGOBacking', 'Propaganda']);
 
 /** Stop endless Builder market micro-trades when resources are already high (buys only once stockpile handling runs). */
-const MARKET_WIND_DOWN_THRESHOLD = 45;
+const MARKET_WIND_DOWN_THRESHOLD = 40;
 
 /**
  * Bots should pursue Mandate (politics / activation) before any resource climbs this high.
- * Stays below the playtest hoard guard and the design target of ~20.
+ * Stays below the playtest hoard guard (100) and the design target of ~20.
  */
-const MANDATE_RESOURCE_ALERT = 15;
-const CRITICAL_HOARD_ALERT = 24;
+const MANDATE_RESOURCE_ALERT = 14;
+const CRITICAL_HOARD_ALERT = 20;
+
+/**
+ * Industrialist: switch to Mandate / politics / vote conversion before wood+ore snowball.
+ * Uses lower single-resource and combined-commodity thresholds than other factions.
+ */
+const INDUSTRIALIST_MANDATE_RESOURCE_ALERT = 8;
+const INDUSTRIALIST_CRITICAL_HOARD_ALERT = 14;
+/** wood+ore sum — catches uneven stockpiles before max(wood,ore) hits global alert. */
+const INDUSTRIALIST_COMMODITY_SUM_PRESSURE = 16;
+const INDUSTRIALIST_COMMODITY_SUM_ANTI_HOARD = 22;
+/** Start dumping via Builder→market earlier than global wind-down once any resource is elevated. */
+const INDUSTRIALIST_MARKET_WIND_DOWN_THRESHOLD = 34;
 
 type AIPhase =
   | 'play_mandate_now'
@@ -40,38 +52,69 @@ function maxResourceValue(player: LandgrabState['players'][0]): number {
   return Math.max(r.coins, r.wood, r.ore, r.votes);
 }
 
-/** True when the player is stockpiling any resource — switch from engine building to Mandate / politics / dumps. */
+/** True when the player is stockpiling — switch from engine building to Mandate / politics / dumps. */
 function mandateStockpileRisk(player: LandgrabState['players'][0]): boolean {
+  if (player.type === 'Industrialist') {
+    const { wood, ore } = player.resources;
+    if (maxResourceValue(player) >= INDUSTRIALIST_MANDATE_RESOURCE_ALERT) return true;
+    if (wood + ore >= INDUSTRIALIST_COMMODITY_SUM_PRESSURE) return true;
+    return false;
+  }
   return maxResourceValue(player) >= MANDATE_RESOURCE_ALERT;
 }
 
 /**
  * Prefer Builder→market before building when wood/ore are climbing. Liaison generate can add many units in
- * one action; waiting until max≥15 (mandateStockpileRisk) lets resources jump from ~12 to 150+ in a turn.
+ * one action; waiting until max≥15 (mandateStockpileRisk) lets resources jump from ~12 toward the hoard cap in a turn.
  */
 function builderShouldPreferMarketBeforeBuild(player: LandgrabState['players'][0]): boolean {
   if (mandateStockpileRisk(player)) return true;
   if (maxResourceValue(player) >= 10) return true;
   const { wood, ore } = player.resources;
+  if (player.type === 'Industrialist') {
+    return wood >= 4 || ore >= 4;
+  }
   return wood >= 8 || ore >= 8;
+}
+
+function industrialistAntiHoardPressure(player: LandgrabState['players'][0]): boolean {
+  if (player.type !== 'Industrialist') return false;
+  if (maxResourceValue(player) >= INDUSTRIALIST_CRITICAL_HOARD_ALERT) return true;
+  const { wood, ore } = player.resources;
+  return wood + ore >= INDUSTRIALIST_COMMODITY_SUM_ANTI_HOARD;
 }
 
 /** Coins are the top resource — build to spend them instead of looping on market buys/sells. */
 function builderShouldSinkCoinsViaBuild(player: LandgrabState['players'][0], canBuild: boolean): boolean {
   if (!canBuild) return false;
   const r = player.resources;
-  return r.coins >= 120 && r.coins === maxResourceValue(player);
+  const coinFloor = player.type === 'Industrialist' ? 72 : 90;
+  return r.coins >= coinFloor && r.coins === maxResourceValue(player);
 }
 
 /** Wood/ore are very high — build to consume them; market churn cannot keep up with Liaison generate. */
 function builderShouldBuildToConsumeCommodities(player: LandgrabState['players'][0], canBuild: boolean): boolean {
   if (!canBuild) return false;
   const { wood, ore } = player.resources;
-  return wood >= 55 || ore >= 55;
+  const threshold = player.type === 'Industrialist' ? 38 : 48;
+  return wood >= threshold || ore >= threshold;
 }
 
 function hasMandateInTableau(player: LandgrabState['players'][0]): boolean {
   return player.tableau.some(c => c.cardType === 'Mandate');
+}
+
+/**
+ * Any resource approaching the playtest hoard cap (100): trim before vote-for-mandate or Liaison generate.
+ * Industrialist: also use wood+ore sum (one Procurement can spike both).
+ */
+function nearResourceHoardCap(player: LandgrabState['players'][0]): boolean {
+  if (maxResourceValue(player) >= 70) return true;
+  if (player.type === 'Industrialist') {
+    const { wood, ore } = player.resources;
+    return wood + ore >= 74 || wood >= 48 || ore >= 48;
+  }
+  return false;
 }
 
 function deriveAIPhase(G: LandgrabState, playerIndex: number): AIPhase {
@@ -80,8 +123,10 @@ function deriveAIPhase(G: LandgrabState, playerIndex: number): AIPhase {
   const canPlayMandateNow = hasMandate && player.resources.votes >= 1 && canAffordMandate(G.tiles, player);
 
   if (canPlayMandateNow) return 'play_mandate_now';
+  if (nearResourceHoardCap(player)) return 'anti_hoard';
   if (hasMandate && player.resources.votes < 1) return 'get_vote_for_mandate';
   if (player.tableau.length >= 8) return 'free_tableau_space';
+  if (industrialistAntiHoardPressure(player)) return 'anti_hoard';
   if (maxResourceValue(player) >= CRITICAL_HOARD_ALERT) return 'anti_hoard';
   return 'acquire_mandate';
 }
@@ -246,6 +291,9 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
   }
 
   if (c.cardType === 'Liaison' && (votePathPolitics || stockpilePolitics) && hasBuildings && tableauOk && canTakePolitics) {
+    if (player.type === 'Industrialist' && mandateStockpileRisk(player) && votePathPolitics) {
+      return 85_800;
+    }
     return 85_000;
   }
 
@@ -264,6 +312,16 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
     player.resources.coins >= 1
   ) {
     return 86_000;
+  }
+
+  if (
+    player.type === 'Industrialist' &&
+    c.cardType === 'Graft' &&
+    player.resources.coins >= 1 &&
+    mandateStockpileRisk(player) &&
+    (hasMandateInTableau(player) || politicsRowHasMandate(G) || player.resources.votes < 1)
+  ) {
+    return 84_500;
   }
 
   if (phase === 'get_vote_for_mandate') {
@@ -321,6 +379,8 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     if (c.cardType === 'Broker' && shouldSkipBrokerUntilExportsCleared(G, playerIndex)) return false;
     /** matches moves.activateCard → event_export_choose (must sell ≥1 wood or ore) */
     if (c.cardType === 'Export' && player.resources.wood < 1 && player.resources.ore < 1) return false;
+    /** Graft pending requires ≥1 coin or ≥1 vote; cancel leaves the card → activate/loop forever */
+    if (c.cardType === 'Graft' && player.resources.coins < 1 && player.resources.votes < 1) return false;
     if (c.cardType === 'UrbanPlanning' && pickUrbanPlanningHex(G, player.type, player.resources) === null) {
       return false;
     }
@@ -331,6 +391,9 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     if (c.cardType === 'Zoning' && pickZoningHex(G, player.type) === null) return false;
     if (c.cardType === 'Bribe' && !canActivateBribe(G, player)) return false;
     if (c.cardType === 'Elder' && !canActivateElder(G)) return false;
+    if (phase === 'anti_hoard' && c.cardType === 'Liaison' && !canTakePoliticsForCurrentPhase(G, playerIndex, phase)) {
+      return false;
+    }
     if (
       phase === 'free_tableau_space' &&
       c.cardType !== 'Mandate' &&
@@ -708,10 +771,17 @@ function pickBestBuildHex(G: LandgrabState, playerIndex: number, buildingType: B
 }
 
 function pickMarketAction(G: LandgrabState, playerIndex: number): string | null {
-  const res = G.players[playerIndex].resources;
+  const player = G.players[playerIndex];
+  const res = player.resources;
   const maxR = Math.max(res.coins, res.wood, res.ore, res.votes);
-  const stockpileRisk = maxR >= MANDATE_RESOURCE_ALERT;
-  const windDown = maxR >= MARKET_WIND_DOWN_THRESHOLD;
+  const resourceAlert =
+    player.type === 'Industrialist' ? INDUSTRIALIST_MANDATE_RESOURCE_ALERT : MANDATE_RESOURCE_ALERT;
+  const stockpileRisk =
+    maxR >= resourceAlert ||
+    (player.type === 'Industrialist' && res.wood + res.ore >= INDUSTRIALIST_COMMODITY_SUM_PRESSURE);
+  const windDownThreshold =
+    player.type === 'Industrialist' ? INDUSTRIALIST_MARKET_WIND_DOWN_THRESHOLD : MARKET_WIND_DOWN_THRESHOLD;
+  const windDown = maxR >= windDownThreshold;
 
   const canBuyWood = (): boolean => {
     const r = buyFromMarket(G.woodMarket, 1);
@@ -728,16 +798,18 @@ function pickMarketAction(G: LandgrabState, playerIndex: number): string | null 
 
   /** Selling adds coins; when coins already meet/exceed both commodities, never sell (also covers low maxR with huge ore). */
   const skipCommoditySells =
-    res.coins >= 120 && res.coins >= res.wood && res.coins >= res.ore;
+    res.coins >= 85 && res.coins >= res.wood && res.coins >= res.ore;
 
   // Dump wood/ore when elevated — old logic returned null for *any* high resource and blocked ore dumps (hoard abort).
   const woodOreElevated =
-    res.wood >= MANDATE_RESOURCE_ALERT || res.ore >= MANDATE_RESOURCE_ALERT;
+    res.wood >= resourceAlert ||
+    res.ore >= resourceAlert ||
+    (player.type === 'Industrialist' && res.wood + res.ore >= INDUSTRIALIST_COMMODITY_SUM_PRESSURE);
   if (stockpileRisk || windDown) {
     // When coins tie maxR but wood/ore do not, selling would push coins past the hoard cap — sink coins first.
     const commodityAtMax = res.wood === maxR || res.ore === maxR;
     const coinsAtMax = res.coins === maxR;
-    if (!commodityAtMax && coinsAtMax && res.coins >= MANDATE_RESOURCE_ALERT) {
+    if (!commodityAtMax && coinsAtMax && res.coins >= resourceAlert) {
       if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
       if (canBuyWood()) return 'buy_wood';
       if (canBuyOre()) return 'buy_ore';
@@ -766,7 +838,7 @@ function pickMarketAction(G: LandgrabState, playerIndex: number): string | null 
   }
 
   // Coins (or votes) triggered stockpileRisk but wood/ore are not elevated — sink coins into commodities.
-  if (stockpileRisk && res.coins >= MANDATE_RESOURCE_ALERT && !woodOreElevated) {
+  if (stockpileRisk && res.coins >= resourceAlert && !woodOreElevated) {
     if (canBuyWood() && canBuyOre()) return res.wood <= res.ore ? 'buy_wood' : 'buy_ore';
     if (canBuyWood()) return 'buy_wood';
     if (canBuyOre()) return 'buy_ore';

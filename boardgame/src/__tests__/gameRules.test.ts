@@ -340,12 +340,12 @@ describe('canAffordMandate', () => {
     expect(canAffordMandate(G.tiles, G.players[0])).toBe(false);
   });
 
-  it('Industrialist can pay with wood+ore mix', () => {
+  it('Industrialist can pay with wood+ore mix (8 total for first Mandate; −2 vs baseline)', () => {
     const G = createInitialState(2);
-    G.players[1].resources.wood = 5;
-    G.players[1].resources.ore = 5;
-    expect(canAffordMandate(G.tiles, G.players[1])).toBe(true);
+    G.players[1].resources.wood = 4;
     G.players[1].resources.ore = 4;
+    expect(canAffordMandate(G.tiles, G.players[1])).toBe(true);
+    G.players[1].resources.ore = 3;
     expect(canAffordMandate(G.tiles, G.players[1])).toBe(false);
   });
 });

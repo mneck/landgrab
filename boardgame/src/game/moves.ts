@@ -13,6 +13,7 @@ import {
   pickRevealedTileType,
   runProcurementForPlayer,
   canAffordMandate as canAffordMandateCheck,
+  getMandateResourceCost,
   getPresenceScore,
 } from './gameRules';
 import {
@@ -102,7 +103,7 @@ function resolveLandClaims(G: LandgrabState, playerIndex: number, instanceId: st
 function payMandateCost(G: LandgrabState, playerIndex: number): boolean {
   const player = G.players[playerIndex];
   if (!canAffordMandateCheck(G.tiles, player)) return false;
-  const cost = 10 + player.seats;
+  const cost = getMandateResourceCost(player);
   switch (player.type) {
     case 'Hotelier':
       player.resources.coins -= cost;

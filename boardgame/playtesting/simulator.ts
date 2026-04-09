@@ -9,14 +9,11 @@ import { LandgrabPlaytestGame } from './playtestGame';
 import type { LandgrabState, PlayerResources, PlayerType, CardType } from '../src/game/types';
 import { getAIMove } from '../src/ai/aiStrategy';
 
-/**
- * No default step cap — runs until a winner or {@link RESOURCE_HOARD_CAP} is exceeded.
- * Pass a finite {@link RunBotGameOptions.maxSteps} only if you need an emergency bound.
- */
-export const DEFAULT_PLAYTEST_MAX_STEPS = Number.POSITIVE_INFINITY;
+/** Phase 1 default cap: keep batches bounded and reproducible. */
+export const DEFAULT_PLAYTEST_MAX_STEPS = 1400;
 
 /** Abort when any player has **more than** this many coins, wood, ore, or votes (degenerate hoarding). */
-export const RESOURCE_HOARD_CAP = 150;
+export const RESOURCE_HOARD_CAP = 100;
 
 const MOVE_HISTORY_LEN = 40;
 
@@ -112,6 +109,7 @@ export interface RunBotGameOptions {
 export interface BotGameResult {
   ok: boolean;
   winner: PlayerType | null;
+  stopReason: 'winner' | 'hoard_abort' | 'step_limit_abort' | 'invalid_move_abort' | 'other_abort';
   /** ctx.turn at end */
   turns: number;
   /** Total move attempts (steps). */
@@ -217,6 +215,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: false,
           winner: null,
+          stopReason: 'other_abort',
           turns: 0,
           steps,
           aborted: false,
@@ -232,6 +231,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: true,
           winner: go.winner,
+          stopReason: 'winner',
           turns: state.ctx.turn,
           steps,
           aborted: false,
@@ -246,6 +246,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: true,
           winner: g.winner,
+          stopReason: 'winner',
           turns: state.ctx.turn,
           steps,
           aborted: false,
@@ -273,6 +274,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: false,
           winner: null,
+          stopReason: 'hoard_abort',
           turns: state.ctx.turn,
           steps,
           aborted: true,
@@ -294,6 +296,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: false,
           winner: null,
+          stopReason: 'other_abort',
           turns: state.ctx.turn,
           steps,
           aborted: false,
@@ -313,6 +316,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: false,
           winner: null,
+          stopReason: 'invalid_move_abort',
           turns: state.ctx.turn,
           steps,
           aborted: false,
@@ -359,6 +363,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         return {
           ok: false,
           winner: null,
+          stopReason: 'invalid_move_abort',
           turns: after?.ctx.turn ?? state.ctx.turn,
           steps,
           aborted: false,
@@ -395,6 +400,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
     return {
       ok: false,
       winner: null,
+      stopReason: 'step_limit_abort',
       turns: endCtx?.turn ?? 0,
       steps,
       aborted: true,
@@ -418,6 +424,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
     return {
       ok: false,
       winner: null,
+      stopReason: 'other_abort',
       turns: 0,
       steps,
       aborted: false,
@@ -434,6 +441,12 @@ export interface BatchSummary {
   ok: number;
   failed: number;
   aborted: number;
+  stopReasons: {
+    winner: number;
+    hoard_abort: number;
+    step_limit_abort: number;
+    invalid_move_abort: number;
+  };
   avgSteps: number;
   avgTurns: number;
   errors: string[];
@@ -465,14 +478,30 @@ export async function runBatch(
   let ok = 0;
   let failed = 0;
   let aborted = 0;
+  const stopReasons = {
+    winner: 0,
+    hoard_abort: 0,
+    step_limit_abort: 0,
+    invalid_move_abort: 0,
+  };
   let stepsSum = 0;
   let turnsSum = 0;
 
   for (const r of results) {
-    if (r.ok && r.winner) {
+    if (r.stopReason === 'winner' && r.winner) {
       ok++;
+      stopReasons.winner++;
       wins[r.winner] = (wins[r.winner] ?? 0) + 1;
-    } else if (r.aborted) {
+    } else if (r.stopReason === 'hoard_abort') {
+      stopReasons.hoard_abort++;
+      aborted++;
+      failed++;
+    } else if (r.stopReason === 'step_limit_abort') {
+      stopReasons.step_limit_abort++;
+      aborted++;
+      failed++;
+    } else if (r.stopReason === 'invalid_move_abort') {
+      stopReasons.invalid_move_abort++;
       aborted++;
       failed++;
     } else {
@@ -491,6 +520,7 @@ export async function runBatch(
     ok,
     failed,
     aborted,
+    stopReasons,
     avgSteps: stepsSum / n,
     avgTurns: turnsSum / n,
     errors: [...new Set(errors)].slice(0, 50),

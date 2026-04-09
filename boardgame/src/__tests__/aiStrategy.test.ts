@@ -436,6 +436,20 @@ describe('liaison_choose', () => {
     expect(getAIMove(G, 0)!.args[0]).toBe('politics');
   });
 
+  it('does not activate Liaison in anti-hoard phase when no politics slot is available', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 0);
+    G.players[0].resources = { coins: 30, wood: 2, ore: 2, votes: 0 };
+    G.politicsRow = [null, null, null, null];
+    G.players[0].tableau = [
+      { instanceId: 'Builder_0_only', cardType: 'Builder', category: 'Personnel' },
+      { instanceId: 'Liaison_0_only', cardType: 'Liaison', category: 'Personnel' },
+    ];
+    const result = getAIMove(G, 0)!;
+    expect(result.move).toBe('activateCard');
+    expect(result.args[0]).toBe('Builder_0_only');
+  });
+
   it('falls back to generate when tableau is nearly full', () => {
     const G = makeState(2);
     placeCharterForPlayer(G, 0);

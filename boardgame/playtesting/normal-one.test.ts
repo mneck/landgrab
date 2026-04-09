@@ -1,5 +1,5 @@
 /**
- * Full rules 2p game: no step limit; stops on win or resource hoard (>150 of one type).
+ * Full rules 2p game: no step limit; stops on win or resource hoard (>100 of one type).
  *
  *   npm run playtest:normal-one
  */

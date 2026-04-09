@@ -249,8 +249,18 @@ export function getPresenceScore(tiles: LandgrabState["tiles"]): number {
   return score;
 }
 
+/**
+ * Resource amount required to play Mandate (faction-specific resource: coins / wood+ore / votes / presence).
+ * Industrialist pays 2 less wood+ore total than the baseline `10 + seats` (balance vs Hotelier coin engine).
+ */
+export function getMandateResourceCost(player: LandgrabState["players"][0]): number {
+  const base = 10 + player.seats;
+  if (player.type === "Industrialist") return Math.max(0, base - 2);
+  return base;
+}
+
 export function canAffordMandate(tiles: LandgrabState["tiles"], player: LandgrabState["players"][0]): boolean {
-  const cost = 10 + player.seats;
+  const cost = getMandateResourceCost(player);
   switch (player.type) {
     case "Hotelier":
       return player.resources.coins >= cost;
@@ -264,7 +274,7 @@ export function canAffordMandate(tiles: LandgrabState["tiles"], player: Landgrab
 }
 
 export function getMandateCostLabel(player: LandgrabState["players"][0]): string {
-  const cost = 10 + player.seats;
+  const cost = getMandateResourceCost(player);
   switch (player.type) {
     case "Hotelier": return `${cost} 💰`;
     case "Industrialist": return `${cost} 🪵/⚙️`;
