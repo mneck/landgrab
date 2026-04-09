@@ -71,7 +71,7 @@ describe('activateCard', () => {
     expect(G.tokensUsedThisTurn).toContain(builderCard.instanceId);
   });
 
-  it('Mandate must be the first action of the turn', () => {
+  it('Mandate can be played after another action if costs are met', () => {
     const G = createInitialState(2);
     const ctx = makeCtx(0, 2);
 
@@ -81,6 +81,8 @@ describe('activateCard', () => {
     G.pendingAction = null;
 
     // Add a Mandate card to the tableau
+    G.players[0].resources.votes = 5;
+    G.players[0].resources.coins = 15;
     G.players[0].tableau.push({
       instanceId: 'mandate_test',
       cardType: 'Mandate',
@@ -88,7 +90,8 @@ describe('activateCard', () => {
     });
 
     const result = moves.activateCard({ G, ctx }, 'mandate_test');
-    expect(result).toBe(INVALID_MOVE);
+    expect(result).not.toBe(INVALID_MOVE);
+    expect(G.players[0].seats).toBe(1);
   });
 });
 

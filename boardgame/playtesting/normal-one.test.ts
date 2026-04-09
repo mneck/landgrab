@@ -42,7 +42,7 @@ describe('normal one-game playtest', () => {
         console.log(`    P${p.playerIndex} ${p.type}: seats=${p.seats}  tableau: ${p.tableau.join(', ')}`);
       }
     }
-    expect(r.error).not.toMatch(/maxSteps/i);
+    expect(r.error ?? '').not.toMatch(/maxSteps/i);
     if (r.aborted) {
       expect(r.error).toMatch(/Resource hoard|hoard/i);
     } else {

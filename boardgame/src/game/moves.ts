@@ -233,8 +233,6 @@ export const moves = {
     if (G.tokensUsedThisTurn.includes(instanceId)) return INVALID_MOVE;
     if (G.pendingAction) return INVALID_MOVE;
     if (G.actionsRemainingThisTurn === 0) return INVALID_MOVE;
-    if (card.cardType === 'Mandate' && G.tokensUsedThisTurn.length > 0) return INVALID_MOVE;
-
     G.tokensUsedThisTurn.push(instanceId);
     G.actionsRemainingThisTurn -= 1;
 
@@ -346,6 +344,7 @@ export const moves = {
         if (!activateMandate(G, playerIndex, instanceId)) return INVALID_MOVE;
         break;
       case 'Restructuring':
+      case 'Reorganization':
         G.pendingAction = { type: 'event_restructuring_choose', instanceId };
         break;
       case 'Stimulus':

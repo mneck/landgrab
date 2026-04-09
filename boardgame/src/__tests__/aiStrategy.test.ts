@@ -118,7 +118,7 @@ describe('Card selection priority', () => {
     expect(result.args[0]).toBe('Mandate_0_test');
   });
 
-  it('skips Mandate when tokens already used (not first action)', () => {
+  it('still prioritizes Mandate when tokens already used and costs are affordable', () => {
     const G = makeState(2);
     placeCharterForPlayer(G, 0);
     addEventCard(G, 0, 'Mandate');
@@ -126,7 +126,7 @@ describe('Card selection priority', () => {
     G.players[0].resources.votes = 5;
     G.tokensUsedThisTurn = ['some_card'];
     const result = getAIMove(G, 0)!;
-    expect(result.args[0]).not.toBe('Mandate_0_test');
+    expect(result.args[0]).toBe('Mandate_0_test');
   });
 
   it('skips Mandate when cannot afford it', () => {
@@ -154,6 +154,19 @@ describe('Card selection priority', () => {
     expect(result.args[0]).toBe('Graft_1_rush');
   });
 
+  it('prioritizes Graft over Builder when Mandate is in tableau, votes are 0, and politics row has no Mandate', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 0);
+    G.politicsRow = ['Import', 'Airstrip', 'Expropriation', 'Bribe'];
+    addEventCard(G, 0, 'Mandate');
+    const graft = addEventCard(G, 0, 'Graft');
+    G.players[0].resources = { coins: 5, wood: 3, ore: 3, votes: 0 };
+    G.thresholdReached = true;
+    const result = getAIMove(G, 0)!;
+    expect(result.move).toBe('activateCard');
+    expect(result.args[0]).toBe(graft.instanceId);
+  });
+
   it('Industrialist: prioritizes Liaison over Builder when Mandate is on politics row and they can pay and take a slot', () => {
     const G = makeState(2);
     const ind = 1;
@@ -176,6 +189,8 @@ describe('Card selection priority', () => {
     /** No Mandate / vote-funnel on row so Liaison does not outrank Builder (85k vs 80k). */
     G.politicsRow = ['Import', 'Airstrip', 'Expropriation', 'Bribe'];
     G.players[0].resources.votes = 4;
+    /** Threshold met — otherwise Guide (84k) outranks Builder for fog reveal. */
+    G.thresholdReached = true;
     const result = getAIMove(G, 0)!;
     expect(result.move).toBe('activateCard');
     expect(result.args[0]).toBe('Builder_0_0');
@@ -411,6 +426,16 @@ describe('liaison_choose', () => {
     expect(getAIMove(G, 0)!.args[0]).toBe('generate');
   });
 
+  it('chooses politics when stockpiling resources to avoid generate hoarding', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 0);
+    G.players[0].resources = { coins: 16, wood: 2, ore: 2, votes: 0 };
+    G.politicsRow = ['Import', 'Airstrip', 'Expropriation', 'Bribe'];
+    const liaison = G.players[0].tableau.find(c => c.cardType === 'Liaison')!;
+    G.pendingAction = { type: 'liaison_choose', instanceId: liaison.instanceId };
+    expect(getAIMove(G, 0)!.args[0]).toBe('politics');
+  });
+
   it('falls back to generate when tableau is nearly full', () => {
     const G = makeState(2);
     placeCharterForPlayer(G, 0);
@@ -421,6 +446,20 @@ describe('liaison_choose', () => {
     const liaison = G.players[0].tableau.find(c => c.cardType === 'Liaison')!;
     G.pendingAction = { type: 'liaison_choose', instanceId: liaison.instanceId };
     expect(getAIMove(G, 0)!.args[0]).toBe('generate');
+  });
+
+  it('chooses politics at 7/8 tableau when Mandate is in tableau and votes are short', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 0);
+    addEventCard(G, 0, 'Mandate');
+    G.players[0].resources.votes = 0;
+    G.politicsRow = ['Graft', 'Import', 'Airstrip', 'Expropriation'];
+    while (G.players[0].tableau.length < 7) {
+      G.players[0].tableau.push({ instanceId: `filler_${G.players[0].tableau.length}`, cardType: 'Bribe', category: 'Event' });
+    }
+    const liaison = G.players[0].tableau.find(c => c.cardType === 'Liaison')!;
+    G.pendingAction = { type: 'liaison_choose', instanceId: liaison.instanceId };
+    expect(getAIMove(G, 0)!.args[0]).toBe('politics');
   });
 });
 
@@ -740,6 +779,13 @@ describe('Event card decisions', () => {
     G.players[0].resources = { coins: 2, wood: 18, ore: 1, votes: 5 };
     G.pendingAction = { type: 'event_graft_choose', instanceId: 'g' };
     expect(getAIMove(G, 0)!.args[0]).toBe('coin_to_vote');
+  });
+
+  it('event_graft_choose: cancels when neither coins nor votes are available', () => {
+    const G = makeState(2);
+    G.players[0].resources = { coins: 0, wood: 1, ore: 1, votes: 0 };
+    G.pendingAction = { type: 'event_graft_choose', instanceId: 'g' };
+    expect(getAIMove(G, 0)!.move).toBe('cancelAction');
   });
 
   it('event_bribe: picks first non-Mandate politics card', () => {

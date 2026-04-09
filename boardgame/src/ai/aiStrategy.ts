@@ -26,6 +26,14 @@ const MARKET_WIND_DOWN_THRESHOLD = 45;
  * Stays below the playtest hoard guard and the design target of ~20.
  */
 const MANDATE_RESOURCE_ALERT = 15;
+const CRITICAL_HOARD_ALERT = 24;
+
+type AIPhase =
+  | 'play_mandate_now'
+  | 'get_vote_for_mandate'
+  | 'free_tableau_space'
+  | 'anti_hoard'
+  | 'acquire_mandate';
 
 function maxResourceValue(player: LandgrabState['players'][0]): number {
   const r = player.resources;
@@ -64,6 +72,18 @@ function builderShouldBuildToConsumeCommodities(player: LandgrabState['players']
 
 function hasMandateInTableau(player: LandgrabState['players'][0]): boolean {
   return player.tableau.some(c => c.cardType === 'Mandate');
+}
+
+function deriveAIPhase(G: LandgrabState, playerIndex: number): AIPhase {
+  const player = G.players[playerIndex];
+  const hasMandate = hasMandateInTableau(player);
+  const canPlayMandateNow = hasMandate && player.resources.votes >= 1 && canAffordMandate(G.tiles, player);
+
+  if (canPlayMandateNow) return 'play_mandate_now';
+  if (hasMandate && player.resources.votes < 1) return 'get_vote_for_mandate';
+  if (player.tableau.length >= 8) return 'free_tableau_space';
+  if (maxResourceValue(player) >= CRITICAL_HOARD_ALERT) return 'anti_hoard';
+  return 'acquire_mandate';
 }
 
 /**
@@ -137,6 +157,33 @@ function votesShortForMandatePolitics(G: LandgrabState, playerIndex: number): bo
   return false;
 }
 
+function votesShortForTableauMandate(G: LandgrabState, playerIndex: number): boolean {
+  const player = G.players[playerIndex];
+  return hasMandateInTableau(player) && player.resources.votes < 1;
+}
+
+function isVoteFunnelCard(card: string | null): boolean {
+  return !!card && VOTE_FUNNEL_POLITICS.has(card);
+}
+
+function canTakePoliticsForCurrentPhase(G: LandgrabState, playerIndex: number, phase: AIPhase): boolean {
+  const player = G.players[playerIndex];
+  if (player.tableau.length >= 8) return false;
+  const slot = pickBestPoliticsSlot(G, playerIndex);
+  if (slot === null) return false;
+  const card = G.politicsRow[slot];
+  if (!card) return false;
+  if (phase === 'get_vote_for_mandate') {
+    return card === 'Mandate' || isVoteFunnelCard(card);
+  }
+  if (phase === 'anti_hoard') {
+    // Avoid filling tableau with random events when already hoarding.
+    if (player.tableau.length >= 7) return card === 'Mandate' || isVoteFunnelCard(card);
+    return true;
+  }
+  return true;
+}
+
 /** Affordable vote-funnel card on the politics row (for Liaison politics before Mandate appears). */
 function liaisonShouldTakePoliticsForVotePath(G: LandgrabState, playerIndex: number): boolean {
   const player = G.players[playerIndex];
@@ -166,6 +213,7 @@ function isCardAcquisitionPersonnel(cardType: CardType): boolean {
 /** Higher = play first. Single ladder: Mandate → Charter → (take Mandate / votes) → Builder → Liaison generate → events → recruiters last. */
 function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCard): number {
   const player = G.players[playerIndex];
+  const phase = deriveAIPhase(G, playerIndex);
 
   if (c.cardType === 'Mandate' && player.resources.votes >= 1 && canAffordMandate(G.tiles, player)) {
     return 100_000;
@@ -176,10 +224,16 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
   }
 
   const mandateOnRow = politicsRowHasMandate(G);
-  const votePathPolitics = mandateOnRow || liaisonShouldTakePoliticsForVotePath(G, playerIndex);
-  const canTakePolitics = pickBestPoliticsSlot(G, playerIndex) !== null;
+  const votePathPolitics =
+    mandateOnRow ||
+    votesShortForTableauMandate(G, playerIndex) ||
+    liaisonShouldTakePoliticsForVotePath(G, playerIndex);
+  const stockpilePolitics = mandateStockpileRisk(player);
+  const canTakePolitics = canTakePoliticsForCurrentPhase(G, playerIndex, phase);
   const hasBuildings = Object.values(G.tiles).some(t => t.buildingOwner === player.type);
-  const tableauOk = player.tableau.length < 7;
+  const tableauOk = votesShortForTableauMandate(G, playerIndex)
+    ? player.tableau.length < 8
+    : player.tableau.length < 7;
   const fogRemains = Object.values(G.tiles).some(t => t.type === 'Fog');
 
   if (
@@ -191,7 +245,7 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
     return 84_000;
   }
 
-  if (c.cardType === 'Liaison' && votePathPolitics && hasBuildings && tableauOk && canTakePolitics) {
+  if (c.cardType === 'Liaison' && (votePathPolitics || stockpilePolitics) && hasBuildings && tableauOk && canTakePolitics) {
     return 85_000;
   }
 
@@ -202,6 +256,26 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
     player.resources.coins >= 1
   ) {
     return 82_000;
+  }
+
+  if (
+    c.cardType === 'Graft' &&
+    votesShortForTableauMandate(G, playerIndex) &&
+    player.resources.coins >= 1
+  ) {
+    return 86_000;
+  }
+
+  if (phase === 'get_vote_for_mandate') {
+    if (c.cardType === 'Liaison' && canTakePolitics && hasBuildings && tableauOk) return 85_500;
+    if (c.cardType === 'Builder') return 60_000;
+  }
+
+  if (phase === 'anti_hoard') {
+    if (c.cardType === 'Liaison' && canTakePolitics && hasBuildings && tableauOk) return 85_100;
+    if (c.cardType === 'Liaison' && !canTakePolitics) return 35_000;
+    if (c.cardType === 'Builder') return 65_000;
+    if (c.cardType === 'Guide') return 30_000;
   }
 
   if (c.cardType === 'Builder') {
@@ -233,10 +307,10 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
 
 function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard | null {
   const player = G.players[playerIndex];
+  const phase = deriveAIPhase(G, playerIndex);
   const usable = player.tableau.filter(c => {
     if (NON_ACTIVATABLE.has(c.cardType)) return false;
     if (G.tokensUsedThisTurn.includes(c.instanceId)) return false;
-    if (c.cardType === 'Mandate' && G.tokensUsedThisTurn.length > 0) return false;
     if (c.cardType === 'Mandate') {
       return player.resources.votes >= 1 && canAffordMandate(G.tiles, player);
     }
@@ -257,6 +331,14 @@ function pickCardToActivate(G: LandgrabState, playerIndex: number): TableauCard 
     if (c.cardType === 'Zoning' && pickZoningHex(G, player.type) === null) return false;
     if (c.cardType === 'Bribe' && !canActivateBribe(G, player)) return false;
     if (c.cardType === 'Elder' && !canActivateElder(G)) return false;
+    if (
+      phase === 'free_tableau_space' &&
+      c.cardType !== 'Mandate' &&
+      c.cardType !== 'Restructuring' &&
+      c.cardType !== 'Reorganization'
+    ) {
+      return false;
+    }
     if (c.cardType === 'Guide') {
       const hasFog = Object.values(G.tiles).some(t => t.type === 'Fog');
       if (hasFog && pickRevealHex(G) === null) return false;
@@ -335,13 +417,24 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
       return { move: 'chooseOption', args: ['done'] };
 
     case 'liaison_choose': {
+      const phase = deriveAIPhase(G, playerIndex);
       const hasBuildings = Object.values(G.tiles).some(t => t.buildingOwner === player.type);
       const politicsSlot = pickBestPoliticsSlot(G, playerIndex);
+      const tableauHasRoomForPolitics = votesShortForTableauMandate(G, playerIndex)
+        ? player.tableau.length < 8
+        : player.tableau.length < 7;
+      const phaseAllowsPolitics = canTakePoliticsForCurrentPhase(G, playerIndex, phase);
       const takePolitics =
         hasBuildings &&
-        player.tableau.length < 7 &&
+        tableauHasRoomForPolitics &&
         politicsSlot !== null &&
-        (politicsRowHasMandate(G) || liaisonShouldTakePoliticsForVotePath(G, playerIndex));
+        phaseAllowsPolitics &&
+        (
+          politicsRowHasMandate(G) ||
+          votesShortForTableauMandate(G, playerIndex) ||
+          liaisonShouldTakePoliticsForVotePath(G, playerIndex) ||
+          mandateStockpileRisk(player)
+        );
       if (takePolitics) {
         return { move: 'chooseOption', args: ['politics'] };
       }
@@ -465,6 +558,15 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
         return { move: 'chooseOption', args: ['coin_to_vote'] };
       }
       if (mandateStockpileRisk(player) && player.resources.coins >= 1) {
+        return { move: 'chooseOption', args: ['coin_to_vote'] };
+      }
+      if (player.resources.coins < 1 && player.resources.votes < 1) {
+        return { move: 'cancelAction', args: [] };
+      }
+      if (player.resources.coins < 1) {
+        return { move: 'chooseOption', args: ['vote_to_coin'] };
+      }
+      if (player.resources.votes < 1) {
         return { move: 'chooseOption', args: ['coin_to_vote'] };
       }
       return {
