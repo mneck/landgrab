@@ -10,7 +10,10 @@ import { hexKey, hexFromKey, hexNeighbors } from '../utils/hexGrid';
 // ── Helpers ──
 
 function makeState(numPlayers = 2): LandgrabState {
-  return createInitialState(numPlayers);
+  const G = createInitialState(numPlayers);
+  // These tests target play-phase AI; opening bids are covered in integration tests.
+  delete G.startingBidPhase;
+  return G;
 }
 
 function makeCtx(currentPlayer: number, numPlayers: number) {

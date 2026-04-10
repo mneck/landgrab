@@ -11,6 +11,18 @@ type BGClient = ReturnType<typeof Client>;
 
 let matchSeq = 0;
 
+/** Resolve blind opening bids (player 0 bids 1, others 0) so player 0 wins first. */
+async function finishStartingBidsForClients(playerClients: BGClient[]) {
+  for (let i = 0; i < playerClients.length; i++) {
+    const c = playerClients[i];
+    const submit = (c.moves as Record<string, (n: number) => void>).submitStartingBid;
+    if (typeof submit === 'function') {
+      submit(i === 0 ? 1 : 0);
+      await tick();
+    }
+  }
+}
+
 function G(c: BGClient): LandgrabState {
   return c.getState()!.G as LandgrabState;
 }
@@ -33,11 +45,15 @@ function createClients(playerCount: number) {
       }),
     );
   }
+  async function finishStartingBids() {
+    await finishStartingBidsForClients(clients);
+  }
   return {
     clients,
     matchID,
     start: () => clients.forEach((c) => c.start()),
     stop: () => clients.forEach((c) => c.stop()),
+    finishStartingBids,
   };
 }
 
@@ -61,6 +77,9 @@ describe('Game definition – multiplayer readiness', () => {
     expect(names).toContain('cancelAction');
     expect(names).toContain('selectPoliticsCard');
     expect(LandgrabGame.turn?.stages?.networkBid?.moves?.submitNetworkBid).toBeDefined();
+    expect(
+      LandgrabGame.phases?.startingBid?.turn?.stages?.startingBid?.moves?.submitStartingBid,
+    ).toBeDefined();
   });
 
   it('has turn.onBegin for per-turn reset', () => {
@@ -201,9 +220,10 @@ describe('Local multiplayer – client connection', () => {
 
 describe('Turn enforcement', () => {
   it('player 0 can activate Charter on their turn', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -219,9 +239,10 @@ describe('Turn enforcement', () => {
   });
 
   it('player 1 cannot act when it is player 0 turn', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     expect(currentPlayer(clients[0])).toBe('0');
 
@@ -244,9 +265,10 @@ describe('Turn enforcement', () => {
 
 describe('State propagation', () => {
   it('activateCard is visible to opponent', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -260,9 +282,10 @@ describe('State propagation', () => {
   });
 
   it('cancelAction clears pending action for both clients', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -281,9 +304,10 @@ describe('State propagation', () => {
   });
 
   it('Charter building appears on opponent map', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -308,9 +332,10 @@ describe('State propagation', () => {
   });
 
   it('Builder market syncs resources across clients', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const builder = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Builder',
@@ -335,9 +360,10 @@ describe('State propagation', () => {
 
 describe('Turn transitions', () => {
   it('endTurn passes control to player 1', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     expect(currentPlayer(clients[0])).toBe('0');
 
@@ -351,9 +377,10 @@ describe('Turn transitions', () => {
   });
 
   it('player 1 can act after receiving the turn', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     (clients[0] as any).events.endTurn();
     await tick();
@@ -370,9 +397,10 @@ describe('Turn transitions', () => {
   });
 
   it('turn.onBegin resets per-turn state on transition', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -393,9 +421,10 @@ describe('Turn transitions', () => {
   });
 
   it('full round advances the turn counter', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const t0 = (clients[0].getState()!.ctx as any).turn;
 
@@ -411,9 +440,10 @@ describe('Turn transitions', () => {
   });
 
   it('player 0 cannot act after turn passes to player 1', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     (clients[0] as any).events.endTurn();
     await tick();
@@ -436,9 +466,10 @@ describe('Turn transitions', () => {
 
 describe('Cancel action in multiplayer', () => {
   it('cancelling restores actionsRemainingThisTurn', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -455,9 +486,10 @@ describe('Cancel action in multiplayer', () => {
   });
 
   it('cancel re-adds Charter to tableau', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const charter = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -486,9 +518,10 @@ describe('Cancel action in multiplayer', () => {
 
 describe('Builder flow in multiplayer', () => {
   it('activating Builder shows builder_choose', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const builder = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Builder',
@@ -503,9 +536,10 @@ describe('Builder flow in multiplayer', () => {
   });
 
   it('choosing market transitions to market choice', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const builder = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Builder',
@@ -525,9 +559,10 @@ describe('Builder flow in multiplayer', () => {
 
 describe('Multi-move sequences across turns', () => {
   it('both players can place Charter buildings across turns', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     // Player 0: Charter
     const p0Charter = G(clients[0]).players[0].tableau.find(
@@ -579,9 +614,10 @@ describe('Multi-move sequences across turns', () => {
   });
 
   it('actions counter is independent per turn', async () => {
-    const { clients, start, stop } = createClients(2);
+    const { clients, start, stop, finishStartingBids } = createClients(2);
     start();
     await tick();
+    await finishStartingBids();
 
     const builder = G(clients[0]).players[0].tableau.find(
       (c) => c.cardType === 'Builder',
@@ -635,6 +671,7 @@ describe('Spectator mode', () => {
     player1.start();
     spectator.start();
     await tick();
+    await finishStartingBidsForClients([player0, player1]);
 
     expect(spectator.getState()).not.toBeNull();
     expect(G(spectator).players).toHaveLength(2);
@@ -669,6 +706,7 @@ describe('Spectator mode', () => {
     player1.start();
     spectator.start();
     await tick();
+    await finishStartingBidsForClients([player0, player1]);
 
     const charter = G(spectator).players[0].tableau.find(
       (c) => c.cardType === 'Charter',
@@ -708,6 +746,7 @@ describe('Spectator mode', () => {
     player1.start();
     spectator.start();
     await tick();
+    await finishStartingBidsForClients([player0, player1]);
 
     expect(currentPlayer(spectator)).toBe('0');
 

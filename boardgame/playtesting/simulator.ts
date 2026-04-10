@@ -5,7 +5,7 @@
 import { Client } from 'boardgame.io/client';
 import { Local } from 'boardgame.io/multiplayer';
 import { LandgrabGame } from '../src/game/Game';
-import { LandgrabPlaytestGame } from './playtestGame';
+import { LandgrabPlaytestGame, landgrabGameForRoster, landgrabPlaytestGameForRoster } from './playtestGame';
 import type { LandgrabState, PlayerResources, PlayerType, CardType } from '../src/game/types';
 import { getAIMove } from '../src/ai/aiStrategy';
 
@@ -104,6 +104,11 @@ export interface RunBotGameOptions {
   verboseStepLimit?: number;
   /** After `verboseStepLimit`, log one line every this many steps (default 1000). */
   verboseStride?: number;
+  /**
+   * Fixed seat order (P0, P1, …). Length must equal {@link numPlayers}.
+   * Default uses the design roster for that player count.
+   */
+  playerTypes?: PlayerType[];
 }
 
 export interface BotGameResult {
@@ -143,15 +148,31 @@ function getCtx(c: BGClient) {
   };
 }
 
-/** Who is allowed to make the next move (current turn player, or active network bidder). */
-function controllingPlayerIndex(ctx: {
-  currentPlayer: string;
-  activePlayers?: null | Record<string, string>;
-}): number {
+/** Who is allowed to make the next move (current turn player, active network bidder, or starting-bid submitter). */
+function controllingPlayerIndex(
+  ctx: {
+    currentPlayer: string;
+    activePlayers?: null | Record<string, string>;
+  },
+  G: LandgrabState
+): number {
   const ap = ctx.activePlayers;
   if (ap) {
     const net = Object.entries(ap).find(([, stage]) => stage === 'networkBid');
     if (net) return parseInt(net[0], 10);
+    const starting = Object.entries(ap).find(([, stage]) => stage === 'startingBid');
+    if (starting && G.startingBidPhase && !G.startingBidPhase.resolved) {
+      const pending = Object.keys(ap)
+        .map((k) => parseInt(k, 10))
+        .filter(
+          (i) =>
+            !Number.isNaN(i) &&
+            ap[String(i)] === 'startingBid' &&
+            G.startingBidPhase!.amounts[i] === null
+        )
+        .sort((a, b) => a - b);
+      if (pending.length > 0) return pending[0];
+    }
   }
   return parseInt(ctx.currentPlayer, 10);
 }
@@ -179,9 +200,22 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
     verbose,
     verboseStepLimit = 400,
     verboseStride = 1000,
+    playerTypes,
+    label,
   } = options;
   const v = verbose === true;
-  const game = fastWin ? LandgrabPlaytestGame : LandgrabGame;
+  if (playerTypes && playerTypes.length !== numPlayers) {
+    throw new Error(
+      `runBotGame: playerTypes.length (${playerTypes.length}) must equal numPlayers (${numPlayers})`
+    );
+  }
+  const game = playerTypes
+    ? fastWin
+      ? landgrabPlaytestGameForRoster(playerTypes)
+      : landgrabGameForRoster(playerTypes)
+    : fastWin
+      ? LandgrabPlaytestGame
+      : LandgrabGame;
   const mp = Local();
   const matchID = `playtest-${++matchSeq}-${Date.now()}`;
   const clients: BGClient[] = [];
@@ -190,6 +224,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       Client({
         game,
         multiplayer: mp,
+        numPlayers,
         playerID: String(i),
         matchID,
       }),
@@ -197,9 +232,10 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
   }
   clients.forEach((c) => c.start());
 
+  const rosterLabel = playerTypes?.join('-') ?? 'default';
   playtestLog(
     v,
-    `start matchID=${matchID} numPlayers=${numPlayers} fastWin=${Boolean(fastWin)} maxSteps=${Number.isFinite(maxSteps) ? maxSteps : 'Infinity'} hoardCap=${RESOURCE_HOARD_CAP} game=${fastWin ? 'LandgrabPlaytestGame' : 'LandgrabGame'}`
+    `start matchID=${matchID} numPlayers=${numPlayers} roster=${rosterLabel} label=${label ?? ''} fastWin=${Boolean(fastWin)} maxSteps=${Number.isFinite(maxSteps) ? maxSteps : 'Infinity'} hoardCap=${RESOURCE_HOARD_CAP} game=${fastWin ? 'LandgrabPlaytestGame' : 'LandgrabGame'}`
   );
 
   let steps = 0;
@@ -285,7 +321,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       }
 
       const ctxFull = getCtx(ref);
-      const pid = controllingPlayerIndex(ctxFull);
+      const pid = controllingPlayerIndex(ctxFull, g);
       const aiMove = getAIMove(g, pid);
       if (!aiMove) {
         playtestLog(
@@ -458,6 +494,7 @@ export async function runBatch(
   options?: {
     maxSteps?: number;
     fastWin?: boolean;
+    playerTypes?: PlayerType[];
     onProgress?: (done: number, total: number) => void;
   }
 ): Promise<BatchSummary> {
@@ -468,6 +505,7 @@ export async function runBatch(
       numPlayers,
       maxSteps: options?.maxSteps,
       fastWin: options?.fastWin,
+      playerTypes: options?.playerTypes,
     });
     results.push(r);
     if (!r.ok && r.error) errors.push(r.error);

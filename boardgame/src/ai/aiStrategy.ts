@@ -5,6 +5,7 @@ import {
   canPlaceCharter, getCharterBuilding, canPlaceBuild, canPlaceReserve,
   canPlaceConservation, canPlaceAirstrip, canPlaceFisheries, getAllowedBuildTypes, hasAnyValidBuildHex,
   canAffordMandate,
+  getMandateResourceCost,
 } from '../game/gameRules';
 import { buyFromMarket, sellToMarket } from '../game/gameActions';
 
@@ -67,7 +68,14 @@ function mandateStockpileRisk(player: LandgrabState['players'][0]): boolean {
  * Prefer Builder→market before building when wood/ore are climbing. Liaison generate can add many units in
  * one action; waiting until max≥15 (mandateStockpileRisk) lets resources jump from ~12 toward the hoard cap in a turn.
  */
-function builderShouldPreferMarketBeforeBuild(player: LandgrabState['players'][0]): boolean {
+function builderShouldPreferMarketBeforeBuild(
+  G: LandgrabState,
+  playerIndex: number,
+  player: LandgrabState['players'][0]
+): boolean {
+  if (player.type === 'Industrialist' && industrialistSeatRush(G, playerIndex) && !nearResourceHoardCap(player)) {
+    return false;
+  }
   if (mandateStockpileRisk(player)) return true;
   if (maxResourceValue(player) >= 10) return true;
   const { wood, ore } = player.resources;
@@ -117,6 +125,35 @@ function nearResourceHoardCap(player: LandgrabState['players'][0]): boolean {
   return false;
 }
 
+/** Wood+ore can pay the next Mandate cost (Industrialist seats path). */
+function industrialistCanPayNextMandateCost(player: LandgrabState['players'][0]): boolean {
+  if (player.type !== 'Industrialist') return false;
+  const cost = getMandateResourceCost(player);
+  return player.resources.wood + player.resources.ore >= cost;
+}
+
+/**
+ * Industrialist: commodities are ready for a seat — prioritize votes / drafting Mandate over Builder→market churn.
+ */
+function industrialistSeatRush(G: LandgrabState, playerIndex: number): boolean {
+  const p = G.players[playerIndex];
+  if (!industrialistCanPayNextMandateCost(p)) return false;
+  if (hasMandateInTableau(p) && p.resources.votes < 1) return true;
+  if (politicsRowHasMandate(G)) return true;
+  return false;
+}
+
+/** Industrialist: still placing Charter / first IZs — defer random politics events that bloat the tableau. */
+function industrialistEarlyEngine(G: LandgrabState, playerIndex: number): boolean {
+  if (G.players[playerIndex].type !== 'Industrialist') return false;
+  const p = G.players[playerIndex];
+  if (p.tableau.some(c => c.cardType === 'Charter')) return true;
+  const izCount = Object.values(G.tiles).filter(
+    t => t.building === 'IndustrialZone' && t.buildingOwner === 'Industrialist'
+  ).length;
+  return izCount < 2;
+}
+
 function deriveAIPhase(G: LandgrabState, playerIndex: number): AIPhase {
   const player = G.players[playerIndex];
   const hasMandate = hasMandateInTableau(player);
@@ -151,6 +188,13 @@ function shouldSkipBrokerUntilExportsCleared(G: LandgrabState, playerIndex: numb
 }
 
 export function getAIMove(G: LandgrabState, playerIndex: number): AIMove | null {
+  const sb = G.startingBidPhase;
+  if (sb && !sb.resolved && sb.amounts[playerIndex] === null) {
+    const coins = G.players[playerIndex].resources.coins;
+    const bid = Math.min(2, Math.max(0, coins));
+    return { move: 'submitStartingBid', args: [bid] };
+  }
+
   const player = G.players[playerIndex];
   const pa = G.pendingAction;
 
@@ -259,6 +303,8 @@ function isCardAcquisitionPersonnel(cardType: CardType): boolean {
 function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCard): number {
   const player = G.players[playerIndex];
   const phase = deriveAIPhase(G, playerIndex);
+  const seatRush = player.type === 'Industrialist' && industrialistSeatRush(G, playerIndex);
+  const earlyEngine = industrialistEarlyEngine(G, playerIndex);
 
   if (c.cardType === 'Mandate' && player.resources.votes >= 1 && canAffordMandate(G.tiles, player)) {
     return 100_000;
@@ -291,10 +337,21 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
   }
 
   if (c.cardType === 'Liaison' && (votePathPolitics || stockpilePolitics) && hasBuildings && tableauOk && canTakePolitics) {
+    if (seatRush) return 89_000;
     if (player.type === 'Industrialist' && mandateStockpileRisk(player) && votePathPolitics) {
       return 85_800;
     }
     return 85_000;
+  }
+
+  if (
+    c.cardType === 'Graft' &&
+    seatRush &&
+    hasMandateInTableau(player) &&
+    player.resources.votes < 2 &&
+    player.resources.coins >= 1
+  ) {
+    return 88_000;
   }
 
   if (
@@ -337,6 +394,7 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
   }
 
   if (c.cardType === 'Builder') {
+    if (seatRush) return 72_000;
     return 80_000;
   }
 
@@ -353,6 +411,9 @@ function simpleFlowPriority(G: LandgrabState, playerIndex: number, c: TableauCar
   }
 
   if (c.category === 'Event') {
+    if (player.type === 'Industrialist' && earlyEngine && c.cardType !== 'Mandate') {
+      return 38_000;
+    }
     return 60_000;
   }
 
@@ -447,7 +508,7 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
         && player.resources.wood >= 1 && player.resources.ore >= 1 && player.resources.coins >= 1;
       const marketMove = pickMarketAction(G, playerIndex);
       const shouldTrimStockpile =
-        builderShouldPreferMarketBeforeBuild(player) &&
+        builderShouldPreferMarketBeforeBuild(G, playerIndex, player) &&
         marketMove !== null &&
         !builderShouldSinkCoinsViaBuild(player, canBuild) &&
         !builderShouldBuildToConsumeCommodities(player, canBuild);
@@ -613,6 +674,15 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
     }
 
     case 'event_graft_choose': {
+      if (
+        player.type === 'Industrialist' &&
+        industrialistSeatRush(G, playerIndex) &&
+        hasMandateInTableau(player) &&
+        player.resources.votes < 1 &&
+        player.resources.coins >= 1
+      ) {
+        return { move: 'chooseOption', args: ['coin_to_vote'] };
+      }
       if (
         politicsRowHasMandate(G) &&
         votesShortForMandatePolitics(G, playerIndex) &&
@@ -806,6 +876,16 @@ function pickMarketAction(G: LandgrabState, playerIndex: number): string | null 
     res.ore >= resourceAlert ||
     (player.type === 'Industrialist' && res.wood + res.ore >= INDUSTRIALIST_COMMODITY_SUM_PRESSURE);
   if (stockpileRisk || windDown) {
+    // Balanced wood/ore in a mid band: marginal trades vs the opponent often oscillate forever (step_limit_abort).
+    if (
+      res.wood >= 10 &&
+      res.ore >= 10 &&
+      res.wood + res.ore <= 58 &&
+      Math.abs(res.wood - res.ore) <= 12 &&
+      maxR < 68
+    ) {
+      return null;
+    }
     // When coins tie maxR but wood/ore do not, selling would push coins past the hoard cap — sink coins first.
     const commodityAtMax = res.wood === maxR || res.ore === maxR;
     const coinsAtMax = res.coins === maxR;

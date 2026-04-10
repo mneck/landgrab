@@ -16,7 +16,7 @@ function createStartingTableau(type: PlayerType, playerIdx: number): TableauCard
 
 export function createInitialState(
   numPlayers: number,
-  options?: { winSeatThreshold?: number }
+  options?: { winSeatThreshold?: number; playerTypes?: PlayerType[] }
 ): LandgrabState {
   const mapRadius = 2 + numPlayers;
   const fogRadius = mapRadius - 2;
@@ -28,7 +28,13 @@ export function createInitialState(
     ["Hotelier", "Industrialist", "Chieftain"],
     ["Hotelier", "Industrialist", "Chieftain", "Bureaucrat"],
   ];
-  const playerTypes = defaultPlayerTypes[numPlayers] ?? defaultPlayerTypes[2];
+  const playerTypes =
+    options?.playerTypes ?? (defaultPlayerTypes[numPlayers] ?? defaultPlayerTypes[2]);
+  if (playerTypes.length !== numPlayers) {
+    throw new Error(
+      `createInitialState: playerTypes.length (${playerTypes.length}) must equal numPlayers (${numPlayers})`
+    );
+  }
 
   const players: PlayerState[] = playerTypes.map((type, i) => ({
     type,
@@ -57,6 +63,8 @@ export function createInitialState(
   const tiles = generateIsland(mapRadius, fogRadius);
   const totalFog = Object.values(tiles).filter(t => t.type === 'Fog').length;
 
+  const startingPlayOrder = playerTypes.map((_, i) => String(i));
+
   return {
     tiles,
     mapRadius,
@@ -77,5 +85,9 @@ export function createInitialState(
     politicsDeck,
     woodMarket: [0, 0, 1, 1],
     oreMarket: [0, 0, 1, 1],
+    startingBidPhase: {
+      amounts: playerTypes.map(() => null),
+    },
+    startingPlayOrder,
   };
 }

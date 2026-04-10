@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LandgrabState, BuildingType } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
 import { PlayerPanel } from './PlayerPanel';
@@ -33,13 +33,39 @@ function getActiveNetworkBidder(ctx: LandgrabBoardProps['ctx']): string | null {
 export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: LandgrabBoardProps) {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [startingBidAmount, setStartingBidAmount] = useState(0);
 
   const currentPlayerIndex = parseInt(ctx.currentPlayer, 10);
+
+  const startingBidActor = (() => {
+    const ap = ctx.activePlayers;
+    if (!ap || !G.startingBidPhase || G.startingBidPhase.resolved) return null;
+    const pending = Object.keys(ap)
+      .map((k) => parseInt(k, 10))
+      .filter(
+        (i) =>
+          !Number.isNaN(i) &&
+          ap[String(i)] === 'startingBid' &&
+          G.startingBidPhase!.amounts[i] === null
+      )
+      .sort((a, b) => a - b);
+    return pending.length > 0 ? pending[0] : null;
+  })();
+
+  const inStartingBid = startingBidActor !== null;
+  const effectivePlayerIndex = inStartingBid ? startingBidActor : currentPlayerIndex;
+
   const myPlayerIndex = playerID !== undefined && playerID !== null
     ? parseInt(playerID, 10)
     : currentPlayerIndex;
   const isMyTurn = myPlayerIndex === currentPlayerIndex;
-  const currentPlayer = G.players[currentPlayerIndex];
+  const currentPlayer = G.players[effectivePlayerIndex];
+
+  const isStartingBidActor =
+    startingBidActor !== null &&
+    (playerID != null && playerID !== ''
+      ? myPlayerIndex === startingBidActor
+      : !aiPlayerIndices.includes(startingBidActor));
 
   const activeNetworkBidder = getActiveNetworkBidder(ctx);
   const inNetworkBid = G.pendingAction?.type === 'network_bid' && activeNetworkBidder !== null;
@@ -52,10 +78,20 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
     activeNetworkBidder,
   });
 
+  const maxStartingBid =
+    startingBidActor !== null ? G.players[startingBidActor].resources.coins : 0;
+
+  useEffect(() => {
+    if (startingBidActor === null) return;
+    setStartingBidAmount((a) => Math.min(Math.max(0, a), maxStartingBid));
+  }, [startingBidActor, maxStartingBid]);
+
   const humanCanAct = !isAITurn && (
     inNetworkBid
       ? (playerID != null && playerID !== '' ? playerID === activeNetworkBidder : true)
-      : isMyTurn
+      : inStartingBid
+        ? isStartingBidActor
+        : isMyTurn
   );
 
   function handleHexClick(hexKey: string) {
@@ -87,9 +123,15 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
   }
 
   function handleEndTurn() {
-    if (!humanCanAct || G.pendingAction) return;
+    if (!humanCanAct || G.pendingAction || inStartingBid) return;
     setSelectedCardId(null);
     moves.endTurn();
+  }
+
+  function handleSubmitStartingBid() {
+    if (!humanCanAct || !inStartingBid || startingBidActor === null) return;
+    const n = Math.min(Math.max(0, Math.floor(Number(startingBidAmount))), maxStartingBid);
+    moves.submitStartingBid(n);
   }
 
   const NON_CANCELLABLE = new Set([
@@ -461,19 +503,19 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
           {(() => {
             const indices = G.players.map((_, i) => i);
             const sorted = [
-              currentPlayerIndex,
-              ...indices.filter(i => i !== currentPlayerIndex),
+              effectivePlayerIndex,
+              ...indices.filter(i => i !== effectivePlayerIndex),
             ];
             return sorted.map(i => (
               <PlayerPanel
                 key={i}
                 player={G.players[i]}
                 playerIndex={i}
-                isCurrentPlayer={i === currentPlayerIndex}
+                isCurrentPlayer={i === effectivePlayerIndex}
                 tokensUsedThisTurn={G.tokensUsedThisTurn}
                 pendingAction={G.pendingAction}
                 actionsRemaining={G.actionsRemainingThisTurn}
-                selectedCardId={i === currentPlayerIndex ? selectedCardId : null}
+                selectedCardId={i === effectivePlayerIndex ? selectedCardId : null}
                 onSelectCard={handleSelectCard}
               />
             ));
@@ -490,12 +532,43 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
                   Actions: {G.actionsRemainingThisTurn}/2
                 </div>
 
+                {inStartingBid && (
+                  <div className="action-panel">
+                    <div className="action-prompt">
+                      Blind bid for first player. Highest unique bid wins and pays that many coins.
+                      Tied high bids → random first player; no coins paid.
+                    </div>
+                    {humanCanAct && startingBidActor !== null && (
+                      <div className="action-buttons" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <span>Bid (0–{maxStartingBid} coins)</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={maxStartingBid}
+                            value={startingBidAmount}
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value, 10);
+                              setStartingBidAmount(
+                                Number.isNaN(v) ? 0 : Math.min(maxStartingBid, Math.max(0, v))
+                              );
+                            }}
+                          />
+                        </label>
+                        <button type="button" onClick={handleSubmitStartingBid}>
+                          Submit bid
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {renderPendingActionUI()}
 
                 {isAITurn && (
                   <div className="ai-thinking-indicator">
                     <span className="ai-thinking-spinner" />
-                    AI is thinking ({G.players[currentPlayerIndex].type})...
+                    AI is thinking ({currentPlayer.type})...
                   </div>
                 )}
 
@@ -507,7 +580,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
                   </button>
                 )}
 
-                {humanCanAct && !G.pendingAction && selectedCardId && (() => {
+                {humanCanAct && !inStartingBid && !G.pendingAction && selectedCardId && (() => {
                   const card = currentPlayer.tableau.find(c => c.instanceId === selectedCardId);
                   if (!card) return null;
                   const info = CARD_INFO[card.cardType];
@@ -539,7 +612,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
                   );
                 })()}
 
-                {humanCanAct && !G.pendingAction && !selectedCardId && (
+                {humanCanAct && !inStartingBid && !G.pendingAction && !selectedCardId && (
                   <>
                     <div className="select-card-hint">Select a card from your Tableau</div>
                     <button className="btn-end-turn" onClick={handleEndTurn}>

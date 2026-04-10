@@ -29,10 +29,27 @@ export function useAIPlayer({
 
   const currentPlayerIndex = parseInt(ctx.currentPlayer, 10);
 
+  const startingBidPending = (() => {
+    const ap = ctx.activePlayers;
+    if (!ap || !G.startingBidPhase || G.startingBidPhase.resolved) return null;
+    const pending = Object.keys(ap)
+      .map((k) => parseInt(k, 10))
+      .filter(
+        (i) =>
+          !Number.isNaN(i) &&
+          ap[String(i)] === 'startingBid' &&
+          G.startingBidPhase!.amounts[i] === null
+      )
+      .sort((a, b) => a - b);
+    return pending.length > 0 ? pending[0] : null;
+  })();
+
   const aiPlayerIndexForMove =
     G.pendingAction?.type === 'network_bid' && activeNetworkBidder !== null
       ? parseInt(activeNetworkBidder, 10)
-      : currentPlayerIndex;
+      : startingBidPending !== null
+        ? startingBidPending
+        : currentPlayerIndex;
 
   const isAITurn = aiPlayerIndices.includes(aiPlayerIndexForMove);
 

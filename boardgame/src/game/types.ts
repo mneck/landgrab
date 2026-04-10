@@ -155,6 +155,18 @@ export interface LandgrabState {
   winSeatThreshold: number;
 
   winner?: PlayerType;
+
+  /**
+   * Blind bid for first player (phase `startingBid`). `amounts[i]` null until player i submits.
+   * Removed after resolution when normal play begins.
+   */
+  startingBidPhase?: {
+    amounts: (number | null)[];
+    resolved?: boolean;
+  };
+
+  /** Turn order after blind bid; index 0 goes first. Initialized in setup, overwritten when bids resolve. */
+  startingPlayOrder: string[];
 }
 
 // ---- generateIsland (adapted from landgrab_react) ----

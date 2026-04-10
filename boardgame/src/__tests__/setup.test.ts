@@ -85,6 +85,15 @@ describe('createInitialState', () => {
     });
   });
 
+  describe('custom playerTypes roster', () => {
+    it('uses explicit seat order for 3p', () => {
+      const roster = ['Industrialist', 'Hotelier', 'Chieftain'] as const;
+      const state = createInitialState(3, { playerTypes: [...roster] });
+      expect(state.players.map((p) => p.type)).toEqual([...roster]);
+      expect(state.startingBidPhase?.amounts).toHaveLength(3);
+    });
+  });
+
   describe('initial board state', () => {
     const state = createInitialState(2);
 

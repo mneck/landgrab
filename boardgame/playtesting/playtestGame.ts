@@ -50,8 +50,8 @@ function grantMandateAfterCharter(
 /**
  * Headless smoke: `winSeatThreshold` 1, full smoke tableaux, Mandate only after Charter is built.
  */
-function createPlaytestSmokeState(numPlayers: number): LandgrabState {
-  const G = createInitialState(numPlayers, { winSeatThreshold: 1 });
+function createPlaytestSmokeState(numPlayers: number, playerTypes?: PlayerType[]): LandgrabState {
+  const G = createInitialState(numPlayers, { winSeatThreshold: 1, playerTypes });
   for (let i = 0; i < G.players.length; i++) {
     const p = G.players[i];
     p.tableau = smokeTableau(p.type, i);
@@ -60,6 +60,8 @@ function createPlaytestSmokeState(numPlayers: number): LandgrabState {
     p.resources.wood = Math.max(p.resources.wood, 5);
     p.resources.ore = Math.max(p.resources.ore, 5);
   }
+  G.startingBidPhase = { amounts: G.players.map(() => null) };
+  G.startingPlayOrder = G.players.map((_, i) => String(i));
   return G;
 }
 
@@ -74,3 +76,33 @@ export const LandgrabPlaytestGame: Game<LandgrabState> = {
     placeOnHex: grantMandateAfterCharter as typeof baseMoves.placeOnHex,
   },
 };
+
+/** Full rules with a fixed seat order (for balance playtests). `playerTypes.length` must match lobby size. */
+export function landgrabGameForRoster(playerTypes: PlayerType[]): Game<LandgrabState> {
+  return {
+    ...LandgrabGame,
+    setup: ({ ctx }) => {
+      if (ctx.numPlayers !== playerTypes.length) {
+        throw new Error(
+          `landgrabGameForRoster: roster length ${playerTypes.length} !== ctx.numPlayers ${ctx.numPlayers}`
+        );
+      }
+      return createInitialState(ctx.numPlayers, { playerTypes });
+    },
+  };
+}
+
+/** Fast-win smoke rules with a fixed seat order. */
+export function landgrabPlaytestGameForRoster(playerTypes: PlayerType[]): Game<LandgrabState> {
+  return {
+    ...LandgrabPlaytestGame,
+    setup: ({ ctx }) => {
+      if (ctx.numPlayers !== playerTypes.length) {
+        throw new Error(
+          `landgrabPlaytestGameForRoster: roster length ${playerTypes.length} !== ctx.numPlayers ${ctx.numPlayers}`
+        );
+      }
+      return createPlaytestSmokeState(ctx.numPlayers, playerTypes);
+    },
+  };
+}
