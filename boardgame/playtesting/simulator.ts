@@ -6,6 +6,7 @@ import { Client } from 'boardgame.io/client';
 import { Local } from 'boardgame.io/multiplayer';
 import { LandgrabGame } from '../src/game/Game';
 import { LandgrabPlaytestGame, landgrabGameForRoster, landgrabPlaytestGameForRoster } from './playtestGame';
+import type { SetupOverrides } from './playtestGame';
 import type { LandgrabState, PlayerResources, PlayerType, CardType } from '../src/game/types';
 import { getAIMove } from '../src/ai/aiStrategy';
 
@@ -32,6 +33,16 @@ export interface PlayerResourceSnapshot {
   resources: PlayerResources;
   seats: number;
   tableau: CardType[];
+}
+
+/** Cards a player gained during the game (starting tableau excluded) and cards they activated. */
+export interface PlayerCardStats {
+  acquired: Partial<Record<CardType, number>>;
+  played: Partial<Record<CardType, number>>;
+}
+
+function bump(counts: Partial<Record<CardType, number>>, card: CardType): void {
+  counts[card] = (counts[card] ?? 0) + 1;
 }
 
 export function snapshotPlayerResources(G: LandgrabState): PlayerResourceSnapshot[] {
@@ -109,6 +120,8 @@ export interface RunBotGameOptions {
    * Default uses the design roster for that player count.
    */
   playerTypes?: PlayerType[];
+  /** Deck overrides for card-balance experiments (full rules only; requires {@link playerTypes}). */
+  setupOverrides?: SetupOverrides;
 }
 
 export interface BotGameResult {
@@ -126,6 +139,8 @@ export interface BotGameResult {
   loopReview?: string;
   /** Per-player resources when the run ended (omitted if state was unavailable). */
   playerResourcesEnd?: PlayerResourceSnapshot[];
+  /** Per-player card acquisitions and plays, indexed like `G.players`. */
+  cardStats?: PlayerCardStats[];
 }
 
 type BGClient = ReturnType<typeof Client>;
@@ -202,6 +217,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
     verboseStride = 1000,
     playerTypes,
     label,
+    setupOverrides,
   } = options;
   const v = verbose === true;
   if (playerTypes && playerTypes.length !== numPlayers) {
@@ -209,10 +225,13 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       `runBotGame: playerTypes.length (${playerTypes.length}) must equal numPlayers (${numPlayers})`
     );
   }
+  if (setupOverrides && (!playerTypes || fastWin)) {
+    throw new Error('runBotGame: setupOverrides requires playerTypes and full rules');
+  }
   const game = playerTypes
     ? fastWin
       ? landgrabPlaytestGameForRoster(playerTypes)
-      : landgrabGameForRoster(playerTypes)
+      : landgrabGameForRoster(playerTypes, setupOverrides)
     : fastWin
       ? LandgrabPlaytestGame
       : LandgrabGame;
@@ -241,6 +260,10 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
   let steps = 0;
   let lastStateId = -1;
   const recentMoves: string[] = [];
+  const cardStats: PlayerCardStats[] = Array.from({ length: numPlayers }, () => ({
+    acquired: {},
+    played: {},
+  }));
 
   try {
     while (steps < maxSteps) {
@@ -272,6 +295,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           steps,
           aborted: false,
           playerResourcesEnd: snapshotPlayerResources(gEnd),
+          cardStats,
         };
       }
 
@@ -287,6 +311,7 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
           steps,
           aborted: false,
           playerResourcesEnd: snapshotPlayerResources(g),
+          cardStats,
         };
       }
 
@@ -376,11 +401,22 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
         );
       }
 
+      if (aiMove.move === 'activateCard') {
+        const card = g.players[pid].tableau.find((c) => c.instanceId === aiMove.args[0]);
+        if (card) bump(cardStats[pid].played, card.cardType);
+      }
+      const tableauBefore = g.players.map((p) => new Set(p.tableau.map((c) => c.instanceId)));
+
       moveFn(...aiMove.args);
       steps++;
 
       {
         const gAfter = getG(ref);
+        gAfter.players.forEach((p, i) => {
+          for (const c of p.tableau) {
+            if (!tableauBefore[i].has(c.instanceId)) bump(cardStats[i].acquired, c.cardType);
+          }
+        });
         const entry = `step ${steps - 1}→${steps} ${aiMove.move}(${JSON.stringify(aiMove.args).slice(0, 100)}) pending→${gAfter.pendingAction?.type ?? 'null'} actions=${gAfter.actionsRemainingThisTurn}`;
         recentMoves.push(entry);
         if (recentMoves.length > MOVE_HISTORY_LEN) recentMoves.shift();
@@ -486,6 +522,25 @@ export interface BatchSummary {
   avgSteps: number;
   avgTurns: number;
   errors: string[];
+  /** Per-faction results over games that ended with a winner. */
+  factions: Partial<Record<PlayerType, FactionSummary>>;
+}
+
+export interface CardUsage {
+  /** Games in which this faction gained at least one copy. */
+  acquiredGames: number;
+  /** Games in which this faction played it at least once. */
+  playedGames: number;
+  /** Total activations. */
+  plays: number;
+  /** Of `playedGames`, how many this faction won. */
+  winsWhenPlayed: number;
+}
+
+export interface FactionSummary {
+  games: number;
+  wins: number;
+  cards: Partial<Record<CardType, CardUsage>>;
 }
 
 export async function runBatch(
@@ -495,6 +550,7 @@ export async function runBatch(
     maxSteps?: number;
     fastWin?: boolean;
     playerTypes?: PlayerType[];
+    setupOverrides?: SetupOverrides;
     onProgress?: (done: number, total: number) => void;
   }
 ): Promise<BatchSummary> {
@@ -506,6 +562,7 @@ export async function runBatch(
       maxSteps: options?.maxSteps,
       fastWin: options?.fastWin,
       playerTypes: options?.playerTypes,
+      setupOverrides: options?.setupOverrides,
     });
     results.push(r);
     if (!r.ok && r.error) errors.push(r.error);
@@ -549,6 +606,28 @@ export async function runBatch(
     turnsSum += r.turns;
   }
 
+  const factions: Partial<Record<PlayerType, FactionSummary>> = {};
+  for (const r of results) {
+    if (r.stopReason !== 'winner' || !r.cardStats || !r.playerResourcesEnd) continue;
+    r.playerResourcesEnd.forEach(({ type }, i) => {
+      const f = (factions[type] ??= { games: 0, wins: 0, cards: {} });
+      const won = r.winner === type;
+      f.games++;
+      if (won) f.wins++;
+      const { acquired, played } = r.cardStats![i];
+      const cards = new Set([...Object.keys(acquired), ...Object.keys(played)] as CardType[]);
+      for (const card of cards) {
+        const u = (f.cards[card] ??= { acquiredGames: 0, playedGames: 0, plays: 0, winsWhenPlayed: 0 });
+        if (acquired[card]) u.acquiredGames++;
+        if (played[card]) {
+          u.playedGames++;
+          u.plays += played[card]!;
+          if (won) u.winsWhenPlayed++;
+        }
+      }
+    });
+  }
+
   const n = results.length || 1;
 
   return {
@@ -562,5 +641,6 @@ export async function runBatch(
     avgSteps: stepsSum / n,
     avgTurns: turnsSum / n,
     errors: [...new Set(errors)].slice(0, 50),
+    factions,
   };
 }

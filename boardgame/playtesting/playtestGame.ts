@@ -77,8 +77,16 @@ export const LandgrabPlaytestGame: Game<LandgrabState> = {
   },
 };
 
+export type SetupOverrides = Pick<
+  NonNullable<Parameters<typeof createInitialState>[1]>,
+  'politicsDeck' | 'politicsRow'
+>;
+
 /** Full rules with a fixed seat order (for balance playtests). `playerTypes.length` must match lobby size. */
-export function landgrabGameForRoster(playerTypes: PlayerType[]): Game<LandgrabState> {
+export function landgrabGameForRoster(
+  playerTypes: PlayerType[],
+  overrides?: SetupOverrides
+): Game<LandgrabState> {
   return {
     ...LandgrabGame,
     setup: ({ ctx }) => {
@@ -87,7 +95,7 @@ export function landgrabGameForRoster(playerTypes: PlayerType[]): Game<LandgrabS
           `landgrabGameForRoster: roster length ${playerTypes.length} !== ctx.numPlayers ${ctx.numPlayers}`
         );
       }
-      return createInitialState(ctx.numPlayers, { playerTypes });
+      return createInitialState(ctx.numPlayers, { playerTypes, ...overrides });
     },
   };
 }

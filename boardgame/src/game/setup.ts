@@ -3,6 +3,17 @@ import { SEATS_TO_WIN } from './types';
 import { generateIsland } from './types';
 import { shuffle } from './gameActions';
 
+export const DEFAULT_POLITICS_ROW: string[] = ['Graft', 'Import', 'Airstrip', 'Expropriation'];
+
+/** One copy of each Politics card; the deck holds two copies. */
+export const DEFAULT_POLITICS_POOL: string[] = [
+  'Bribe', 'Zoning', 'Conservation', 'UrbanPlanning', 'Dividends',
+  'NGOBacking', 'Propaganda', 'Graft', 'LocalElections', 'Reorganization',
+  'Import', 'Export', 'Logging', 'Forestry', 'LandClaims', 'Subsidy',
+  'Boycotting', 'Protests', 'Taxation', 'Levy', 'Expropriation', 'Airstrip',
+  'Fisheries',
+];
+
 function createStartingTableau(type: PlayerType, playerIdx: number): TableauCard[] {
   const base: CardType[] = type === 'Chieftain'
     ? ['Elder', 'Guide', 'Liaison', 'Charter']
@@ -16,7 +27,15 @@ function createStartingTableau(type: PlayerType, playerIdx: number): TableauCard
 
 export function createInitialState(
   numPlayers: number,
-  options?: { winSeatThreshold?: number; playerTypes?: PlayerType[]; mapSeed?: number }
+  options?: {
+    winSeatThreshold?: number;
+    playerTypes?: PlayerType[];
+    mapSeed?: number;
+    /** Unshuffled Politics deck (default: two copies of {@link DEFAULT_POLITICS_POOL}). For balance playtests. */
+    politicsDeck?: string[];
+    /** Opening Politics row (default {@link DEFAULT_POLITICS_ROW}). For balance playtests. */
+    politicsRow?: string[];
+  }
 ): LandgrabState {
   const mapRadius = 2 + numPlayers;
   const fogRadius = mapRadius - 2;
@@ -50,15 +69,10 @@ export function createInitialState(
   ];
   const networkDeck = shuffle([...networkDeckPool]);
 
-  const politicsRow = ['Graft', 'Import', 'Airstrip', 'Expropriation'];
-  const politicsPool: string[] = [
-    'Bribe', 'Zoning', 'Conservation', 'UrbanPlanning', 'Dividends',
-    'NGOBacking', 'Propaganda', 'Graft', 'LocalElections', 'Reorganization',
-    'Import', 'Export', 'Logging', 'Forestry', 'LandClaims', 'Subsidy',
-    'Boycotting', 'Protests', 'Taxation', 'Levy', 'Expropriation', 'Airstrip',
-    'Fisheries',
-  ];
-  const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
+  const politicsRow = [...(options?.politicsRow ?? DEFAULT_POLITICS_ROW)];
+  const politicsDeck = shuffle([
+    ...(options?.politicsDeck ?? [...DEFAULT_POLITICS_POOL, ...DEFAULT_POLITICS_POOL]),
+  ]);
 
   const mapSeed = options?.mapSeed ?? Math.floor(Math.random() * 2 ** 31);
   const tiles = generateIsland(mapRadius, fogRadius, mapSeed);
