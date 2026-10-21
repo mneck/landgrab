@@ -3,3 +3,4 @@
 /boardgame/dist
 *.local
 .DS_Store
+/boardgame/.server-build

@@ -1,62 +1,53 @@
-import type { PlayerState, PendingAction } from '../game/types';
-import { Card } from './Card';
+import { CARDS, cardName } from '../game/cards';
+import type { Action, LandgrabState } from '../game/types';
 
-interface TableauProps {
-  player: PlayerState;
-  isCurrentPlayer: boolean;
-  tokensUsedThisTurn: string[];
-  pendingAction: PendingAction | null;
-  actionsRemaining: number;
-  selectedCardId: string | null;
-  onSelectCard: (instanceId: string) => void;
+interface Props {
+  G: LandgrabState;
+  me: number;
+  legal: Action[];
+  selected: { card: string; option: string } | null;
+  onSelect: (card: string, option: string) => void;
+  myTurn: boolean;
 }
 
-export function Tableau({
-  player,
-  isCurrentPlayer,
-  tokensUsedThisTurn,
-  pendingAction,
-  actionsRemaining,
-  selectedCardId,
-  onSelectCard,
-}: TableauProps) {
+export function Tableau({ G, me, legal, selected, onSelect, myTurn }: Props) {
+  const used = new Set(G.turn.player === me ? G.turn.usedCards : []);
   return (
-    <div className="tableau">
-      <div className="tableau-header">
-        <span className="tableau-label">Tableau</span>
-        <span className="tableau-count">{player.tableau.length}/8</span>
-        {isCurrentPlayer && (
-          <span className="tableau-actions">
-            Actions left: <strong>{actionsRemaining}</strong>
-          </span>
-        )}
-      </div>
-      <div className="tableau-cards">
-        {player.tableau.map((card) => {
-          const isUsed = tokensUsedThisTurn.includes(card.instanceId);
-          const isSelected = selectedCardId === card.instanceId;
-          const canClick =
-            isCurrentPlayer &&
-            !isUsed &&
-            !pendingAction &&
-            actionsRemaining > 0;
-
-          return (
-            <Card
-              key={card.instanceId}
-              card={card}
-              isUsed={isUsed}
-              isActive={isCurrentPlayer}
-              isSelectable={canClick}
-              isSelected={isSelected}
-              onClick={() => onSelectCard(card.instanceId)}
-            />
-          );
-        })}
-        {player.tableau.length === 0 && (
-          <div className="tableau-empty">No cards in tableau</div>
-        )}
-      </div>
+    <div className="lg-tableau">
+      {G.players[me].tableau.map((c) => {
+        const def = CARDS[c.cardType];
+        const isUsed = used.has(c.instanceId);
+        return (
+          <div key={c.instanceId} className={`lg-card ${def?.category === 'Event' ? 'lg-card--event' : ''} ${isUsed ? 'lg-card--used' : ''}`}>
+            <div className="lg-card__head">
+              <span className="lg-card__icon">{def?.icon}</span>
+              <span className="lg-card__name">{cardName(c.cardType)}</span>
+              <span className="lg-card__kind">{def?.passive ? 'passive' : def?.category === 'Event' ? 'single use' : ''}</span>
+            </div>
+            <div className="lg-card__text">{def?.text}</div>
+            {!def?.passive && (
+              <div className="lg-card__options">
+                {def?.options.map((o) => {
+                  const n = legal.filter((a) => a.card === c.instanceId && a.option === o.id).length;
+                  const isSel = selected?.card === c.instanceId && selected.option === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      className={`lg-opt ${isSel ? 'lg-opt--sel' : ''}`}
+                      disabled={!myTurn || isUsed || n === 0}
+                      title={o.text}
+                      onClick={() => onSelect(c.instanceId, o.id)}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {isUsed && <div className="lg-card__token">●</div>}
+          </div>
+        );
+      })}
     </div>
   );
 }

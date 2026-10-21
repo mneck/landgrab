@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { LobbyClient } from 'boardgame.io/client';
+import { fetchMapIndex } from '../game/maps';
 
 const PLAYER_TYPES: Record<number, string[]> = {
   2: ['Hotelier', 'Industrialist'],
@@ -120,8 +121,11 @@ export function Lobby({ serverURL, onJoinMatch, onBack }: LobbyProps) {
     setLoading(true);
     setError(null);
     try {
+      const index = await fetchMapIndex();
+      const mapId = index.maps[Math.floor(Math.random() * index.maps.length)].id;
       const { matchID } = await lobbyRef.current.createMatch('landgrab', {
         numPlayers: createPlayers,
+        setupData: { mapId },
       });
       const resp = await lobbyRef.current.joinMatch('landgrab', matchID, {
         playerName: playerName.trim(),

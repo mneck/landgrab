@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Client as BGClient } from 'boardgame.io/client';
-import { LandgrabGame } from './game/Game';
+import { useCallback, useState } from 'react';
 import { Board } from './components/Board';
 import { Lobby } from './multiplayer/Lobby';
 import { OnlineGameView } from './multiplayer/OnlineGameView';
-import type { LandgrabState, PlayerType } from './game/types';
+import type { PlayerType } from './game/types';
+import { useLocalGame } from './ui/useLocalGame';
+import { FACTION_BLURB } from './ui/theme';
 import './App.css';
+import './ui/board.css';
 
 type NumPlayers = 2 | 3 | 4;
 
@@ -24,100 +25,24 @@ const PLAYER_ICONS: Record<PlayerType, string> = {
   Bureaucrat: '🏛️',
 };
 
-const STORAGE_KEY = 'landgrab_save';
-
-interface SavedGame {
-  numPlayers: NumPlayers;
-  state: Record<string, any>;
-  aiPlayerIndices?: number[];
-}
-
-function loadSavedGame(): SavedGame | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const saved = JSON.parse(raw);
-    // Saves from the hex-grid version have no mapSeed and can't be drawn.
-    if (saved?.numPlayers && typeof saved?.state?.G?.mapSeed === 'number' && saved?.state?.ctx) {
-      return saved as SavedGame;
-    }
-  } catch { /* corrupt save */ }
-  return null;
-}
-
-function clearSavedGame() {
-  localStorage.removeItem(STORAGE_KEY);
-}
-
-function usePersistedGame(numPlayers: NumPlayers, restoreSave: boolean, aiPlayerIndices: number[]) {
-  const clientRef = useRef<ReturnType<typeof BGClient> | null>(null);
-  const [gameState, setGameState] = useState<{
-    G: LandgrabState;
-    ctx: { currentPlayer: string; turn: number; numPlayers: number };
-  } | null>(null);
-
-  useEffect(() => {
-    const client = BGClient({ game: LandgrabGame, numPlayers });
-    clientRef.current = client;
-    client.start();
-
-    if (restoreSave) {
-      const saved = loadSavedGame();
-      if (saved && saved.numPlayers === numPlayers && saved.state) {
-        try {
-          (client.store.dispatch as Function)({
-            type: 'SYNC',
-            state: saved.state,
-            log: [],
-            initialState: saved.state,
-          });
-        } catch {
-          // Fall through to fresh game if restore fails
-        }
-      }
-    }
-
-    const unsubscribe = client.subscribe((state: any) => {
-      if (!state) return;
-      setGameState({ G: state.G, ctx: state.ctx });
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          numPlayers,
-          aiPlayerIndices,
-          state: { G: state.G, ctx: state.ctx, plugins: state.plugins, _stateID: state._stateID, _undo: state._undo ?? [], _redo: state._redo ?? [] },
-        }));
-      } catch { /* quota exceeded, ignore */ }
-    });
-
-    setGameState(() => {
-      const s = client.getState();
-      return s ? { G: s.G, ctx: s.ctx } : null;
-    });
-
-    return () => {
-      unsubscribe?.();
-      client.stop();
-      clientRef.current = null;
-    };
-  }, [numPlayers, restoreSave]);
-
-  const moves = clientRef.current?.moves as Record<string, (...args: any[]) => any> | undefined;
-  return { gameState, moves };
-}
-
-function GameView({ numPlayers, restoreSave, aiPlayerIndices }: { numPlayers: NumPlayers; restoreSave: boolean; aiPlayerIndices: number[] }) {
-  const { gameState, moves } = usePersistedGame(numPlayers, restoreSave, aiPlayerIndices);
-
-  if (!gameState || !moves) return null;
-
-  return (
-    <Board
-      G={gameState.G}
-      ctx={gameState.ctx}
-      moves={moves}
-      aiPlayerIndices={aiPlayerIndices}
-    />
-  );
+/**
+ * A local game. Solo: the screen always shows the human seat. Hot seat: the
+ * screen follows whoever the game is waiting on (turn player or reactor).
+ */
+function GameView({ numPlayers, aiPlayerIndices }: { numPlayers: NumPlayers; aiPlayerIndices: number[] }) {
+  const roster = PLAYER_TYPES[numPlayers];
+  const { map, error, seats, movesFor } = useLocalGame(roster, aiPlayerIndices);
+  if (error) return <div className="online-status"><div className="online-status__card"><h2>Could not start</h2><p>{error}</p></div></div>;
+  const any = seats.find((s) => s !== null);
+  if (!map || !any) return <div className="online-status"><div className="online-status__card"><div className="online-status__spinner" /><h2>Loading the island…</h2></div></div>;
+  const humans = roster.map((_, i) => i).filter((i) => !aiPlayerIndices.includes(i));
+  const controller = any.G.reaction ? any.G.reaction.reactor : any.G.turn.player;
+  const me = humans.length === 1 ? humans[0] : humans.includes(controller) ? controller : humans[0];
+  const view = seats[me];
+  const moves = movesFor(me);
+  if (!view || !moves) return null;
+  const seatNote = humans.length > 1 ? `Hot seat: pass the screen to the ${roster[me]}.` : undefined;
+  return <Board key={me} map={map} G={view.G} me={me} moves={moves} aiSeats={aiPlayerIndices} seatNote={seatNote} />;
 }
 
 type GameMode = 'menu' | 'solo-setup' | 'hotseat-select' | 'online-lobby' | 'online-game';
@@ -135,9 +60,7 @@ export default function App() {
   const [gameMode, setGameMode] = useState<GameMode>('menu');
   const [numPlayers, setNumPlayers] = useState<NumPlayers | null>(null);
   const [started, setStarted] = useState(false);
-  const [restoreSave, setRestoreSave] = useState(false);
   const [gameKey, setGameKey] = useState(0);
-  const [savedGame, setSavedGame] = useState(() => loadSavedGame());
   const [aiPlayerIndices, setAiPlayerIndices] = useState<number[]>([]);
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
 
@@ -145,11 +68,8 @@ export default function App() {
   const [soloOpponents, setSoloOpponents] = useState<1 | 2 | 3>(2);
 
   const handleNewGame = useCallback(() => {
-    clearSavedGame();
-    setSavedGame(null);
     setStarted(false);
     setNumPlayers(null);
-    setRestoreSave(false);
     setGameMode('menu');
     setAiPlayerIndices([]);
     setSoloFaction(null);
@@ -157,17 +77,7 @@ export default function App() {
     setGameKey(k => k + 1);
   }, []);
 
-  const handleContinue = useCallback(() => {
-    if (!savedGame) return;
-    setNumPlayers(savedGame.numPlayers);
-    setAiPlayerIndices(savedGame.aiPlayerIndices ?? []);
-    setRestoreSave(true);
-    setStarted(true);
-  }, [savedGame]);
-
   const handleStartHotseat = useCallback(() => {
-    clearSavedGame();
-    setRestoreSave(false);
     setAiPlayerIndices([]);
     setStarted(true);
   }, []);
@@ -182,8 +92,6 @@ export default function App() {
     const aiIndices = factionOrder.map((_, i) => i).filter(i => i !== humanIndex);
     setNumPlayers(totalPlayers);
     setAiPlayerIndices(aiIndices);
-    clearSavedGame();
-    setRestoreSave(false);
     setStarted(true);
   }, [soloFaction, soloOpponents]);
 
@@ -224,7 +132,7 @@ export default function App() {
             </button>
           </div>
         </div>
-        <GameView key={gameKey} numPlayers={numPlayers} restoreSave={restoreSave} aiPlayerIndices={aiPlayerIndices} />
+        <GameView key={gameKey} numPlayers={numPlayers} aiPlayerIndices={aiPlayerIndices} />
       </div>
     );
   }
@@ -237,18 +145,6 @@ export default function App() {
           A tableau-based territory game for 2–4 players
         </p>
 
-        {savedGame && (
-          <button
-            className="start-screen__btn start-screen__btn--continue"
-            onClick={handleContinue}
-          >
-            Continue Game
-            <span className="start-screen__option-detail">
-              {savedGame.numPlayers} players · Round {savedGame.state.ctx.turn}
-              {(savedGame.aiPlayerIndices?.length ?? 0) > 0 && ' · vs AI'}
-            </span>
-          </button>
-        )}
 
         {gameMode === 'menu' && (
           <div className="start-screen__options">
@@ -291,6 +187,7 @@ export default function App() {
                 >
                   <span className="start-screen__option-icons">{PLAYER_ICONS[pt]}</span>
                   <span className="start-screen__option-label">{pt}</span>
+                  <span className="start-screen__option-detail">{FACTION_BLURB[pt]}</span>
                 </button>
               ))}
             </div>

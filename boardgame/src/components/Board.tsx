@@ -1,699 +1,236 @@
-import { useState, useEffect } from 'react';
-import type { LandgrabState, BuildingType } from '../game/types';
-import { CARD_INFO } from '../data/cardData';
-import { PlayerPanel } from './PlayerPanel';
+/**
+ * The game screen for one viewer. Every action is picked from the engine's own
+ * legal-action list: choose a card option, then a target on the map or in the
+ * chooser, and the fully specified action goes to the `act` move.
+ */
+import { useMemo, useState } from 'react';
+import { BALANCE } from '../game/balance';
+import { CARDS } from '../game/cards';
+import { revealedLandFraction, scarCount, standing } from '../game/board';
+import { legalActions } from '../game/engine';
+import type { MapFile } from '../game/maps';
+import type { Action, CellId, LandgrabState } from '../game/types';
+import { variantLabel } from '../ui/describe';
+import { FACTION_BLURB, FACTION_COLOR, FACTION_ICON } from '../ui/theme';
+import type { Moves } from '../ui/useLocalGame';
+import { GameLog } from './GameLog';
 import { IslandMap } from './IslandMap';
-import { PoliticsRow } from './PoliticsRow';
-import { NetworkRow } from './NetworkRow';
-import { ResourceMarket } from './ResourceMarket';
-import { getAllowedBuildTypes, hasAnyValidBuildHex } from '../game/gameRules';
-import { useAIPlayer } from '../ai/aiRunner';
+import { Markets } from './Markets';
+import { Negotiation } from './Negotiation';
+import { PlayerPanels } from './PlayerPanels';
+import { ReactionPrompt } from './ReactionPrompt';
+import { Tableau } from './Tableau';
 
-export interface LandgrabBoardProps {
+interface BoardProps {
+  map: MapFile;
   G: LandgrabState;
-  ctx: {
-    currentPlayer: string;
-    turn: number;
-    numPlayers: number;
-    playOrder?: string[];
-    activePlayers?: null | Record<string, string>;
+  me: number;
+  moves: Moves;
+  aiSeats: number[];
+  /** Hot seat: a note that the screen now belongs to another player. */
+  seatNote?: string;
+}
+
+type Free = 'spread' | 'reclaim';
+
+export function Board({ map, G, me, moves, aiSeats, seatNote }: BoardProps) {
+  const [sel, setSel] = useState<{ card: string; option: string } | null>(null);
+  const [free, setFree] = useState<Free | null>(null);
+  const [pending, setPending] = useState<Action[] | null>(null);
+  const [showPick, setShowPick] = useState<{ to: number } | null>(null);
+  const [tab, setTab] = useState<'deals' | 'log'>('log');
+
+  const myTurn = !G.winner && !G.reaction && G.turn.player === me;
+  const legal = useMemo(() => (myTurn ? legalActions(G, me) : []), [G, me, myTurn]);
+
+  // Reset the selection whenever the state moves on.
+  const stamp = `${G.turn.round}:${G.turn.player}:${G.turn.actionsLeft}:${G.turn.usedCards.length}:${G.reaction?.kind ?? ''}:${G.turn.spreadDone}:${G.turn.reclaimDone}`;
+  const [lastStamp, setLastStamp] = useState(stamp);
+  if (stamp !== lastStamp) {
+    setLastStamp(stamp);
+    setSel(null);
+    setFree(null);
+    setPending(null);
+  }
+
+  const variants = useMemo(() => {
+    if (free) return legal.filter((a) => a.kind === free);
+    if (!sel) return [];
+    return legal.filter((a) => a.kind === 'use' && a.card === sel.card && a.option === sel.option);
+  }, [legal, sel, free]);
+
+  const cellVariants = variants.filter((a) => a.cell !== undefined);
+  const targets = useMemo(() => {
+    if (showPick) return new Set(G.cells.filter((c) => c.fog && c.terrain !== 'Unknown').map((c) => c.id));
+    if (pending) return new Set<CellId>();
+    return new Set(cellVariants.map((a) => a.cell!));
+  }, [showPick, pending, cellVariants, G]);
+
+  const act = (a: Action) => {
+    moves.act(a);
+    setSel(null);
+    setFree(null);
+    setPending(null);
   };
-  moves: Record<string, (...args: any[]) => any>;
-  playerID?: string | null;
-  aiPlayerIndices?: number[];
-}
 
-function getActiveNetworkBidder(ctx: LandgrabBoardProps['ctx']): string | null {
-  const ap = ctx.activePlayers;
-  if (!ap) return null;
-  const found = Object.entries(ap).find(([, stage]) => stage === 'networkBid');
-  return found ? found[0] : null;
-}
-
-export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: LandgrabBoardProps) {
-  const [selectedHex, setSelectedHex] = useState<string | null>(null);
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [startingBidAmount, setStartingBidAmount] = useState(0);
-
-  const currentPlayerIndex = parseInt(ctx.currentPlayer, 10);
-
-  const startingBidActor = (() => {
-    const ap = ctx.activePlayers;
-    if (!ap || !G.startingBidPhase || G.startingBidPhase.resolved) return null;
-    const pending = Object.keys(ap)
-      .map((k) => parseInt(k, 10))
-      .filter(
-        (i) =>
-          !Number.isNaN(i) &&
-          ap[String(i)] === 'startingBid' &&
-          G.startingBidPhase!.amounts[i] === null
-      )
-      .sort((a, b) => a - b);
-    return pending.length > 0 ? pending[0] : null;
-  })();
-
-  const inStartingBid = startingBidActor !== null;
-  const effectivePlayerIndex = inStartingBid ? startingBidActor : currentPlayerIndex;
-
-  const myPlayerIndex = playerID !== undefined && playerID !== null
-    ? parseInt(playerID, 10)
-    : currentPlayerIndex;
-  const isMyTurn = myPlayerIndex === currentPlayerIndex;
-  const currentPlayer = G.players[effectivePlayerIndex];
-
-  const isStartingBidActor =
-    startingBidActor !== null &&
-    (playerID != null && playerID !== ''
-      ? myPlayerIndex === startingBidActor
-      : !aiPlayerIndices.includes(startingBidActor));
-
-  const activeNetworkBidder = getActiveNetworkBidder(ctx);
-  const inNetworkBid = G.pendingAction?.type === 'network_bid' && activeNetworkBidder !== null;
-
-  const { isAITurn } = useAIPlayer({
-    G,
-    ctx,
-    moves,
-    aiPlayerIndices,
-    activeNetworkBidder,
-  });
-
-  const maxStartingBid =
-    startingBidActor !== null ? G.players[startingBidActor].resources.coins : 0;
-
-  useEffect(() => {
-    if (startingBidActor === null) return;
-    setStartingBidAmount((a) => Math.min(Math.max(0, a), maxStartingBid));
-  }, [startingBidActor, maxStartingBid]);
-
-  const humanCanAct = !isAITurn && (
-    inNetworkBid
-      ? (playerID != null && playerID !== '' ? playerID === activeNetworkBidder : true)
-      : inStartingBid
-        ? isStartingBidActor
-        : isMyTurn
-  );
-
-  function handleHexClick(hexKey: string) {
-    const pa = G.pendingAction;
-    if (!pa || !humanCanAct) return;
-
-    const hexPlacingActions = [
-      'charter_place', 'builder_build_hex', 'elder_village_hex', 'elder_reserve_hex',
-      'guide_reveal_hex', 'event_zoning_hex', 'event_conservation_hex',
-      'event_logging_hex', 'event_forestry_hex', 'event_taxation_hex', 'event_urbanplanning_hex',
-      'event_airstrip_hex', 'event_fisheries_hex',
-    ];
-
-    if (hexPlacingActions.includes(pa.type)) {
-      moves.placeOnHex(hexKey);
-      setSelectedHex(null);
+  const onCellClick = (id: CellId) => {
+    if (showPick) {
+      moves.show(showPick.to, id);
+      setShowPick(null);
+      return;
     }
-  }
+    const vs = cellVariants.filter((a) => a.cell === id);
+    if (vs.length === 1) act(vs[0]);
+    else if (vs.length > 1) setPending(vs);
+  };
 
-  function handleSelectCard(instanceId: string) {
-    if (!humanCanAct) return;
-    setSelectedCardId(prev => prev === instanceId ? null : instanceId);
-  }
-
-  function handleConfirmCard() {
-    if (!humanCanAct || !selectedCardId) return;
-    moves.activateCard(selectedCardId);
-    setSelectedCardId(null);
-  }
-
-  function handleEndTurn() {
-    if (!humanCanAct || G.pendingAction || inStartingBid) return;
-    setSelectedCardId(null);
-    moves.endTurn();
-  }
-
-  function handleSubmitStartingBid() {
-    if (!humanCanAct || !inStartingBid || startingBidActor === null) return;
-    const n = Math.min(Math.max(0, Math.floor(Number(startingBidAmount))), maxStartingBid);
-    moves.submitStartingBid(n);
-  }
-
-  const NON_CANCELLABLE = new Set([
-    'builder_market_buy',
-    'builder_market_sell',
-  ]);
-
-  function handleCancelAction() {
-    if (!humanCanAct || !G.pendingAction) return;
-    moves.cancelAction();
-  }
-
-  function renderPendingActionUI() {
-    const pa = G.pendingAction;
-    if (!pa || !humanCanAct) return null;
-
-    switch (pa.type) {
-      case 'builder_choose': {
-        const canBuild = hasAnyValidBuildHex(G.tiles, currentPlayer.type, G.landClaimsUntilPlayer !== undefined);
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Builder: Choose an action</div>
-            <div className="action-buttons">
-              <button
-                onClick={() => moves.chooseOption('build')}
-                disabled={!canBuild}
-                title={canBuild ? undefined : 'No valid build locations — place your Charter first'}
-              >
-                Build (1 coin + 1 wood + 1 ore)
-              </button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('market')}>
-                Resource Market
-              </button>
-            </div>
-          </div>
-        );
-      }
-
-      case 'builder_build_type': {
-        const allowed = getAllowedBuildTypes(G.tiles, currentPlayer.type);
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Choose building type</div>
-            <div className="action-buttons">
-              {allowed.map(bt => (
-                <button
-                  key={bt}
-                  onClick={() => moves.chooseBuildingType(bt as BuildingType)}
-                >
-                  {bt}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      case 'builder_build_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Click a valid cell to place <strong>{pa.buildingType}</strong>
-              <span className="cost-badge">1 coin + 1 wood + 1 ore</span>
-            </div>
-          </div>
-        );
-
-      case 'builder_market_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Resource Market</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('buy_wood')}>Buy Wood</button>
-              <button onClick={() => moves.chooseOption('buy_ore')}>Buy Ore</button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('sell_wood')}>Sell Wood</button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('sell_ore')}>Sell Ore</button>
-            </div>
-          </div>
-        );
-
-      case 'builder_market_buy':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Buying 1 {pa.resource}...
-              <button onClick={() => moves.chooseOption('done')}>Done</button>
-            </div>
-          </div>
-        );
-
-      case 'builder_market_sell':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Selling 1 {pa.resource}...
-              <button onClick={() => moves.chooseOption('done')}>Done</button>
-            </div>
-          </div>
-        );
-
-      case 'guide_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Guide: Choose an action</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('reveal')}>
-                Reveal Fog
-              </button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('network')}>
-                Bid on Network card
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'guide_reveal_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Click a non-Fog cell to reveal adjacent Fog tiles</div>
-          </div>
-        );
-
-      case 'guide_network':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Click a Network card to start bidding</div>
-          </div>
-        );
-
-      case 'liaison_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Liaison: Choose an action</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('generate')}>
-                Generate Resources
-              </button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('politics')}>
-                Acquire Politics Card
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'liaison_politics':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Click a Politics card to acquire it</div>
-          </div>
-        );
-
-      case 'elder_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Elder: Choose an action</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('village')}>
-                Place Village (on Fog)
-              </button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('reserve')}>
-                Place Reserve
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'elder_village_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Click a Fog cell to reveal and place Village</div>
-          </div>
-        );
-
-      case 'elder_reserve_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Click a cell adjacent to Village/Reserve</div>
-          </div>
-        );
-
-      case 'charter_place':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Charter: Click a valid cell for your starting building
-              <span className="cost-badge">Free</span>
-            </div>
-          </div>
-        );
-
-      case 'event_import_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Import: Choose a resource (1 coin)</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('wood')}>Wood</button>
-              <button onClick={() => moves.chooseOption('ore')}>Ore</button>
-            </div>
-          </div>
-        );
-
-      case 'event_graft_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Graft: Choose an exchange</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('coin_to_vote')}>
-                1 Coin to 1 Vote
-              </button>
-              <button className="btn-secondary" onClick={() => moves.chooseOption('vote_to_coin')}>
-                1 Vote to 1 Coin
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'event_bribe':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Bribe: Click a Politics card to remove (1 coin)</div>
-          </div>
-        );
-
-      case 'event_zoning_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Zoning: Click a Field/Sand cell adjacent to your building</div>
-          </div>
-        );
-
-      case 'event_conservation_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Conservation: Click a Forest cell to protect it</div>
-          </div>
-        );
-
-      case 'event_logging_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Logging: Click a Forest cell to convert (+1 wood)</div>
-          </div>
-        );
-
-      case 'event_forestry_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Forestry: Click a Field cell to convert to Forest</div>
-          </div>
-        );
-
-      case 'event_taxation_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Taxation: Click your Reserve to collect</div>
-          </div>
-        );
-
-      case 'event_airstrip_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Airstrip: Click a Sand or Field cell to place Infrastructure
-              <span className="cost-badge">1 coin + 1 wood + 1 ore</span>
-            </div>
-          </div>
-        );
-
-      case 'event_fisheries_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Fisheries: Click a Water cell adjacent to one of your buildings
-            </div>
-          </div>
-        );
-
-      case 'event_urbanplanning_hex':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Urban Planning: Click a production building (1 coin + 1 wood + 1 ore)
-            </div>
-          </div>
-        );
-
-      case 'broker_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Broker: Choose an event card to add</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('import')}>Import</button>
-              <button onClick={() => moves.chooseOption('export')}>Export</button>
-            </div>
-          </div>
-        );
-
-      case 'forester_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Forester: Choose an event card to add</div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseOption('logging')}>Logging</button>
-              <button onClick={() => moves.chooseOption('forestry')}>Forestry</button>
-            </div>
-          </div>
-        );
-
-      case 'event_restructuring_choose': {
-        const personnelCards = currentPlayer.tableau.filter(c => c.category === 'Personnel');
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Restructuring: Choose a Personnel card to remove</div>
-            <div className="action-buttons">
-              {personnelCards.map(c => {
-                const info = CARD_INFO[c.cardType];
-                return (
-                  <button key={c.instanceId} onClick={() => moves.chooseRestructuringTarget(c.instanceId)}>
-                    {info?.icon ?? '?'} {info?.title ?? c.cardType}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      }
-
-      case 'event_stimulus_choose':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">
-              Stimulus: Pick {pa.remaining} more resource{pa.remaining !== 1 ? 's' : ''} (any mix of 4)
-            </div>
-            <div className="action-buttons">
-              <button onClick={() => moves.chooseStimulusResource('coins')}>💰 Coin</button>
-              <button onClick={() => moves.chooseStimulusResource('wood')}>🪵 Wood</button>
-              <button onClick={() => moves.chooseStimulusResource('ore')}>⚙️ Ore</button>
-              <button onClick={() => moves.chooseStimulusResource('votes')}>🗳️ Vote</button>
-            </div>
-          </div>
-        );
-
-      case 'network_bid':
-        return (
-          <div className="action-panel">
-            <div className="action-prompt">Place your bid in the Network panel</div>
-          </div>
-        );
-
-      default:
-        return null;
+  const onSelect = (card: string, option: string) => {
+    setFree(null);
+    setPending(null);
+    if (sel?.card === card && sel.option === option) {
+      setSel(null);
+      return;
     }
-  }
+    const vs = legal.filter((a) => a.card === card && a.option === option);
+    // Options with nothing to choose resolve straight away.
+    if (vs.length === 1 && vs[0].cell === undefined && vs[0].slot === undefined && !vs[0].choice && vs[0].player === undefined && !vs[0].trade && !vs[0].target) {
+      act(vs[0]);
+      return;
+    }
+    setSel({ card, option });
+  };
 
-  if (G.winner) {
-    return (
-      <div className="game-over">
-        <h1>Game Over</h1>
-        <p className="winner-announce">{G.winner} wins with {G.winSeatThreshold} Seats!</p>
-      </div>
-    );
-  }
+  const chooser = pending ?? (sel && cellVariants.length === 0 ? variants : null);
+  const optionDef = sel ? CARDS[G.players[me].tableau.find((c) => c.instanceId === sel.card)?.cardType ?? '']?.options.find((o) => o.id === sel.option) : undefined;
+  const canSpread = legal.some((a) => a.kind === 'spread');
+  const canReclaim = legal.some((a) => a.kind === 'reclaim');
+  const meType = G.players[me].type;
+  const landPct = Math.round(revealedLandFraction(G) * 100);
+  const scars = scarCount(G);
+  const [s1, s2, s3] = BALANCE.lastSeasonThresholds;
 
   return (
-    <div className="board-layout">
-      <div className="game-content">
-        {/* Left sidebar: players, current player first */}
-        <div className="players-sidebar">
-          {(() => {
-            const indices = G.players.map((_, i) => i);
-            const sorted = [
-              effectivePlayerIndex,
-              ...indices.filter(i => i !== effectivePlayerIndex),
-            ];
-            return sorted.map(i => (
-              <PlayerPanel
-                key={i}
-                player={G.players[i]}
-                playerIndex={i}
-                isCurrentPlayer={i === effectivePlayerIndex}
-                tokensUsedThisTurn={G.tokensUsedThisTurn}
-                pendingAction={G.pendingAction}
-                actionsRemaining={G.actionsRemainingThisTurn}
-                selectedCardId={i === effectivePlayerIndex ? selectedCardId : null}
-                onSelectCard={handleSelectCard}
-              />
-            ));
-          })()}
+    <div className="lg-board">
+      <div className="lg-status">
+        <span className="lg-status__me" style={{ color: FACTION_COLOR[meType] }}>
+          {FACTION_ICON[meType]} You are the {meType}
+        </span>
+        <span>Round {G.turn.round}</span>
+        <span>
+          {G.winner ? 'Game over' : G.reaction ? `${G.players[G.reaction.reactor].type} is deciding` : `${G.players[G.turn.player].type}'s turn · ${G.turn.actionsLeft} action${G.turn.actionsLeft === 1 ? '' : 's'} left`}
+        </span>
+        <span title="Mandates enter the Politics Track once half the land is known">
+          Land known {landPct}% {G.mandateTriggered ? '· Mandates active' : `/ ${Math.round(BALANCE.mandateFogThreshold * 100)}% for Mandates`}
+        </span>
+        <span title={`${s1}: market restocks slower · ${s2}: Hotels −1 · ${s3}: Last Season`}>
+          Scars {scars}/{s3}{G.lastSeasonStage >= 3 ? ' · LAST SEASON' : G.lastSeasonStage === 2 ? ' · Hotels −1' : G.lastSeasonStage === 1 ? ' · slow market' : ''}
+        </span>
+        <span>Mandates left {G.mandatesRemaining}</span>
+        {G.players.some((p) => p.type === 'Chieftain') && <span>Standing {standing(G)} · Grievance {G.grievance}</span>}
+      </div>
+      {seatNote && <div className="lg-banner">{seatNote}</div>}
+
+      <div className="lg-main">
+        <div className="lg-left">
+          <IslandMap map={map} G={G} me={me} targets={targets} onCellClick={onCellClick} targetColor={showPick ? '#7fd3ff' : '#ffd84d'} />
+
+          <div className="lg-actions">
+            {myTurn ? (
+              <>
+                {sel && optionDef && (
+                  <div className="lg-prompt">
+                    <strong>{optionDef.label}:</strong> {optionDef.text}{' '}
+                    {cellVariants.length > 0 && !pending && <em>Click a highlighted cell.</em>}
+                    <button className="lg-btn lg-btn--small" onClick={() => { setSel(null); setPending(null); }}>Cancel</button>
+                  </div>
+                )}
+                {free && (
+                  <div className="lg-prompt">
+                    {free === 'spread' ? 'Spread Presence: click a highlighted cell next to your Presence or a Village.' : 'Reclamation (3 Grievance): click a building or Site next to your claim to take it back.'}
+                    <button className="lg-btn lg-btn--small" onClick={() => setFree(null)}>Cancel</button>
+                  </div>
+                )}
+                {chooser && chooser.length > 0 && (
+                  <div className="lg-chooser">
+                    {chooser.map((a, i) => (
+                      <button key={i} className="lg-btn" onClick={() => act(a)}>{variantLabel(G, me, a)}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="lg-row">
+                  {canSpread && <button className="lg-btn lg-btn--free" onClick={() => { setSel(null); setFree('spread'); }}>Spread Presence (free)</button>}
+                  {canReclaim && <button className="lg-btn lg-btn--free" onClick={() => { setSel(null); setFree('reclaim'); }}>Reclamation (3 Grievance)</button>}
+                  <button
+                    className="lg-btn lg-btn--end"
+                    onClick={() => {
+                      if (G.turn.actionsLeft > 0 && !window.confirm(`End your turn with ${G.turn.actionsLeft} action(s) unused?`)) return;
+                      act({ kind: 'endTurn' });
+                    }}
+                  >
+                    End turn
+                  </button>
+                </div>
+              </>
+            ) : (
+              !G.winner && !G.reaction && <div className="lg-muted">Waiting for the {G.players[G.turn.player].type}…</div>
+            )}
+          </div>
+
+          <div className="lg-section-title">Your tableau <span className="lg-muted lg-small">— place 2 tokens per turn on different cards</span></div>
+          <Tableau G={G} me={me} legal={legal} selected={sel} onSelect={onSelect} myTurn={myTurn} />
+          <p className="lg-muted lg-small">{FACTION_BLURB[meType]}</p>
         </div>
 
-        {/* Center: map + markets */}
-        <div className="map-and-markets">
-          <div className="map-row">
-            {/* Action panel (left of map) */}
-            <div className="actions-bar">
-              <div className="game-actions">
-                <div className="actions-left">
-                  Actions: {G.actionsRemainingThisTurn}/2
-                </div>
-
-                {inStartingBid && (
-                  <div className="action-panel">
-                    <div className="action-prompt">
-                      Blind bid for first player. Highest unique bid wins and pays that many coins.
-                      Tied high bids → random first player; no coins paid.
-                    </div>
-                    {humanCanAct && startingBidActor !== null && (
-                      <div className="action-buttons" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <span>Bid (0–{maxStartingBid} coins)</span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={maxStartingBid}
-                            value={startingBidAmount}
-                            onChange={(e) => {
-                              const v = parseInt(e.target.value, 10);
-                              setStartingBidAmount(
-                                Number.isNaN(v) ? 0 : Math.min(maxStartingBid, Math.max(0, v))
-                              );
-                            }}
-                          />
-                        </label>
-                        <button type="button" onClick={handleSubmitStartingBid}>
-                          Submit bid
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {renderPendingActionUI()}
-
-                {isAITurn && (
-                  <div className="ai-thinking-indicator">
-                    <span className="ai-thinking-spinner" />
-                    AI is thinking ({currentPlayer.type})...
-                  </div>
-                )}
-
-                {humanCanAct && G.pendingAction && !NON_CANCELLABLE.has(G.pendingAction.type)
-                  && !(G.pendingAction.type === 'event_stimulus_choose' && G.pendingAction.remaining < 4)
-                  && (
-                  <button className="btn-cancel" onClick={handleCancelAction}>
-                    Cancel Action
-                  </button>
-                )}
-
-                {humanCanAct && !inStartingBid && !G.pendingAction && selectedCardId && (() => {
-                  const card = currentPlayer.tableau.find(c => c.instanceId === selectedCardId);
-                  if (!card) return null;
-                  const info = CARD_INFO[card.cardType];
-                  const isUsed = G.tokensUsedThisTurn.includes(card.instanceId);
-                  const canActivate = !isUsed && G.actionsRemainingThisTurn > 0
-                    && card.cardType !== 'Seat'
-                    && card.cardType !== 'Endorsement'
-                    && (card.cardType !== 'Mandate' || G.tokensUsedThisTurn.length === 0);
-                  return (
-                    <div className="card-preview">
-                      <div className="card-preview__header">
-                        <span className="card-preview__icon">{info?.icon ?? '?'}</span>
-                        <span className="card-preview__title">{info?.title ?? card.cardType}</span>
-                        {card.category === 'Event' && <span className="card-event-badge">EVENT</span>}
-                      </div>
-                      <div className="card-preview__desc">{info?.description ?? ''}</div>
-                      <div className="card-preview__actions">
-                        <button
-                          onClick={handleConfirmCard}
-                          disabled={!canActivate}
-                          title={isUsed ? 'Already used this turn' : undefined}
-                        >
-                          Take Action
-                        </button>
-                        <button className="btn-secondary" onClick={() => setSelectedCardId(null)}>
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {humanCanAct && !inStartingBid && !G.pendingAction && !selectedCardId && (
-                  <>
-                    <div className="select-card-hint">Select a card from your Tableau</div>
-                    <button className="btn-end-turn" onClick={handleEndTurn}>
-                      End Turn
-                    </button>
-                  </>
-                )}
-
-                <div className="turn-round" style={{ marginTop: '0.5rem' }}>
-                  Round {ctx.turn}
-                </div>
-              </div>
-
-              {/* Fog bar */}
-              <div className="fog-progress-bar-container">
-                <div className="fog-progress-label">
-                  Fog: {G.fogRevealed}/{G.totalFog}
-                  {G.thresholdReached && <span className="threshold-badge">Mandate Active</span>}
-                </div>
-                <div className="fog-progress-bar">
-                  <div
-                    className="fog-progress-fill"
-                    style={{ width: `${(G.fogRevealed / Math.max(G.totalFog, 1)) * 100}%` }}
-                  />
-                  <div
-                    className="fog-threshold-mark"
-                    style={{ left: `${((Math.floor(G.totalFog / 2) + 1) / Math.max(G.totalFog, 1)) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Map */}
-            <div className="map-section">
-              <IslandMap
-                tiles={G.tiles}
-                mapSeed={G.mapSeed}
-                mapRadius={G.mapRadius}
-                pendingAction={G.pendingAction}
-                playerType={currentPlayer.type}
-                landClaimsActive={G.landClaimsUntilPlayer !== undefined}
-                onHexClick={handleHexClick}
-                selectedHex={selectedHex}
-              />
-            </div>
+        <div className="lg-right">
+          <PlayerPanels G={G} me={me} aiSeats={aiSeats} />
+          <Markets G={G} me={me} />
+          <div className="lg-tabs">
+            <button className={tab === 'log' ? 'lg-tab lg-tab--on' : 'lg-tab'} onClick={() => setTab('log')}>Log</button>
+            <button className={tab === 'deals' ? 'lg-tab lg-tab--on' : 'lg-tab'} onClick={() => setTab('deals')}>
+              Deals &amp; info{G.proposals.some((p) => p.to === me) ? ' •' : ''}
+            </button>
           </div>
-
-          {/* Markets (3-column) */}
-          <div className="markets-section">
-            <PoliticsRow
-              politicsRow={G.politicsRow}
-              pendingAction={G.pendingAction}
-              isCurrentPlayerTurn={humanCanAct}
-              onSelectSlot={(slotIndex) => {
-                if (G.pendingAction?.type === 'liaison_politics') {
-                  moves.selectPoliticsCard(slotIndex);
-                } else if (G.pendingAction?.type === 'event_bribe') {
-                  moves.chooseOption(slotIndex.toString());
-                }
-              }}
+          {tab === 'log' ? (
+            <GameLog G={G} />
+          ) : (
+            <Negotiation
+              G={G}
+              me={me}
+              moves={moves}
+              aiSeats={aiSeats}
+              showPick={showPick}
+              pickShowCell={(to) => setShowPick({ to })}
+              cancelShowPick={() => setShowPick(null)}
             />
-
-            <NetworkRow
-              networkRow={G.networkRow}
-              pendingAction={G.pendingAction}
-              isCurrentPlayerTurn={humanCanAct}
-              activeNetworkBidder={activeNetworkBidder}
-              bidderCoins={
-                activeNetworkBidder != null
-                  ? G.players[parseInt(activeNetworkBidder, 10)]?.resources.coins ?? 0
-                  : currentPlayer.resources.coins
-              }
-              onSelectSlot={(slotIndex) => moves.selectNetworkCard(slotIndex)}
-              onSubmitBid={(amount) => moves.submitNetworkBid(amount)}
-            />
-
-            <ResourceMarket woodMarket={G.woodMarket} oreMarket={G.oreMarket} />
-          </div>
+          )}
         </div>
       </div>
+
+      <ReactionPrompt G={G} me={me} respond={(r) => moves.respond(r)} />
+
+      {G.winner && (
+        <div className="lg-modal">
+          <div className="lg-modal__card">
+            <h2>{FACTION_ICON[G.winner]} The {G.winner} wins</h2>
+            <p>
+              {G.endReason === 'seats' && 'Reached the Seats needed.'}
+              {G.endReason === 'last_season' && 'Last Season ended the game: most Seats wins.'}
+              {G.endReason === 'mandates_exhausted' && 'The Mandates ran out: most Seats wins.'}
+              {G.endReason === 'round_cap' && 'The round limit was reached: most Seats wins.'}
+            </p>
+            <table className="lg-table">
+              <tbody>
+                {G.players.map((p, i) => (
+                  <tr key={i}>
+                    <td>{FACTION_ICON[p.type]} {p.type}</td>
+                    <td>{p.seats} Seats</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

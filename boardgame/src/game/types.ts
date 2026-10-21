@@ -1,251 +1,283 @@
-import { generateCellMap, makeRng } from '../utils/cellMap';
+/**
+ * Landgrab v3 state model (IMPLEMENTATION_SPEC.md sections 1.4 and 2).
+ *
+ * Polygon geometry is deliberately absent: it is render data, loaded once per
+ * client from `public/maps/<mapId>.json` (see `maps.ts`). Everything here is
+ * sent over the wire on every boardgame.io update.
+ */
 
-export type PlayerType = "Hotelier" | "Industrialist" | "Bureaucrat" | "Chieftain";
-export type TileType = "Fog" | "Field" | "Mountain" | "Water" | "Forest" | "Sand";
-export type BuildingType =
-  | "Village"
-  | "Resort"
-  | "Housing"
-  | "IndustrialZone"
-  | "Farm"
-  | "Fisheries"
-  | "Infrastructure"
-  | "CivicOffice"
-  | "Reserve";
+export type PlayerType = 'Hotelier' | 'Industrialist' | 'Bureaucrat' | 'Chieftain';
+export const ALL_FACTIONS: PlayerType[] = ['Hotelier', 'Industrialist', 'Chieftain', 'Bureaucrat'];
 
-export type PersonnelCardType =
-  | "Builder"
-  | "Guide"
-  | "Liaison"
-  | "Elder"
-  | "Fixer"
-  | "Broker"
-  | "Forester"
-  | "Consultant"
-  | "Advocate";
+export type CellId = number;
 
-export type EventCardType =
-  | "Charter"
-  | "Mandate"
-  | "Restructuring"
-  | "Stimulus"
-  | "Seat"
-  | "Dividends"
-  | "Bribe"
-  | "Zoning"
-  | "Conservation"
-  | "UrbanPlanning"
-  | "NGOBacking"
-  | "Propaganda"
-  | "Graft"
-  | "LocalElections"
-  | "Reorganization"
-  | "Import"
-  | "Export"
-  | "Logging"
-  | "Forestry"
-  | "LandClaims"
-  | "Subsidy"
-  | "Boycotting"
-  | "Protests"
-  | "Taxation"
-  | "Levy"
-  | "Expropriation"
-  | "Airstrip"
-  | "Fisheries"
-  | "Endorsement";
+export type TerrainType =
+  | 'Ocean' | 'CoastalWater' | 'CraterLake'
+  | 'Beach' | 'Plains' | 'Rainforest' | 'Hills' | 'Mountain'
+  | 'Scar';
 
-export type CardType = PersonnelCardType | EventCardType;
+/** What a player who cannot see under the fog is shown instead of the terrain. */
+export type VisibleTerrain = TerrainType | 'Unknown';
 
-export interface TableauCard {
-  instanceId: string;
-  cardType: CardType;
-  category: 'Personnel' | 'Event';
-}
+export type BuildingType = 'Hotel' | 'IndustrialZone' | 'PublicWork' | 'Housing' | 'Museum';
 
-export interface Tile {
-  /** Cell id; also this tile's key in `LandgrabState.tiles`. */
-  id: string;
-  /** Ids of edge-sharing cells. Adjacency rules use only this. */
-  neighbors: string[];
-  /** Hex-ring equivalent distance from the center (0 = center, mapRadius = water rim). */
-  ring: number;
-  type: TileType;
+export type Designation = 'Zoned' | 'Protected' | 'Listed';
+
+export interface Cell {
+  id: CellId;
+  neighbors: CellId[];
+  terrain: VisibleTerrain;
+  elevation: number;
+  fog: boolean;
+
   building?: BuildingType;
+  /** Owner of the building. Public Works are unowned. */
   buildingOwner?: PlayerType;
-  zoningOwner?: PlayerType;
-  hasUrbanPlanning?: boolean;
-  hasConservation?: boolean;
+  /** A Hotel that has been Realised: its Holding marker went back to supply. */
+  sold?: boolean;
+
+  holding?: PlayerType;
+  presence?: boolean;
+  village?: boolean;
+  designation?: Designation;
+  zonedFor?: PlayerType;
+  /** Who placed the designation (Bureaucrat scores Zoned cells it placed). */
+  designatedBy?: PlayerType;
+
+  siteId?: number;
 }
 
-export interface PlayerResources {
+export type SiteStatus = 'Untouched' | 'Excavated' | 'Museum' | 'Listed' | 'Reclaimed';
+
+export interface Site {
+  id: number;
+  cells: CellId[];
+  /** Hidden from everyone (Chieftain included) until `revealed`. 0 in a player view while hidden. */
+  significance: 0 | 1 | 2 | 3;
+  revealed: boolean;
+  status: SiteStatus;
+}
+
+export type ResourceKey = 'coins' | 'wood' | 'ore' | 'votes';
+
+export interface Resources {
   coins: number;
   wood: number;
   ore: number;
   votes: number;
 }
 
+export interface TableauCard {
+  instanceId: string;
+  cardType: string;
+}
+
 export interface PlayerState {
   type: PlayerType;
   tableau: TableauCard[];
-  resources: PlayerResources;
+  resources: Resources;
   seats: number;
 }
 
-export type ResourceTrack = [number, number, number, number];
-export type PoliticsSlot = string | null;
-export type NetworkSlot = string | null;
+/** Slot price = index (0..3). */
+export type MarketRow = (string | null)[];
 
-export type PendingAction =
-  | { type: 'charter_place'; instanceId: string }
-  | { type: 'builder_choose'; instanceId: string }
-  | { type: 'builder_build_type'; instanceId: string }
-  | { type: 'builder_build_hex'; instanceId: string; buildingType: BuildingType }
-  | { type: 'builder_market_choose'; instanceId: string }
-  | { type: 'builder_market_buy'; instanceId: string; resource: 'wood' | 'ore'; amount: number }
-  | { type: 'builder_market_sell'; instanceId: string; resource: 'wood' | 'ore'; amount: number }
-  | { type: 'liaison_choose'; instanceId: string }
-  | { type: 'liaison_politics'; instanceId: string }
-  | { type: 'guide_choose'; instanceId: string }
-  | { type: 'guide_reveal_hex'; instanceId: string }
-  | { type: 'guide_network'; instanceId: string }
-  | { type: 'elder_choose'; instanceId: string }
-  | { type: 'elder_village_hex'; instanceId: string }
-  | { type: 'elder_reserve_hex'; instanceId: string }
-  | { type: 'event_bribe'; instanceId: string }
-  | { type: 'event_zoning_hex'; instanceId: string }
-  | { type: 'event_conservation_hex'; instanceId: string }
-  | { type: 'event_logging_hex'; instanceId: string }
-  | { type: 'event_forestry_hex'; instanceId: string }
-  | { type: 'event_import_choose'; instanceId: string }
-  | { type: 'event_export_choose'; instanceId: string; amount?: number }
-  | { type: 'event_taxation_hex'; instanceId: string }
-  | { type: 'event_graft_choose'; instanceId: string }
-  | { type: 'event_urbanplanning_hex'; instanceId: string }
-  | { type: 'event_airstrip_hex'; instanceId: string }
-  | { type: 'event_fisheries_hex'; instanceId: string }
-  | { type: 'event_restructuring_choose'; instanceId: string }
-  | { type: 'event_stimulus_choose'; instanceId: string; remaining: number }
-  | { type: 'broker_choose'; instanceId: string }
-  | { type: 'forester_choose'; instanceId: string }
-  | { type: 'network_bid'; instanceId: string; slotIndex: number; initiatorPlayerIndex: number; bids: Record<string, number | null> };
+/** Resource market: `true` = a unit sits in the slot priced index+1 coins. */
+export type ResourceTrack = [boolean, boolean, boolean, boolean];
+
+export interface Favor {
+  id: string;
+  /** The player who owes (kept the payment that was waived). */
+  from: PlayerType;
+  /** The player who waived and holds the token. */
+  to: PlayerType;
+}
+
+export interface Proposal {
+  id: string;
+  from: number;
+  to: number;
+  give: Partial<Resources>;
+  want: Partial<Resources>;
+  note?: string;
+}
+
+export interface Message {
+  id: string;
+  from: number;
+  /** null = public. */
+  to: number | null;
+  kind: 'tell' | 'show' | 'system';
+  text: string;
+  cell?: CellId;
+  /** Terrain shown by a Show (verifiable). */
+  shownTerrain?: TerrainType;
+  round: number;
+}
+
+/**
+ * A fully specified player action. The client and the bots both build these;
+ * `legalActions` enumerates them and `applyAction` validates and runs them.
+ */
+export interface Action {
+  kind: 'use' | 'spread' | 'reclaim' | 'endTurn';
+  /** Tableau instanceId (kind 'use'). */
+  card?: string;
+  /** Card option, e.g. 'Extract', 'Survey', 'Policy'. */
+  option?: string;
+  cell?: CellId;
+  cells?: CellId[];
+  /** Target player index. */
+  player?: number;
+  /** Market slot (Hire / Policy). */
+  slot?: number;
+  /** Generic choice: resource name, designation kind, faction, etc. */
+  choice?: string;
+  /** Resource exchange for the Market option: positive = buy, negative = sell. */
+  trade?: { wood?: number; ore?: number };
+  /** Tableau instanceId of a card to remove (Restructuring). */
+  target?: string;
+  /** How to pay a Mandate's slot surcharge. */
+  payInVotes?: boolean;
+}
+
+/** Out-of-turn decision windows. Each is a boardgame.io stage for `reactor`. */
+export type Reaction =
+  | {
+      kind: 'interrupt';
+      reactor: number;
+      actor: number;
+      action: Action;
+      cell: CellId;
+    }
+  | {
+      kind: 'objection';
+      reactor: number;
+      actor: number;
+      action: Action;
+    }
+  | {
+      kind: 'objectionResponse';
+      reactor: number;
+      bureaucrat: number;
+      action: Action;
+    }
+  | {
+      kind: 'waive';
+      reactor: number;
+      payer: number;
+      amount: Partial<Resources>;
+      reason: string;
+    };
+
+export interface TurnState {
+  /** Index into `order`. */
+  seat: number;
+  player: number;
+  round: number;
+  actionsLeft: number;
+  usedCards: string[];
+  actionsTaken: number;
+  spreadDone: boolean;
+  reclaimDone: boolean;
+}
+
+export interface GameLogEntry {
+  round: number;
+  player: number;
+  text: string;
+}
+
+export type EndReason = 'seats' | 'last_season' | 'mandates_exhausted' | 'round_cap';
 
 export interface LandgrabState {
-  tiles: Record<string, Tile>;
-  /**
-   * Seed the cell map was generated from. Polygon geometry is not stored in
-   * state (it doubled per-move cost); clients rebuild it with
-   * `generateCellMap({ mapRadius, rng: makeRng(mapSeed) })`.
-   */
-  mapSeed: number;
-  mapRadius: number;
-  fogRadius: number;
+  mapId: string;
+  cells: Cell[];
+  sites: Site[];
   totalFog: number;
   fogRevealed: number;
-  thresholdReached: boolean;
-  revealedPoliticsSinceThreshold: number;
-  mandateIntervalIndex: number;
+  /** Non-sea cells (land and crater lakes): the base for the Mandate trigger. */
+  landCount: number;
+  mandateTriggered: boolean;
 
   players: PlayerState[];
+  order: number[];
+  turn: TurnState;
 
-  tokensUsedThisTurn: string[];
-  actionsRemainingThisTurn: number;
-  pendingAction: PendingAction | null;
+  grievance: number;
+  holdingsRemaining: number;
+  presenceRemaining: number;
+  scouted: Partial<Record<PlayerType, CellId[]>>;
+  favors: Favor[];
+  lastSeasonStage: 0 | 1 | 2 | 3;
+  /** Round in which Last Season fired; the game ends when that round (or the next, see rules) finishes. */
+  lastSeasonEndsAfterRound?: number;
+  objectionUsedThisRound: boolean;
+  /** Player index protected by Land Claims until their next turn starts. */
+  landClaims?: number;
 
-  networkRow: NetworkSlot[];
-  networkDeck: PersonnelCardType[];
-  politicsRow: PoliticsSlot[];
+  personnelRow: MarketRow;
+  personnelDeck: string[];
+  politicsRow: MarketRow;
   politicsDeck: string[];
   woodMarket: ResourceTrack;
   oreMarket: ResourceTrack;
+  mandatesRemaining: number;
+  /** Mandates not yet drawn into the Politics track. */
+  mandatesInDeck: number;
+  politicsDrawsSinceMandate: number;
+  mandateIntervalIndex: number;
+  /** Round when the last Mandate was bought; the game ends after this round. */
+  mandatesExhaustedRound?: number;
 
-  landClaimsUntilPlayer?: number;
-  boycottEffect?: { boycotterType: PlayerType; targetPlayerIndex: number };
+  reaction: Reaction | null;
+  proposals: Proposal[];
+  messages: Message[];
+  log: GameLogEntry[];
 
-  /** Seats required to win (default {@link SEATS_TO_WIN}; playtests may use 1 for shorter games). */
-  winSeatThreshold: number;
+  seatsToWin: number;
+  roundCap: number;
+  options: GameOptions;
+  rng: number;
+  nextId: number;
 
   winner?: PlayerType;
-
-  /**
-   * Blind bid for first player (phase `startingBid`). `amounts[i]` null until player i submits.
-   * Removed after resolution when normal play begins.
-   */
-  startingBidPhase?: {
-    amounts: (number | null)[];
-    resolved?: boolean;
-  };
-
-  /** Turn order after blind bid; index 0 goes first. Initialized in setup, overwritten when bids resolve. */
-  startingPlayOrder: string[];
+  endReason?: EndReason;
+  stats: GameStats;
 }
 
-// ---- generateIsland (adapted from landgrab_react) ----
-
-export const MANDATE_INTERVALS = [4, 3, 3] as const;
-export const MANDATE_RECURRING_INTERVAL = 3;
-export const SEATS_TO_WIN = 2;
-
-function shuffleLocal<T>(array: T[], rng: () => number): T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
+export interface GameOptions {
+  /** Spread erosion to the lowest perimeter cell instead of a random one (spec 5.1 alternative). */
+  erosionByElevation: boolean;
+  /** Open question 1: Press Coverage is built behind a flag. */
+  pressCoverage: boolean;
+  /** Open question 2: Clearance yield. */
+  clearanceYield: 1 | 2;
+  /** Open question 4: coins per cell the Chieftain reveals with their own Survey. */
+  chieftainSurveyIncome: number;
 }
 
-export function generateIsland(
-  mapRadius: number,
-  fogRadius: number,
-  mapSeed: number
-): Record<string, Tile> {
-  // generateCellMap must draw first from a fresh rng so the client's rebuild
-  // (same seed, same call) yields the same cells.
-  const rng = makeRng(mapSeed);
-  const cells = generateCellMap({ mapRadius, rng });
-  const coastlineDist = fogRadius + 1;
-
-  const coastlineCells = Object.values(cells).filter((c) => c.ring === coastlineDist);
-
-  const fixedAssignments: TileType[] = [
-    "Mountain", "Mountain", "Forest", "Forest", "Water", "Water",
-  ];
-  const shuffledCoastline = shuffleLocal(coastlineCells, rng);
-  const coastlineTypes = new Map<string, TileType>();
-
-  for (let i = 0; i < shuffledCoastline.length; i++) {
-    const k = shuffledCoastline[i].id;
-    if (i < 6) {
-      coastlineTypes.set(k, fixedAssignments[i]);
-    } else {
-      coastlineTypes.set(k, rng() < 0.5 ? "Field" : "Sand");
-    }
-  }
-
-  function isWaterCell(id: string): boolean {
-    const d = cells[id].ring;
-    if (d > coastlineDist) return true;
-    if (d === coastlineDist) return coastlineTypes.get(id) === "Water";
-    return false;
-  }
-
-  const tiles: Record<string, Tile> = {};
-  for (const cell of Object.values(cells)) {
-    const dist = cell.ring;
-    const k = cell.id;
-    let type: TileType;
-    if (dist < fogRadius) {
-      type = "Fog";
-    } else if (dist === fogRadius) {
-      const adjacentToWater = cell.neighbors.some((nb) => isWaterCell(nb));
-      type = adjacentToWater ? "Field" : "Fog";
-    } else if (dist === coastlineDist) {
-      type = coastlineTypes.get(k) ?? "Field";
-    } else {
-      type = "Water";
-    }
-    tiles[k] = { id: cell.id, neighbors: cell.neighbors, ring: cell.ring, type };
-  }
-  return tiles;
+/** Counters the bot harness reads. Kept in state so they survive boardgame.io. */
+export interface GameStats {
+  surveys: number;
+  surveyRevealed: number[];
+  scarsByRound: number[];
+  clustersByRound: number[];
+  reclamations: number;
+  interrupts: number;
+  objections: number;
+  erosionScars: number;
+  /** Placements refused because a neighbour was still fogged (should be 0: checked in legality). */
+  fogAdjacentBuilds: number;
+  /** Per player: cards acquired / played, by card type. */
+  acquired: Record<string, number>[];
+  played: Record<string, number>[];
+  /** Per player: uses of each card option, keyed `Card.Option`. */
+  options: Record<string, number>[];
+  /** Round each Mandate was bought, by player index. */
+  mandateRounds: number[][];
 }
+
+export const WATER: ReadonlySet<VisibleTerrain> = new Set(['Ocean', 'CoastalWater', 'CraterLake']);
+export const SEA: ReadonlySet<VisibleTerrain> = new Set(['Ocean', 'CoastalWater']);
+export const BUILDABLE: ReadonlySet<VisibleTerrain> = new Set(['Beach', 'Plains', 'Rainforest', 'Hills']);

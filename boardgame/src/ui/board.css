@@ -1,0 +1,122 @@
+/* Landgrab v3 board. Dark table, faction colours as accents. */
+.lg-board {
+  --bg: #15171c;
+  --panel: #1e2128;
+  --panel2: #262a33;
+  --line: #343946;
+  --text: #e6e8ee;
+  --muted: #9097a6;
+  --accent: #ffd84d;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  padding: 8px 12px 24px;
+  font-size: 14px;
+}
+.lg-muted { color: var(--muted); }
+.lg-small { font-size: 12px; }
+.lg-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+
+.lg-status {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 8px;
+}
+.lg-status__me { font-weight: 700; }
+
+.lg-banner {
+  background: #3a3220; border: 1px solid #6b5a2a; color: #ffe9a8;
+  border-radius: 6px; padding: 6px 10px; margin: 6px 0;
+}
+
+.lg-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr); gap: 12px; }
+@media (max-width: 1000px) { .lg-main { grid-template-columns: 1fr; } }
+
+.lg-map { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.lg-map svg { display: block; width: 100%; height: auto; max-height: 70vh; }
+.lg-map__hover { padding: 6px 10px; min-height: 2.4em; border-top: 1px solid var(--line); font-size: 13px; }
+
+.lg-actions { margin: 8px 0; }
+.lg-prompt { background: var(--panel2); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 4px; }
+.lg-prompt .lg-btn { margin-left: 8px; }
+.lg-chooser { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; max-height: 220px; overflow-y: auto; }
+
+.lg-btn {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 13px;
+}
+.lg-btn:hover:not(:disabled) { border-color: var(--accent); }
+.lg-btn:disabled { opacity: 0.4; cursor: default; }
+.lg-btn--primary { background: #2f5d8a; border-color: #3d79b3; }
+.lg-btn--free { background: #1f4d33; border-color: #2ecc71; }
+.lg-btn--end { margin-left: auto; background: #5a2d2d; border-color: #9b4545; }
+.lg-btn--small { padding: 2px 8px; font-size: 12px; }
+
+.lg-section-title { font-weight: 700; margin: 12px 0 6px; }
+
+.lg-tableau { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.lg-card {
+  position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.lg-card--event { border-style: dashed; }
+.lg-card--used { opacity: 0.55; }
+.lg-card__head { display: flex; align-items: center; gap: 6px; }
+.lg-card__icon { font-size: 18px; }
+.lg-card__name { font-weight: 700; }
+.lg-card__kind { margin-left: auto; font-size: 11px; color: var(--muted); }
+.lg-card__text { font-size: 12px; color: var(--muted); }
+.lg-card__options { display: flex; flex-wrap: wrap; gap: 4px; }
+.lg-card__token { position: absolute; top: 6px; right: 8px; color: var(--accent); }
+.lg-opt {
+  background: #2c3340; color: var(--text); border: 1px solid #44506a; border-radius: 4px;
+  padding: 3px 8px; font-size: 12px; cursor: pointer;
+}
+.lg-opt:disabled { opacity: 0.35; cursor: default; }
+.lg-opt--sel { background: #5a4a14; border-color: var(--accent); }
+
+.lg-players { display: grid; gap: 6px; }
+.lg-player { background: var(--panel); border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px; padding: 6px 10px; }
+.lg-player--active { box-shadow: 0 0 0 1px var(--accent); }
+.lg-player__head { display: flex; align-items: center; gap: 6px; }
+.lg-player__res { display: flex; gap: 12px; margin-top: 2px; }
+.lg-player__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.lg-player__cards { font-size: 11px; margin-top: 2px; }
+.lg-player__seats { font-size: 13px; }
+.lg-tag { font-size: 10px; text-transform: uppercase; background: var(--panel2); border-radius: 3px; padding: 0 5px; color: var(--muted); }
+.lg-tag--hot { background: #5a4a14; color: var(--accent); }
+
+.lg-markets { display: grid; gap: 6px; margin-top: 8px; }
+.lg-market { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.lg-market__title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+.lg-market__slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.lg-slot { background: var(--panel2); border-radius: 4px; padding: 4px 6px; min-height: 52px; }
+.lg-slot--mandate { background: #3d3415; border: 1px solid var(--accent); }
+.lg-slot__cost { font-size: 11px; color: var(--muted); }
+.lg-slot__name { font-size: 12px; font-weight: 600; }
+.lg-slot__text { font-size: 10px; color: var(--muted); line-height: 1.25; }
+.lg-resmarket { display: flex; gap: 16px; }
+.lg-unit { display: inline-block; width: 20px; text-align: center; margin-left: 3px; border-radius: 3px; background: #2a2e37; color: #5d6472; font-size: 11px; }
+.lg-unit--full { background: #4b5d3a; color: #fff; }
+
+.lg-tabs { display: flex; gap: 4px; margin-top: 10px; }
+.lg-tab { background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-bottom: none; border-radius: 6px 6px 0 0; padding: 4px 12px; cursor: pointer; }
+.lg-tab--on { color: var(--text); background: var(--panel2); }
+
+.lg-log, .lg-nego { background: var(--panel2); border: 1px solid var(--line); border-radius: 0 6px 6px 6px; padding: 8px; max-height: 420px; overflow-y: auto; }
+.lg-log__line { font-size: 12px; padding: 1px 0; }
+
+.lg-offer { background: var(--panel); border-radius: 4px; padding: 6px; margin: 4px 0; font-size: 13px; }
+.lg-offer--out { opacity: 0.8; }
+.lg-form { display: grid; gap: 6px; margin: 6px 0; }
+.lg-form input, .lg-form select, .lg-nego select, .lg-nego input {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px;
+}
+.lg-amounts { display: flex; gap: 6px; }
+.lg-amounts input { width: 48px; }
+.lg-messages { margin-top: 6px; font-size: 12px; }
+.lg-msg { padding: 2px 0; }
+
+.lg-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.lg-modal__card { background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 10px; padding: 18px 22px; max-width: 460px; }
+.lg-table td { padding: 2px 10px; }

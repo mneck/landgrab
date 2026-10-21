@@ -4,6 +4,9 @@ import { SocketIO } from 'boardgame.io/multiplayer';
 import { LandgrabGame } from '../game/Game';
 import { Board } from '../components/Board';
 import type { LandgrabState } from '../game/types';
+import { fetchMap } from '../game/maps';
+import type { MapFile } from '../game/maps';
+import type { Moves } from '../ui/useLocalGame';
 
 interface OnlineGameViewProps {
   matchID: string;
@@ -26,6 +29,12 @@ export function OnlineGameView({
     ctx: { currentPlayer: string; turn: number; numPlayers: number };
   } | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const [map, setMap] = useState<MapFile | null>(null);
+  const mapId = gameState?.G.mapId;
+  useEffect(() => {
+    if (!mapId) return;
+    fetchMap(mapId).then(setMap).catch(() => setConnectionError(true));
+  }, [mapId]);
 
   useEffect(() => {
     const client = BGClient({
@@ -73,7 +82,7 @@ export function OnlineGameView({
     );
   }
 
-  if (!gameState) {
+  if (!gameState || !map) {
     return (
       <div className="online-status">
         <div className="online-status__card">
@@ -85,10 +94,7 @@ export function OnlineGameView({
     );
   }
 
-  const moves = clientRef.current?.moves as Record<
-    string,
-    (...args: any[]) => any
-  >;
+  const moves = clientRef.current?.moves as unknown as Moves;
 
   return (
     <div className="game-container">
@@ -101,12 +107,7 @@ export function OnlineGameView({
           </button>
         </div>
       </div>
-      <Board
-        G={gameState.G}
-        ctx={gameState.ctx}
-        moves={moves}
-        playerID={playerID}
-      />
+      <Board map={map} G={gameState.G} me={Number(playerID)} moves={moves} aiSeats={[]} />
     </div>
   );
 }
