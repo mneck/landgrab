@@ -21,7 +21,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Guide: {
     title: "Guide",
     flavor: "",
-    description: "Reveal Fog hexes adjacent to a chosen hex, OR spend coins to bid on a Network card.",
+    description: "Reveal Fog cells adjacent to a chosen cell, OR spend coins to bid on a Network card.",
     icon: "👩🏽‍🏫",
     image: "",
     category: "personnel",
@@ -29,7 +29,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Elder: {
     title: "Elder",
     flavor: "",
-    description: "Place a Village on a Fog hex (reveal it), OR place a Reserve adjacent to a Village or Reserve.",
+    description: "Place a Village on a Fog cell (reveal it), OR place a Reserve adjacent to a Village or Reserve.",
     icon: "👲🏾",
     image: "",
     category: "personnel",
@@ -85,7 +85,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Charter: {
     title: "Charter",
     flavor: "",
-    description: "Place your starting building on any valid hex. Adjacent Fog tiles are revealed when you place. (One-shot: removed after use.)",
+    description: "Place your starting building on any valid cell. Adjacent Fog tiles are revealed when you place. (One-shot: removed after use.)",
     icon: "📜",
     image: "",
     category: "event",
@@ -101,7 +101,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Zoning: {
     title: "Zoning",
     flavor: "",
-    description: "Place a Zoning marker on a Sand or Field hex adjacent to your building. Only you can build on the zoned hex.",
+    description: "Place a Zoning marker on a Sand or Field cell adjacent to your building. Only you can build on the zoned cell.",
     icon: "📋",
     image: "",
     category: "event",
@@ -109,7 +109,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Conservation: {
     title: "Conservation",
     flavor: "",
-    description: "Place a Conservation token on any Forest hex. That hex cannot be converted or zoned.",
+    description: "Place a Conservation token on any Forest cell. That cell cannot be converted or zoned.",
     icon: "🌱",
     image: "",
     category: "event",
@@ -189,7 +189,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Logging: {
     title: "Logging",
     flavor: "",
-    description: "Replace a Forest hex with a Field hex. Take 1 Wood from the Bank.",
+    description: "Replace a Forest cell with a Field cell. Take 1 Wood from the Bank.",
     icon: "🪓",
     image: "",
     category: "event",
@@ -197,7 +197,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
   Forestry: {
     title: "Forestry",
     flavor: "",
-    description: "Replace a Field hex with a Forest hex.",
+    description: "Replace a Field cell with a Forest cell.",
     icon: "🌲",
     image: "",
     category: "event",
@@ -270,7 +270,7 @@ export const CARD_INFO: Record<string, CardInfo> = {
     title: "Fisheries",
     flavor: "",
     description:
-      "Place a Fisheries building on a Water hex adjacent to one of your buildings. Any Fisheries adjacent to a Resort reduces that Resort's procurement by 1 (same as an Industrial Zone).",
+      "Place a Fisheries building on a Water cell adjacent to one of your buildings. Any Fisheries adjacent to a Resort reduces that Resort's procurement by 1 (same as an Industrial Zone).",
     icon: "🎣",
     image: "",
     category: "event",

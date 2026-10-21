@@ -13,15 +13,14 @@ import {
   BUILD_OPTIONS,
 } from '../game/gameRules';
 import { rotatePoliticsEndOfRound } from '../game/gameActions';
-import { hexKey, hexNeighbors } from '../utils/hexGrid';
 import { createInitialState } from '../game/setup';
 import type { LandgrabState, Tile } from '../game/types';
 
 function findFieldTileWithNoFogNeighbors(tiles: LandgrabState['tiles']): Tile | undefined {
   return Object.values(tiles).find(t => {
     if (t.type !== 'Field' || t.building) return false;
-    return hexNeighbors(t.hex).every(nb => {
-      const nt = tiles[hexKey(nb)];
+    return t.neighbors.every(nb => {
+      const nt = tiles[nb];
       return !nt || nt.type !== 'Fog';
     });
   });
@@ -88,21 +87,21 @@ describe('canPlaceBuild', () => {
     const G = createInitialState(2);
     const fogTile = Object.values(G.tiles).find(t => t.type === 'Fog');
     if (!fogTile) return;
-    expect(canPlaceBuild(G.tiles, fogTile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceBuild(G.tiles, fogTile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 
   it('rejects placement on Water tiles', () => {
     const G = createInitialState(2);
     const waterTile = Object.values(G.tiles).find(t => t.type === 'Water');
     if (!waterTile) return;
-    expect(canPlaceBuild(G.tiles, waterTile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceBuild(G.tiles, waterTile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 
   it('rejects placement on Mountain tiles', () => {
     const G = createInitialState(2);
     const mountainTile = Object.values(G.tiles).find(t => t.type === 'Mountain');
     if (!mountainTile) return;
-    expect(canPlaceBuild(G.tiles, mountainTile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceBuild(G.tiles, mountainTile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 
   it('rejects placement on a tile that already has a building', () => {
@@ -110,14 +109,14 @@ describe('canPlaceBuild', () => {
     const fieldTile = Object.values(G.tiles).find(t => t.type === 'Field')!;
     fieldTile.building = 'Resort';
     fieldTile.buildingOwner = 'Hotelier';
-    expect(canPlaceBuild(G.tiles, fieldTile.hex, 'Hotelier', 'Housing')).toBe(false);
+    expect(canPlaceBuild(G.tiles, fieldTile.id, 'Hotelier', 'Housing')).toBe(false);
   });
 
   it('rejects placement without adjacent friendly buildings', () => {
     const G = createInitialState(2);
     const fieldTile = findFieldTileWithNoFogNeighbors(G.tiles);
     if (!fieldTile) return;
-    expect(canPlaceBuild(G.tiles, fieldTile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceBuild(G.tiles, fieldTile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 
   it('rejects placement adjacent to Fog', () => {
@@ -125,24 +124,24 @@ describe('canPlaceBuild', () => {
     // Find a Field tile that IS adjacent to fog
     const fieldNearFog = Object.values(G.tiles).find(t => {
       if (t.type !== 'Field' || t.building) return false;
-      return hexNeighbors(t.hex).some(nb => {
-        const nt = G.tiles[hexKey(nb)];
+      return t.neighbors.some(nb => {
+        const nt = G.tiles[nb];
         return nt?.type === 'Fog';
       });
     });
     if (!fieldNearFog) return;
 
     // Even with adjacent buildings, fog adjacency should block
-    const nbs = hexNeighbors(fieldNearFog.hex);
+    const nbs = fieldNearFog.neighbors;
     for (const nb of nbs) {
-      const k = hexKey(nb);
+      const k = nb;
       if (G.tiles[k] && G.tiles[k].type !== 'Fog') {
         G.tiles[k].building = 'Resort';
         G.tiles[k].buildingOwner = 'Hotelier';
         break;
       }
     }
-    expect(canPlaceBuild(G.tiles, fieldNearFog.hex, 'Hotelier', 'Housing')).toBe(false);
+    expect(canPlaceBuild(G.tiles, fieldNearFog.id, 'Hotelier', 'Housing')).toBe(false);
   });
 
   it('rejects placement when zoning belongs to another player', () => {
@@ -150,7 +149,7 @@ describe('canPlaceBuild', () => {
     const tile = findFieldTileWithNoFogNeighbors(G.tiles);
     if (!tile) return;
     tile.zoningOwner = 'Industrialist';
-    expect(canPlaceBuild(G.tiles, tile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceBuild(G.tiles, tile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 });
 
@@ -159,28 +158,28 @@ describe('canPlaceCharter', () => {
     const G = createInitialState(2);
     const fogTile = Object.values(G.tiles).find(t => t.type === 'Fog');
     if (!fogTile) return;
-    expect(canPlaceCharter(G.tiles, fogTile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceCharter(G.tiles, fogTile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 
   it('allows Resort on Field', () => {
     const G = createInitialState(2);
     const fieldTile = Object.values(G.tiles).find(t => t.type === 'Field');
     if (!fieldTile) return;
-    expect(canPlaceCharter(G.tiles, fieldTile.hex, 'Hotelier', 'Resort')).toBe(true);
+    expect(canPlaceCharter(G.tiles, fieldTile.id, 'Hotelier', 'Resort')).toBe(true);
   });
 
   it('allows Village on Forest', () => {
     const G = createInitialState(2);
     const forestTile = Object.values(G.tiles).find(t => t.type === 'Forest');
     if (!forestTile) return;
-    expect(canPlaceCharter(G.tiles, forestTile.hex, 'Chieftain', 'Village')).toBe(true);
+    expect(canPlaceCharter(G.tiles, forestTile.id, 'Chieftain', 'Village')).toBe(true);
   });
 
   it('rejects Resort on Forest (only Village allowed on Forest)', () => {
     const G = createInitialState(2);
     const forestTile = Object.values(G.tiles).find(t => t.type === 'Forest');
     if (!forestTile) return;
-    expect(canPlaceCharter(G.tiles, forestTile.hex, 'Hotelier', 'Resort')).toBe(false);
+    expect(canPlaceCharter(G.tiles, forestTile.id, 'Hotelier', 'Resort')).toBe(false);
   });
 });
 
@@ -207,14 +206,14 @@ describe('canPlaceConservation', () => {
     const G = createInitialState(2);
     const forest = Object.values(G.tiles).find(t => t.type === 'Forest' && !t.building);
     if (!forest) return;
-    expect(canPlaceConservation(G.tiles, forest.hex)).toBe(true);
+    expect(canPlaceConservation(G.tiles, forest.id)).toBe(true);
   });
 
   it('rejects placement on non-Forest tile', () => {
     const G = createInitialState(2);
     const field = Object.values(G.tiles).find(t => t.type === 'Field');
     if (!field) return;
-    expect(canPlaceConservation(G.tiles, field.hex)).toBe(false);
+    expect(canPlaceConservation(G.tiles, field.id)).toBe(false);
   });
 
   it('rejects placement on Forest that already has conservation', () => {
@@ -222,7 +221,7 @@ describe('canPlaceConservation', () => {
     const forest = Object.values(G.tiles).find(t => t.type === 'Forest' && !t.building);
     if (!forest) return;
     forest.hasConservation = true;
-    expect(canPlaceConservation(G.tiles, forest.hex)).toBe(false);
+    expect(canPlaceConservation(G.tiles, forest.id)).toBe(false);
   });
 });
 
@@ -273,8 +272,8 @@ describe('Fisheries', () => {
     let waterKey: string | null = null;
     for (const [k, t] of Object.entries(G.tiles)) {
       if (t.type !== 'Field' || t.building) continue;
-      for (const nb of hexNeighbors(t.hex)) {
-        const wk = hexKey(nb);
+      for (const nb of t.neighbors) {
+        const wk = nb;
         const wt = G.tiles[wk];
         if (wt?.type === 'Water' && !wt.building) {
           fieldKey = k;
@@ -287,7 +286,7 @@ describe('Fisheries', () => {
     expect(fieldKey && waterKey).toBeTruthy();
     G.tiles[fieldKey!].building = 'Resort';
     G.tiles[fieldKey!].buildingOwner = 'Hotelier';
-    expect(canPlaceFisheries(G.tiles, G.tiles[waterKey!].hex, 'Hotelier')).toBe(true);
+    expect(canPlaceFisheries(G.tiles, waterKey!, 'Hotelier')).toBe(true);
   });
 
   it('reduces Resort procurement by 1 when adjacent Water has Fisheries', () => {
@@ -296,8 +295,8 @@ describe('Fisheries', () => {
     let waterKey: string | null = null;
     for (const [k, t] of Object.entries(G.tiles)) {
       if (t.type !== 'Field' || t.building) continue;
-      for (const nb of hexNeighbors(t.hex)) {
-        const wk = hexKey(nb);
+      for (const nb of t.neighbors) {
+        const wk = nb;
         const wt = G.tiles[wk];
         if (wt?.type === 'Water' && !wt.building) {
           resortKey = k;

@@ -24,7 +24,6 @@ import {
   buyFromMarket,
   sellToMarket,
 } from './gameActions';
-import { hexFromKey, hexKey, hexNeighbors } from '../utils/hexGrid';
 
 // ---- Helpers ----
 
@@ -538,15 +537,15 @@ export const moves = {
 
     if (pa.type === 'charter_place') {
       const building = getCharterBuilding(playerType);
-      if (!canPlaceCharter(G.tiles, hexFromKey(targetHexKey), playerType, building)) return INVALID_MOVE;
+      if (!canPlaceCharter(G.tiles, targetHexKey, playerType, building)) return INVALID_MOVE;
       G.tiles[targetHexKey].building = building;
       G.tiles[targetHexKey].buildingOwner = playerType;
-      G.tiles = revealAdjacentFog(G.tiles, hexFromKey(targetHexKey), G.fogRadius);
+      G.tiles = revealAdjacentFog(G.tiles, targetHexKey, G.fogRadius);
       updateFogCount(G);
       G.pendingAction = null;
     }
     else if (pa.type === 'builder_build_hex') {
-      if (!canPlaceBuild(G.tiles, hexFromKey(targetHexKey), playerType, pa.buildingType, G.landClaimsUntilPlayer !== undefined)) return INVALID_MOVE;
+      if (!canPlaceBuild(G.tiles, targetHexKey, playerType, pa.buildingType, G.landClaimsUntilPlayer !== undefined)) return INVALID_MOVE;
       if (player.resources.wood < 1 || player.resources.ore < 1 || player.resources.coins < 1) return INVALID_MOVE;
       player.resources.wood -= 1;
       player.resources.ore -= 1;
@@ -558,16 +557,16 @@ export const moves = {
     else if (pa.type === 'elder_village_hex') {
       const tile = G.tiles[targetHexKey];
       if (!tile || tile.type !== 'Fog') return INVALID_MOVE;
-      tile.type = pickRevealedTileType(hexFromKey(targetHexKey));
+      tile.type = pickRevealedTileType(targetHexKey);
       if (['Water'].includes(tile.type)) tile.type = 'Field';
       tile.building = 'Village';
       tile.buildingOwner = 'Chieftain';
-      G.tiles = revealAdjacentFog(G.tiles, hexFromKey(targetHexKey), G.fogRadius);
+      G.tiles = revealAdjacentFog(G.tiles, targetHexKey, G.fogRadius);
       updateFogCount(G);
       G.pendingAction = null;
     }
     else if (pa.type === 'elder_reserve_hex') {
-      if (!canPlaceReserve(G.tiles, hexFromKey(targetHexKey))) return INVALID_MOVE;
+      if (!canPlaceReserve(G.tiles, targetHexKey)) return INVALID_MOVE;
       G.tiles[targetHexKey].building = 'Reserve';
       G.tiles[targetHexKey].buildingOwner = 'Chieftain';
       G.pendingAction = null;
@@ -575,16 +574,16 @@ export const moves = {
     else if (pa.type === 'guide_reveal_hex') {
       const tile = G.tiles[targetHexKey];
       if (!tile || tile.type === 'Fog') return INVALID_MOVE;
-      G.tiles = revealAdjacentFog(G.tiles, hexFromKey(targetHexKey), G.fogRadius);
+      G.tiles = revealAdjacentFog(G.tiles, targetHexKey, G.fogRadius);
       updateFogCount(G);
       G.pendingAction = null;
     }
     else if (pa.type === 'event_zoning_hex') {
       const tile = G.tiles[targetHexKey];
       if (!tile || !['Field', 'Sand'].includes(tile.type) || tile.zoningOwner) return INVALID_MOVE;
-      const adj = hexNeighbors(hexFromKey(targetHexKey));
+      const adj = tile.neighbors;
       const hasAdj = adj.some(nb => {
-        const nt = G.tiles[hexKey(nb)];
+        const nt = G.tiles[nb];
         return nt?.buildingOwner === playerType;
       });
       if (!hasAdj) return INVALID_MOVE;
@@ -593,7 +592,7 @@ export const moves = {
       G.pendingAction = null;
     }
     else if (pa.type === 'event_conservation_hex') {
-      if (!canPlaceConservation(G.tiles, hexFromKey(targetHexKey))) return INVALID_MOVE;
+      if (!canPlaceConservation(G.tiles, targetHexKey)) return INVALID_MOVE;
       G.tiles[targetHexKey].hasConservation = true;
       removeFromTableau(G, playerIndex, pa.instanceId);
       G.pendingAction = null;
@@ -617,8 +616,8 @@ export const moves = {
       const tile = G.tiles[targetHexKey];
       if (!tile || tile.building !== 'Reserve' || tile.buildingOwner !== playerType) return INVALID_MOVE;
       let coins = 0;
-      for (const nb of hexNeighbors(hexFromKey(targetHexKey))) {
-        const nt = G.tiles[hexKey(nb)];
+      for (const nb of tile.neighbors) {
+        const nt = G.tiles[nb];
         if (nt?.building && nt.buildingOwner !== playerType) coins++;
       }
       player.resources.coins += coins;
@@ -626,7 +625,7 @@ export const moves = {
       G.pendingAction = null;
     }
     else if (pa.type === 'event_airstrip_hex') {
-      if (!canPlaceAirstrip(G.tiles, hexFromKey(targetHexKey))) return INVALID_MOVE;
+      if (!canPlaceAirstrip(G.tiles, targetHexKey)) return INVALID_MOVE;
       if (player.resources.wood < 1 || player.resources.ore < 1 || player.resources.coins < 1) return INVALID_MOVE;
       player.resources.wood -= 1;
       player.resources.ore -= 1;
@@ -635,7 +634,7 @@ export const moves = {
       G.pendingAction = null;
     }
     else if (pa.type === 'event_fisheries_hex') {
-      if (!canPlaceFisheries(G.tiles, hexFromKey(targetHexKey), playerType)) return INVALID_MOVE;
+      if (!canPlaceFisheries(G.tiles, targetHexKey, playerType)) return INVALID_MOVE;
       G.tiles[targetHexKey].building = 'Fisheries';
       G.tiles[targetHexKey].buildingOwner = playerType;
       G.pendingAction = null;

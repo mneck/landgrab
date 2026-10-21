@@ -1,5 +1,4 @@
-import type { HexCoord } from '../utils/hexGrid';
-import { hexDistance, hexKey, hexNeighbors, makeHexagonalShape } from '../utils/hexGrid';
+import { generateCellMap, makeRng } from '../utils/cellMap';
 
 export type PlayerType = "Hotelier" | "Industrialist" | "Bureaucrat" | "Chieftain";
 export type TileType = "Fog" | "Field" | "Mountain" | "Water" | "Forest" | "Sand";
@@ -64,7 +63,12 @@ export interface TableauCard {
 }
 
 export interface Tile {
-  hex: HexCoord;
+  /** Cell id; also this tile's key in `LandgrabState.tiles`. */
+  id: string;
+  /** Ids of edge-sharing cells. Adjacency rules use only this. */
+  neighbors: string[];
+  /** Hex-ring equivalent distance from the center (0 = center, mapRadius = water rim). */
+  ring: number;
   type: TileType;
   building?: BuildingType;
   buildingOwner?: PlayerType;
@@ -127,6 +131,12 @@ export type PendingAction =
 
 export interface LandgrabState {
   tiles: Record<string, Tile>;
+  /**
+   * Seed the cell map was generated from. Polygon geometry is not stored in
+   * state (it doubled per-move cost); clients rebuild it with
+   * `generateCellMap({ mapRadius, rng: makeRng(mapSeed) })`.
+   */
+  mapSeed: number;
   mapRadius: number;
   fogRadius: number;
   totalFog: number;
@@ -175,10 +185,10 @@ export const MANDATE_INTERVALS = [4, 3, 3] as const;
 export const MANDATE_RECURRING_INTERVAL = 3;
 export const SEATS_TO_WIN = 2;
 
-function shuffleLocal<T>(array: T[]): T[] {
+function shuffleLocal<T>(array: T[], rng: () => number): T[] {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
@@ -186,55 +196,55 @@ function shuffleLocal<T>(array: T[]): T[] {
 
 export function generateIsland(
   mapRadius: number,
-  fogRadius: number
+  fogRadius: number,
+  mapSeed: number
 ): Record<string, Tile> {
-  const center = { q: 0, r: 0 };
-  const hexes = makeHexagonalShape(mapRadius);
+  // generateCellMap must draw first from a fresh rng so the client's rebuild
+  // (same seed, same call) yields the same cells.
+  const rng = makeRng(mapSeed);
+  const cells = generateCellMap({ mapRadius, rng });
   const coastlineDist = fogRadius + 1;
 
-  const coastlineHexes = hexes.filter(
-    (h) => hexDistance(h, center) === coastlineDist
-  );
+  const coastlineCells = Object.values(cells).filter((c) => c.ring === coastlineDist);
 
   const fixedAssignments: TileType[] = [
     "Mountain", "Mountain", "Forest", "Forest", "Water", "Water",
   ];
-  const shuffledCoastline = shuffleLocal(coastlineHexes);
+  const shuffledCoastline = shuffleLocal(coastlineCells, rng);
   const coastlineTypes = new Map<string, TileType>();
 
   for (let i = 0; i < shuffledCoastline.length; i++) {
-    const h = shuffledCoastline[i];
-    const k = hexKey(h);
+    const k = shuffledCoastline[i].id;
     if (i < 6) {
       coastlineTypes.set(k, fixedAssignments[i]);
     } else {
-      coastlineTypes.set(k, Math.random() < 0.5 ? "Field" : "Sand");
+      coastlineTypes.set(k, rng() < 0.5 ? "Field" : "Sand");
     }
   }
 
-  function isWaterHex(h: HexCoord): boolean {
-    const d = hexDistance(h, center);
+  function isWaterCell(id: string): boolean {
+    const d = cells[id].ring;
     if (d > coastlineDist) return true;
-    if (d === coastlineDist) return coastlineTypes.get(hexKey(h)) === "Water";
+    if (d === coastlineDist) return coastlineTypes.get(id) === "Water";
     return false;
   }
 
   const tiles: Record<string, Tile> = {};
-  for (const hex of hexes) {
-    const dist = hexDistance(hex, center);
-    const k = hexKey(hex);
+  for (const cell of Object.values(cells)) {
+    const dist = cell.ring;
+    const k = cell.id;
     let type: TileType;
     if (dist < fogRadius) {
       type = "Fog";
     } else if (dist === fogRadius) {
-      const adjacentToWater = hexNeighbors(hex).some((nb) => isWaterHex(nb));
+      const adjacentToWater = cell.neighbors.some((nb) => isWaterCell(nb));
       type = adjacentToWater ? "Field" : "Fog";
     } else if (dist === coastlineDist) {
       type = coastlineTypes.get(k) ?? "Field";
     } else {
       type = "Water";
     }
-    tiles[k] = { hex, type };
+    tiles[k] = { id: cell.id, neighbors: cell.neighbors, ring: cell.ring, type };
   }
   return tiles;
 }

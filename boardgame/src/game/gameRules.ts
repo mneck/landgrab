@@ -1,12 +1,19 @@
 import type { LandgrabState, BuildingType, PlayerType, TileType } from './types';
-import type { HexCoord } from '../utils/hexGrid';
-import { hexDistance, hexKey, hexFromKey, hexNeighbors } from '../utils/hexGrid';
 
 const REVEALED_TERRAIN_TYPES: TileType[] = ["Field", "Mountain", "Forest", "Sand", "Water"];
 
-export function pickRevealedTileType(hex: HexCoord): TileType {
-  const idx = (hex.q * 7 + hex.r * 13) % REVEALED_TERRAIN_TYPES.length;
-  return REVEALED_TERRAIN_TYPES[Math.abs(idx)];
+/** Deterministic terrain for a revealed Fog cell, from a hash of its key. */
+export function pickRevealedTileType(key: string): TileType {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  }
+  return REVEALED_TERRAIN_TYPES[(h >>> 0) % REVEALED_TERRAIN_TYPES.length];
+}
+
+/** Edge-sharing neighbor keys of a tile; empty if the key is not on the map. */
+export function neighborKeys(tiles: LandgrabState["tiles"], key: string): string[] {
+  return tiles[key]?.neighbors ?? [];
 }
 
 export function getCharterBuilding(playerType: string): BuildingType {
@@ -21,11 +28,10 @@ export function getCharterBuilding(playerType: string): BuildingType {
 
 export function canPlaceCharter(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord,
+  key: string,
   _playerType: string,
   building: BuildingType
 ): boolean {
-  const key = hexKey(hex);
   const tile = tiles[key];
   if (!tile) return false;
   if (tile.type === "Fog") return false;
@@ -43,11 +49,11 @@ export function canPlaceCharter(
 
 export function hasAdjacent(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord,
+  key: string,
   buildingTypes: BuildingType[]
 ): boolean {
-  for (const neighbor of hexNeighbors(hex)) {
-    const t = tiles[hexKey(neighbor)];
+  for (const neighbor of neighborKeys(tiles, key)) {
+    const t = tiles[neighbor];
     if (t?.building && buildingTypes.includes(t.building)) return true;
   }
   return false;
@@ -110,7 +116,7 @@ export function hasAnyValidBuildHex(
   if (allowed.length === 0) return false;
   for (const k of Object.keys(tiles)) {
     for (const bt of allowed) {
-      if (canPlaceBuild(tiles, hexFromKey(k), playerType, bt, landClaimsActive)) return true;
+      if (canPlaceBuild(tiles, k, playerType, bt, landClaimsActive)) return true;
     }
   }
   return false;
@@ -118,22 +124,21 @@ export function hasAnyValidBuildHex(
 
 export function canPlaceBuild(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord,
+  key: string,
   playerType: string,
   _building: BuildingType,
   landClaimsActive?: boolean
 ): boolean {
-  const key = hexKey(hex);
   const tile = tiles[key];
   if (!tile || tile.building) return false;
   if (!["Field", "Sand"].includes(tile.type)) return false;
   if (tile.zoningOwner && tile.zoningOwner !== playerType) return false;
 
   const adj = BUILD_ADJACENCY[playerType];
-  if (!adj || !hasAdjacent(tiles, hex, adj)) return false;
+  if (!adj || !hasAdjacent(tiles, key, adj)) return false;
 
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
+  for (const neighbor of neighborKeys(tiles, key)) {
+    const nt = tiles[neighbor];
     if (nt?.type === "Fog") return false;
     if (landClaimsActive && nt?.building === "Reserve") return false;
   }
@@ -142,17 +147,16 @@ export function canPlaceBuild(
 
 export function canPlaceReserve(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord
+  key: string
 ): boolean {
-  const key = hexKey(hex);
   const tile = tiles[key];
   if (!tile || tile.building) return false;
   if (!["Field", "Sand", "Forest", "Mountain"].includes(tile.type)) return false;
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
+  for (const neighbor of neighborKeys(tiles, key)) {
+    const nt = tiles[neighbor];
     if (nt?.type === "Fog") return false;
   }
-  return hasAdjacent(tiles, hex, ["Village", "Reserve"]);
+  return hasAdjacent(tiles, key, ["Village", "Reserve"]);
 }
 
 export function countReserves(tiles: LandgrabState["tiles"], playerType: string): number {
@@ -163,14 +167,13 @@ export function countReserves(tiles: LandgrabState["tiles"], playerType: string)
 
 export function canPlaceAirstrip(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord
+  key: string
 ): boolean {
-  const key = hexKey(hex);
   const tile = tiles[key];
   if (!tile || tile.building) return false;
   if (!["Field", "Sand"].includes(tile.type)) return false;
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
+  for (const neighbor of neighborKeys(tiles, key)) {
+    const nt = tiles[neighbor];
     if (nt?.type === "Fog") return false;
   }
   return true;
@@ -179,27 +182,25 @@ export function canPlaceAirstrip(
 /** Fisheries building: Water hex, empty, adjacent to any building you own; no Fog neighbor on this hex. */
 export function canPlaceFisheries(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord,
+  key: string,
   playerType: PlayerType
 ): boolean {
-  const key = hexKey(hex);
   const tile = tiles[key];
   if (!tile || tile.type !== "Water" || tile.building) return false;
-  for (const neighbor of hexNeighbors(hex)) {
-    const nt = tiles[hexKey(neighbor)];
+  for (const neighbor of neighborKeys(tiles, key)) {
+    const nt = tiles[neighbor];
     if (nt?.type === "Fog") return false;
   }
-  return hexNeighbors(hex).some((nb) => {
-    const nt = tiles[hexKey(nb)];
+  return neighborKeys(tiles, key).some((nb) => {
+    const nt = tiles[nb];
     return !!(nt?.building && nt.buildingOwner === playerType);
   });
 }
 
 export function canPlaceConservation(
   tiles: LandgrabState["tiles"],
-  hex: HexCoord
+  key: string
 ): boolean {
-  const key = hexKey(hex);
   const tile = tiles[key];
   if (!tile || tile.type !== "Forest" || tile.building || tile.hasConservation) return false;
   return true;
@@ -207,19 +208,17 @@ export function canPlaceConservation(
 
 export function revealAdjacentFog(
   tiles: Record<string, LandgrabState["tiles"][string]>,
-  hex: HexCoord,
+  key: string,
   fogRadius: number
 ): Record<string, LandgrabState["tiles"][string]> {
-  const center = { q: 0, r: 0 };
   const newTiles = { ...tiles };
-  for (const neighbor of hexNeighbors(hex)) {
-    const nk = hexKey(neighbor);
+  for (const nk of neighborKeys(tiles, key)) {
     const nt = newTiles[nk];
     if (nt?.type === "Fog") {
-      const isOuterFogRing = hexDistance(neighbor, center) === fogRadius;
+      const isOuterFogRing = nt.ring === fogRadius;
       newTiles[nk] = {
         ...nt,
-        type: isOuterFogRing ? "Field" : pickRevealedTileType(neighbor),
+        type: isOuterFogRing ? "Field" : pickRevealedTileType(nk),
       };
     }
   }
@@ -228,17 +227,17 @@ export function revealAdjacentFog(
 
 export function getPresenceScore(tiles: LandgrabState["tiles"]): number {
   let score = 0;
-  const reserves: HexCoord[] = [];
+  const reserves: string[] = [];
   for (const t of Object.values(tiles)) {
     if (t.building === "Reserve" && t.buildingOwner === "Chieftain") {
       score++;
-      reserves.push(t.hex);
+      reserves.push(t.id);
     }
   }
   const counted = new Set<string>();
-  for (const rHex of reserves) {
-    for (const nb of hexNeighbors(rHex)) {
-      const k = hexKey(nb);
+  for (const rKey of reserves) {
+    for (const nb of neighborKeys(tiles, rKey)) {
+      const k = nb;
       const nt = tiles[k];
       if (nt?.building === "Village" && nt.buildingOwner === "Chieftain" && !counted.has(k)) {
         counted.add(k);
@@ -295,8 +294,8 @@ function isBuildingBoycotted(
 ): boolean {
   const tile = tiles[buildingHexKey];
   if (!tile) return false;
-  for (const nb of hexNeighbors(tile.hex)) {
-    const nt = tiles[hexKey(nb)];
+  for (const nb of tile.neighbors) {
+    const nt = tiles[nb];
     if (
       nt?.buildingOwner === boycotterType &&
       (nt.building === "Reserve" || nt.building === "Village")
@@ -322,11 +321,11 @@ export function runProcurementForPlayer(
   if (playerType === "Hotelier") {
     for (const t of Object.values(tiles)) {
       if (t.building === "Resort" && t.buildingOwner === "Hotelier") {
-        const tk = hexKey(t.hex);
+        const tk = t.id;
         if (boycotter && isBuildingBoycotted(tiles, tk, boycotter)) continue;
         let prod = 0;
-        for (const nb of hexNeighbors(t.hex)) {
-          const nt = tiles[hexKey(nb)];
+        for (const nb of t.neighbors) {
+          const nt = tiles[nb];
           if (!nt || nt.building === "Reserve") continue;
           if (["Forest", "Water", "Mountain"].includes(nt.type)) prod += 1;
           if (
@@ -337,8 +336,8 @@ export function runProcurementForPlayer(
             prod -= 1;
         }
         if (t.type === "Sand") {
-          for (const nb of hexNeighbors(t.hex)) {
-            const nt = tiles[hexKey(nb)];
+          for (const nb of t.neighbors) {
+            const nt = tiles[nb];
             if (nt?.type === "Water" && nt.building !== "Reserve") { prod += 1; break; }
           }
         }
@@ -348,11 +347,11 @@ export function runProcurementForPlayer(
   } else if (playerType === "Industrialist") {
     for (const t of Object.values(tiles)) {
       if (t.building === "IndustrialZone" && t.buildingOwner === "Industrialist") {
-        const tk = hexKey(t.hex);
+        const tk = t.id;
         if (boycotter && isBuildingBoycotted(tiles, tk, boycotter)) continue;
         let wood = 0, ore = 0;
-        for (const nb of hexNeighbors(t.hex)) {
-          const nt = tiles[hexKey(nb)];
+        for (const nb of t.neighbors) {
+          const nt = tiles[nb];
           if (!nt || nt.building === "Reserve") continue;
           if (nt.type === "Forest") wood += 1;
           if (nt.type === "Mountain") ore += 1;
@@ -366,11 +365,11 @@ export function runProcurementForPlayer(
     const countedHexes = new Set<string>();
     for (const t of Object.values(tiles)) {
       if (t.building === "Infrastructure" && t.buildingOwner === "Bureaucrat") {
-        const tk = hexKey(t.hex);
+        const tk = t.id;
         if (boycotter && isBuildingBoycotted(tiles, tk, boycotter)) continue;
         let votes = 0;
-        for (const nb of hexNeighbors(t.hex)) {
-          const k = hexKey(nb);
+        for (const nb of t.neighbors) {
+          const k = nb;
           const nt = tiles[k];
           if (
             nt?.building &&
@@ -389,8 +388,8 @@ export function runProcurementForPlayer(
     for (const t of Object.values(tiles)) {
       if (t.building === "Reserve" && t.buildingOwner === "Chieftain") {
         let adjOtherBuilding = false;
-        for (const nb of hexNeighbors(t.hex)) {
-          const nt = tiles[hexKey(nb)];
+        for (const nb of t.neighbors) {
+          const nt = tiles[nb];
           if (nt?.buildingOwner && nt.buildingOwner !== "Chieftain")
             adjOtherBuilding = true;
         }

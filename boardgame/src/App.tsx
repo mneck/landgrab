@@ -37,7 +37,8 @@ function loadSavedGame(): SavedGame | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw);
-    if (saved?.numPlayers && saved?.state?.G && saved?.state?.ctx) {
+    // Saves from the hex-grid version have no mapSeed and can't be drawn.
+    if (saved?.numPlayers && typeof saved?.state?.G?.mapSeed === 'number' && saved?.state?.ctx) {
       return saved as SavedGame;
     }
   } catch { /* corrupt save */ }

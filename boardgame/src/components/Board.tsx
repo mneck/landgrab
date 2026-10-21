@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { LandgrabState, BuildingType } from '../game/types';
 import { CARD_INFO } from '../data/cardData';
 import { PlayerPanel } from './PlayerPanel';
-import { HexMap } from './HexMap';
+import { IslandMap } from './IslandMap';
 import { PoliticsRow } from './PoliticsRow';
 import { NetworkRow } from './NetworkRow';
 import { ResourceMarket } from './ResourceMarket';
@@ -193,7 +193,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Click a valid hex to place <strong>{pa.buildingType}</strong>
+              Click a valid cell to place <strong>{pa.buildingType}</strong>
               <span className="cost-badge">1 coin + 1 wood + 1 ore</span>
             </div>
           </div>
@@ -250,7 +250,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
       case 'guide_reveal_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click a non-Fog hex to reveal adjacent Fog tiles</div>
+            <div className="action-prompt">Click a non-Fog cell to reveal adjacent Fog tiles</div>
           </div>
         );
 
@@ -301,14 +301,14 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
       case 'elder_village_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click a Fog hex to reveal and place Village</div>
+            <div className="action-prompt">Click a Fog cell to reveal and place Village</div>
           </div>
         );
 
       case 'elder_reserve_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Click a hex adjacent to Village/Reserve</div>
+            <div className="action-prompt">Click a cell adjacent to Village/Reserve</div>
           </div>
         );
 
@@ -316,7 +316,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Charter: Click a valid hex for your starting building
+              Charter: Click a valid cell for your starting building
               <span className="cost-badge">Free</span>
             </div>
           </div>
@@ -358,28 +358,28 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
       case 'event_zoning_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Zoning: Click a Field/Sand hex adjacent to your building</div>
+            <div className="action-prompt">Zoning: Click a Field/Sand cell adjacent to your building</div>
           </div>
         );
 
       case 'event_conservation_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Conservation: Click a Forest hex to protect it</div>
+            <div className="action-prompt">Conservation: Click a Forest cell to protect it</div>
           </div>
         );
 
       case 'event_logging_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Logging: Click a Forest hex to convert (+1 wood)</div>
+            <div className="action-prompt">Logging: Click a Forest cell to convert (+1 wood)</div>
           </div>
         );
 
       case 'event_forestry_hex':
         return (
           <div className="action-panel">
-            <div className="action-prompt">Forestry: Click a Field hex to convert to Forest</div>
+            <div className="action-prompt">Forestry: Click a Field cell to convert to Forest</div>
           </div>
         );
 
@@ -394,7 +394,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Airstrip: Click a Sand or Field hex to place Infrastructure
+              Airstrip: Click a Sand or Field cell to place Infrastructure
               <span className="cost-badge">1 coin + 1 wood + 1 ore</span>
             </div>
           </div>
@@ -404,7 +404,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
         return (
           <div className="action-panel">
             <div className="action-prompt">
-              Fisheries: Click a Water hex adjacent to one of your buildings
+              Fisheries: Click a Water cell adjacent to one of your buildings
             </div>
           </div>
         );
@@ -647,8 +647,10 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
 
             {/* Map */}
             <div className="map-section">
-              <HexMap
+              <IslandMap
                 tiles={G.tiles}
+                mapSeed={G.mapSeed}
+                mapRadius={G.mapRadius}
                 pendingAction={G.pendingAction}
                 playerType={currentPlayer.type}
                 landClaimsActive={G.landClaimsUntilPlayer !== undefined}

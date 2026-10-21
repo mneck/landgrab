@@ -1,6 +1,4 @@
 import type { LandgrabState, PendingAction, BuildingType, TableauCard, PlayerType, CardType } from '../game/types';
-import { hexFromKey, hexKey, hexNeighbors, hexDistance } from '../utils/hexGrid';
-import type { HexCoord } from '../utils/hexGrid';
 import {
   canPlaceCharter, getCharterBuilding, canPlaceBuild, canPlaceReserve,
   canPlaceConservation, canPlaceAirstrip, canPlaceFisheries, getAllowedBuildTypes, hasAnyValidBuildHex,
@@ -752,14 +750,12 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
 function scoreCharterHex(G: LandgrabState, k: string, playerType: PlayerType): number {
   const tile = G.tiles[k];
   if (!tile) return -1;
-  const hex = hexFromKey(k);
   let score = 0;
 
-  const center = { q: 0, r: 0 };
-  score += Math.max(0, 5 - hexDistance(hex, center));
+  score += Math.max(0, 5 - tile.ring);
 
-  for (const nb of hexNeighbors(hex)) {
-    const nt = G.tiles[hexKey(nb)];
+  for (const nb of tile.neighbors) {
+    const nt = G.tiles[nb];
     if (!nt) continue;
     if (nt.type === 'Fog') score += 1;
     if (playerType === 'Hotelier') {
@@ -782,7 +778,7 @@ function pickBestCharterHex(G: LandgrabState, playerType: PlayerType): string | 
   let bestScore = -1;
 
   for (const k of Object.keys(G.tiles)) {
-    if (!canPlaceCharter(G.tiles, hexFromKey(k), playerType, building)) continue;
+    if (!canPlaceCharter(G.tiles, k, playerType, building)) continue;
     const score = scoreCharterHex(G, k, playerType);
     if (score > bestScore) {
       bestScore = score;
@@ -793,13 +789,12 @@ function pickBestCharterHex(G: LandgrabState, playerType: PlayerType): string | 
 }
 
 function scoreBuildHex(G: LandgrabState, k: string, playerType: PlayerType, buildingType: BuildingType): number {
-  const hex = hexFromKey(k);
+  const tile = G.tiles[k];
   let score = 0;
-  const center = { q: 0, r: 0 };
-  score += Math.max(0, 4 - hexDistance(hex, center));
+  score += Math.max(0, 4 - tile.ring);
 
-  for (const nb of hexNeighbors(hex)) {
-    const nt = G.tiles[hexKey(nb)];
+  for (const nb of tile.neighbors) {
+    const nt = G.tiles[nb];
     if (!nt) continue;
 
     if (buildingType === 'Resort') {
@@ -830,7 +825,7 @@ function pickBestBuildHex(G: LandgrabState, playerIndex: number, buildingType: B
   let bestScore = -Infinity;
 
   for (const k of Object.keys(G.tiles)) {
-    if (!canPlaceBuild(G.tiles, hexFromKey(k), playerType, buildingType, G.landClaimsUntilPlayer !== undefined)) continue;
+    if (!canPlaceBuild(G.tiles, k, playerType, buildingType, G.landClaimsUntilPlayer !== undefined)) continue;
     const score = scoreBuildHex(G, k, playerType, buildingType);
     if (score > bestScore) {
       bestScore = score;
@@ -986,10 +981,9 @@ function pickRevealHex(G: LandgrabState): string | null {
 
   for (const [k, tile] of Object.entries(G.tiles)) {
     if (tile.type === 'Fog') continue;
-    const hex = hexFromKey(k);
     let fogCount = 0;
-    for (const nb of hexNeighbors(hex)) {
-      const nt = G.tiles[hexKey(nb)];
+    for (const nb of tile.neighbors) {
+      const nt = G.tiles[nb];
       if (nt?.type === 'Fog') fogCount++;
     }
     if (fogCount > bestFogCount) {
@@ -1008,13 +1002,12 @@ function pickNetworkSlot(G: LandgrabState): number | null {
 }
 
 function pickFogHex(G: LandgrabState): string | null {
-  const center = { q: 0, r: 0 };
   let bestKey: string | null = null;
   let bestDist = Infinity;
 
   for (const [k, tile] of Object.entries(G.tiles)) {
     if (tile.type !== 'Fog') continue;
-    const dist = hexDistance(tile.hex, center);
+    const dist = tile.ring;
     if (dist < bestDist) {
       bestDist = dist;
       bestKey = k;
@@ -1028,7 +1021,7 @@ function pickReserveHex(G: LandgrabState): string | null {
   let bestScore = -Infinity;
 
   for (const k of Object.keys(G.tiles)) {
-    if (!canPlaceReserve(G.tiles, hexFromKey(k))) continue;
+    if (!canPlaceReserve(G.tiles, k)) continue;
     const score = scoreBuildHex(G, k, 'Chieftain', 'Reserve');
     if (score > bestScore) {
       bestScore = score;
@@ -1041,15 +1034,14 @@ function pickReserveHex(G: LandgrabState): string | null {
 function pickZoningHex(G: LandgrabState, playerType: PlayerType): string | null {
   for (const [k, tile] of Object.entries(G.tiles)) {
     if (!['Field', 'Sand'].includes(tile.type) || tile.building || tile.zoningOwner) continue;
-    const adj = hexNeighbors(hexFromKey(k));
-    if (adj.some(nb => G.tiles[hexKey(nb)]?.buildingOwner === playerType)) return k;
+    if (tile.neighbors.some(nb => G.tiles[nb]?.buildingOwner === playerType)) return k;
   }
   return null;
 }
 
 function pickConservationHex(G: LandgrabState): string | null {
   for (const [k, tile] of Object.entries(G.tiles)) {
-    if (canPlaceConservation(G.tiles, hexFromKey(k))) return k;
+    if (canPlaceConservation(G.tiles, k)) return k;
   }
   return null;
 }
@@ -1075,8 +1067,8 @@ function pickTaxationHex(G: LandgrabState, playerType: PlayerType): string | nul
   for (const [k, tile] of Object.entries(G.tiles)) {
     if (tile.building !== 'Reserve' || tile.buildingOwner !== playerType) continue;
     let count = 0;
-    for (const nb of hexNeighbors(hexFromKey(k))) {
-      const nt = G.tiles[hexKey(nb)];
+    for (const nb of tile.neighbors) {
+      const nt = G.tiles[nb];
       if (nt?.building && nt.buildingOwner !== playerType) count++;
     }
     if (count > bestCount) {
@@ -1098,16 +1090,15 @@ function pickUrbanPlanningHex(G: LandgrabState, playerType: PlayerType, resource
 
 function pickFisheriesHex(G: LandgrabState, playerIndex: number): string | null {
   const playerType = G.players[playerIndex].type;
-  const center = { q: 0, r: 0 };
   let bestKey: string | null = null;
   let bestScore = -Infinity;
 
   for (const k of Object.keys(G.tiles)) {
-    if (!canPlaceFisheries(G.tiles, hexFromKey(k), playerType)) continue;
-    const hex = hexFromKey(k);
-    let score = Math.max(0, 5 - hexDistance(hex, center));
-    for (const nb of hexNeighbors(hex)) {
-      const nt = G.tiles[hexKey(nb)];
+    if (!canPlaceFisheries(G.tiles, k, playerType)) continue;
+    const tile = G.tiles[k];
+    let score = Math.max(0, 5 - tile.ring);
+    for (const nb of tile.neighbors) {
+      const nt = G.tiles[nb];
       if (nt?.building === 'Resort' && nt.buildingOwner !== playerType) score += 6;
     }
     if (score > bestScore) {
@@ -1123,16 +1114,15 @@ function canActivateFisheries(G: LandgrabState, playerIndex: number): boolean {
 }
 
 function pickAirstripHex(G: LandgrabState): string | null {
-  const center = { q: 0, r: 0 };
   let bestKey: string | null = null;
   let bestScore = -Infinity;
 
   for (const k of Object.keys(G.tiles)) {
-    if (!canPlaceAirstrip(G.tiles, hexFromKey(k))) continue;
-    const hex = hexFromKey(k);
-    let score = Math.max(0, 5 - hexDistance(hex, center));
-    for (const nb of hexNeighbors(hex)) {
-      const nt = G.tiles[hexKey(nb)];
+    if (!canPlaceAirstrip(G.tiles, k)) continue;
+    const tile = G.tiles[k];
+    let score = Math.max(0, 5 - tile.ring);
+    for (const nb of tile.neighbors) {
+      const nt = G.tiles[nb];
       if (!nt) continue;
       if (['Field', 'Sand'].includes(nt.type) && !nt.building) score += 1;
     }

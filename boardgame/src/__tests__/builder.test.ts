@@ -3,7 +3,6 @@ import { createInitialState } from '../game/setup';
 import { moves } from '../game/moves';
 import { INVALID_MOVE } from 'boardgame.io/core';
 import { getAllowedBuildTypes, canPlaceBuild, hasAnyValidBuildHex } from '../game/gameRules';
-import { hexKey, hexNeighbors } from '../utils/hexGrid';
 import type { LandgrabState, BuildingType } from '../game/types';
 
 function makeCtx(currentPlayer: number, numPlayers: number) {
@@ -72,7 +71,7 @@ describe('Builder card', () => {
         t => ['Field', 'Sand'].includes(t.type) && !t.building
       );
       if (nonFogTile) {
-        const result = moves.placeOnHex({ G, ctx }, hexKey(nonFogTile.hex));
+        const result = moves.placeOnHex({ G, ctx }, nonFogTile.id);
         expect(result).toBe(INVALID_MOVE);
       }
     });
@@ -91,15 +90,15 @@ describe('Builder card', () => {
       fieldTile.building = 'Resort';
       fieldTile.buildingOwner = 'Hotelier';
 
-      const neighbors = hexNeighbors(fieldTile.hex);
+      const neighbors = fieldTile.neighbors;
       const adjTile = neighbors
-        .map(nb => G.tiles[hexKey(nb)])
+        .map(nb => G.tiles[nb])
         .find(t => t && ['Field', 'Sand'].includes(t.type) && !t.building);
 
       if (!adjTile) return;
 
-      for (const nb of hexNeighbors(adjTile.hex)) {
-        const k = hexKey(nb);
+      for (const nb of adjTile.neighbors) {
+        const k = nb;
         if (G.tiles[k]?.type === 'Fog') {
           G.tiles[k] = { ...G.tiles[k], type: 'Field' };
         }
@@ -114,7 +113,7 @@ describe('Builder card', () => {
       moves.chooseOption({ G, ctx }, 'build');
       moves.chooseBuildingType({ G, ctx }, 'Housing' as BuildingType);
 
-      const result = moves.placeOnHex({ G, ctx }, hexKey(adjTile.hex));
+      const result = moves.placeOnHex({ G, ctx }, adjTile.id);
       if (result !== INVALID_MOVE) {
         expect(hotelier.resources.wood).toBe(woodBefore - 1);
         expect(hotelier.resources.ore).toBe(oreBefore - 1);
@@ -137,15 +136,15 @@ describe('Builder card', () => {
       fieldTile.building = 'Resort';
       fieldTile.buildingOwner = 'Hotelier';
 
-      const neighbors = hexNeighbors(fieldTile.hex);
+      const neighbors = fieldTile.neighbors;
       const adjTile = neighbors
-        .map(nb => G.tiles[hexKey(nb)])
+        .map(nb => G.tiles[nb])
         .find(t => t && ['Field', 'Sand'].includes(t.type) && !t.building);
 
       if (!adjTile) return;
 
-      for (const nb of hexNeighbors(adjTile.hex)) {
-        const k = hexKey(nb);
+      for (const nb of adjTile.neighbors) {
+        const k = nb;
         if (G.tiles[k]?.type === 'Fog') {
           G.tiles[k] = { ...G.tiles[k], type: 'Field' };
         }
@@ -155,7 +154,7 @@ describe('Builder card', () => {
       moves.activateCard({ G, ctx }, builderCard.instanceId);
       moves.chooseOption({ G, ctx }, 'build');
       moves.chooseBuildingType({ G, ctx }, 'Housing' as BuildingType);
-      const result = moves.placeOnHex({ G, ctx }, hexKey(adjTile.hex));
+      const result = moves.placeOnHex({ G, ctx }, adjTile.id);
       expect(result).toBe(INVALID_MOVE);
     });
   });

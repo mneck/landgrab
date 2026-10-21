@@ -16,7 +16,7 @@ function createStartingTableau(type: PlayerType, playerIdx: number): TableauCard
 
 export function createInitialState(
   numPlayers: number,
-  options?: { winSeatThreshold?: number; playerTypes?: PlayerType[] }
+  options?: { winSeatThreshold?: number; playerTypes?: PlayerType[]; mapSeed?: number }
 ): LandgrabState {
   const mapRadius = 2 + numPlayers;
   const fogRadius = mapRadius - 2;
@@ -60,13 +60,15 @@ export function createInitialState(
   ];
   const politicsDeck = shuffle([...politicsPool, ...politicsPool]);
 
-  const tiles = generateIsland(mapRadius, fogRadius);
+  const mapSeed = options?.mapSeed ?? Math.floor(Math.random() * 2 ** 31);
+  const tiles = generateIsland(mapRadius, fogRadius, mapSeed);
   const totalFog = Object.values(tiles).filter(t => t.type === 'Fog').length;
 
   const startingPlayOrder = playerTypes.map((_, i) => String(i));
 
   return {
     tiles,
+    mapSeed,
     mapRadius,
     fogRadius,
     totalFog,

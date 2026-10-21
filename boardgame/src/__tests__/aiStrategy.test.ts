@@ -5,7 +5,6 @@ import { createInitialState } from '../game/setup';
 import { moves } from '../game/moves';
 import { INVALID_MOVE } from 'boardgame.io/core';
 import type { LandgrabState, BuildingType, EventCardType, PlayerType, TableauCard } from '../game/types';
-import { hexKey, hexFromKey, hexNeighbors } from '../utils/hexGrid';
 
 // ── Helpers ──
 

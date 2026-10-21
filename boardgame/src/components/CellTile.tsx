@@ -1,31 +1,60 @@
-import type { Tile, PlayerType } from '../game/types';
-import type { HexCoord } from '../utils/hexGrid';
-import { hexToPixel, hexCornerPoints } from '../utils/hexGrid';
+import type { Tile } from '../game/types';
+import type { MapCell, Point } from '../utils/cellMap';
+import { polygonArea } from '../utils/cellMap';
 import { HEX_ASSETS, BUILDING_ASSETS } from '../constants/assets';
 import { PLAYER_COLORS } from '../data/cardRules';
 
-const HEX_SIZE = 44;
+/** Pixels per lattice unit (distance between neighboring cell centers). */
+export const CELL_SCALE = 76;
 
-interface HexTileProps {
-  hex: HexCoord;
+/** Circumradius of a regular hex with unit center spacing; area √3/2. */
+const UNIT_HEX_AREA = Math.sqrt(3) / 2;
+const UNIT_HEX_SIZE = CELL_SCALE / Math.sqrt(3);
+
+/**
+ * The terrain PNGs are a pointy-top hex in the middle of a square image whose
+ * textured interior spans ~28% of the image width as an inscribed radius.
+ * Sizing the image to (cell circumradius / 0.28) keeps the texture covering
+ * the whole polygon without showing the art's own hex border.
+ */
+const TEXTURE_INNER_RADIUS = 0.28;
+
+function toPixel(p: Point, origin: Point): Point {
+  return { x: p.x * CELL_SCALE + origin.x, y: p.y * CELL_SCALE + origin.y };
+}
+
+function pointsAttr(pts: Point[]): string {
+  return pts.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}`).join(' ');
+}
+
+interface CellTileProps {
   tile: Tile;
-  origin: { x: number; y: number };
+  /** Geometry rebuilt from the map seed; game state holds only topology. */
+  cell: MapCell;
+  origin: Point;
   isHighlighted: boolean;
   isSelected: boolean;
   onClick: () => void;
 }
 
-export const HexTile: React.FC<HexTileProps> = ({
-  hex,
+export const CellTile: React.FC<CellTileProps> = ({
   tile,
+  cell,
   origin,
   isHighlighted,
   isSelected,
   onClick,
 }) => {
-  const center = hexToPixel(hex, HEX_SIZE, origin);
-  const points = hexCornerPoints(hex, HEX_SIZE, origin);
-  const clipId = `hex-clip-${hex.q}-${hex.r}`;
+  const center = toPixel(cell.center, origin);
+  const corners = cell.corners.map((c) => toPixel(c, origin));
+  const points = pointsAttr(corners);
+  const clipId = `cell-clip-${tile.id}`;
+
+  // Size of the regular hex with this cell's area; scales markers so small
+  // cells don't spill their building disc into neighbors.
+  const size = UNIT_HEX_SIZE * Math.sqrt(polygonArea(cell.corners) / UNIT_HEX_AREA);
+  const circumradius = Math.max(...corners.map((c) => Math.hypot(c.x - center.x, c.y - center.y)));
+  const textureSize = circumradius / TEXTURE_INNER_RADIUS;
 
   const terrainSrc = HEX_ASSETS[tile.type] ?? HEX_ASSETS.Fog;
   const buildingSrc = tile.building ? BUILDING_ASSETS[tile.building] : undefined;
@@ -38,33 +67,31 @@ export const HexTile: React.FC<HexTileProps> = ({
     : '#374151';
   const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : 1;
 
-  const hexWidth = HEX_SIZE * 2;
-  const hexHeight = HEX_SIZE * Math.sqrt(3);
-
   return (
     <g
       className="hex-tile"
       onClick={onClick}
       style={{ cursor: isHighlighted || tile.type !== 'Fog' ? 'pointer' : 'default' }}
     >
-      {/* Terrain image clipped to hex */}
+      {/* Terrain image clipped to the cell polygon */}
       <g clipPath={`url(#${clipId})`}>
         <image
           href={terrainSrc}
-          x={center.x - hexWidth}
-          y={center.y - hexHeight}
-          width={hexWidth * 2}
-          height={hexHeight * 2}
+          x={center.x - textureSize / 2}
+          y={center.y - textureSize / 2}
+          width={textureSize}
+          height={textureSize}
           preserveAspectRatio="xMidYMid slice"
         />
       </g>
 
-      {/* Hex outline */}
+      {/* Cell outline */}
       <polygon
         points={points}
         fill="none"
         stroke={stroke}
         strokeWidth={strokeWidth}
+        strokeLinejoin="round"
       />
 
       {/* Highlight overlay */}
@@ -74,6 +101,7 @@ export const HexTile: React.FC<HexTileProps> = ({
           fill="rgba(245,158,11,0.15)"
           stroke="#f59e0b"
           strokeWidth={2.5}
+          strokeLinejoin="round"
         />
       )}
       {isSelected && (
@@ -82,12 +110,13 @@ export const HexTile: React.FC<HexTileProps> = ({
           fill="rgba(250,204,21,0.2)"
           stroke="#facc15"
           strokeWidth={3}
+          strokeLinejoin="round"
         />
       )}
 
       {/* Building disc overlay */}
       {buildingSrc && (() => {
-        const buildingSize = HEX_SIZE * 1.4;
+        const buildingSize = size * 1.4;
         return (
           <image
             href={buildingSrc}
@@ -106,7 +135,7 @@ export const HexTile: React.FC<HexTileProps> = ({
           <circle
             cx={center.x}
             cy={center.y}
-            r={HEX_SIZE * 0.35}
+            r={size * 0.35}
             fill={ownerColor ?? '#888'}
             stroke="#fff"
             strokeWidth={1.5}
@@ -131,7 +160,7 @@ export const HexTile: React.FC<HexTileProps> = ({
         <circle
           cx={center.x}
           cy={center.y}
-          r={HEX_SIZE * 0.42}
+          r={size * 0.42}
           fill="none"
           stroke={ownerColor}
           strokeWidth={2.5}
@@ -142,8 +171,8 @@ export const HexTile: React.FC<HexTileProps> = ({
       {/* Zoning marker */}
       {tile.zoningOwner && (
         <text
-          x={center.x + HEX_SIZE * 0.42}
-          y={center.y - HEX_SIZE * 0.3}
+          x={center.x + size * 0.42}
+          y={center.y - size * 0.3}
           fontSize={12}
           textAnchor="middle"
           dominantBaseline="middle"
@@ -155,8 +184,8 @@ export const HexTile: React.FC<HexTileProps> = ({
       {/* Conservation marker */}
       {tile.hasConservation && (
         <text
-          x={center.x - HEX_SIZE * 0.42}
-          y={center.y - HEX_SIZE * 0.3}
+          x={center.x - size * 0.42}
+          y={center.y - size * 0.3}
           fontSize={13}
           textAnchor="middle"
           dominantBaseline="middle"
@@ -170,7 +199,7 @@ export const HexTile: React.FC<HexTileProps> = ({
         <circle
           cx={center.x}
           cy={center.y}
-          r={HEX_SIZE * 0.48}
+          r={size * 0.48}
           fill="none"
           stroke="#facc15"
           strokeWidth={2}
@@ -182,14 +211,9 @@ export const HexTile: React.FC<HexTileProps> = ({
   );
 };
 
-// Clip path defs for hex tiles (rendered once in HexMap)
-export const HexClipDef: React.FC<{ hex: HexCoord; origin: { x: number; y: number } }> = ({ hex, origin }) => {
-  const points = hexCornerPoints(hex, HEX_SIZE - 0.5, origin);
-  return (
-    <clipPath id={`hex-clip-${hex.q}-${hex.r}`}>
-      <polygon points={points} />
-    </clipPath>
-  );
-};
-
-export { HEX_SIZE };
+// Clip path defs for cell tiles (rendered once in IslandMap)
+export const CellClipDef: React.FC<{ cell: MapCell; origin: Point }> = ({ cell, origin }) => (
+  <clipPath id={`cell-clip-${cell.id}`}>
+    <polygon points={pointsAttr(cell.corners.map((c) => toPixel(c, origin)))} />
+  </clipPath>
+);
