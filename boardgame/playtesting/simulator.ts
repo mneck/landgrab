@@ -9,6 +9,7 @@ import { LandgrabPlaytestGame, landgrabGameForRoster, landgrabPlaytestGameForRos
 import type { SetupOverrides } from './playtestGame';
 import type { LandgrabState, PlayerResources, PlayerType, CardType } from '../src/game/types';
 import { getAIMove } from '../src/ai/aiStrategy';
+import { planMandatePayment } from '../src/game/gameRules';
 
 /** Phase 1 default cap: keep batches bounded and reproducible. */
 export const DEFAULT_PLAYTEST_MAX_STEPS = 1400;
@@ -404,6 +405,11 @@ export async function runBotGame(options: RunBotGameOptions): Promise<BotGameRes
       if (aiMove.move === 'activateCard') {
         const card = g.players[pid].tableau.find((c) => c.instanceId === aiMove.args[0]);
         if (card) bump(cardStats[pid].played, card.cardType);
+        // Endorsements are passive: count them as played when they cover part of a Mandate.
+        if (card?.cardType === 'Mandate') {
+          const plan = planMandatePayment(g.tiles, g.players[pid]);
+          for (let i = 0; i < (plan?.endorsementsUsed ?? 0); i++) bump(cardStats[pid].played, 'Endorsement');
+        }
       }
       const tableauBefore = g.players.map((p) => new Set(p.tableau.map((c) => c.instanceId)));
 

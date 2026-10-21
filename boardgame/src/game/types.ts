@@ -52,7 +52,8 @@ export type EventCardType =
   | "Levy"
   | "Expropriation"
   | "Airstrip"
-  | "Fisheries";
+  | "Fisheries"
+  | "Endorsement";
 
 export type CardType = PersonnelCardType | EventCardType;
 

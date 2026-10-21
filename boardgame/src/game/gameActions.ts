@@ -58,6 +58,7 @@ const POST_MANDATE_RANDOM_EVENT_CANDIDATES: string[] = [
   'Expropriation',
   'Airstrip',
   'Fisheries',
+  'Endorsement',
 ];
 
 /**

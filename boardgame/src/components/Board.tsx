@@ -587,6 +587,7 @@ export function Board({ G, ctx, moves, playerID, aiPlayerIndices = [] }: Landgra
                   const isUsed = G.tokensUsedThisTurn.includes(card.instanceId);
                   const canActivate = !isUsed && G.actionsRemainingThisTurn > 0
                     && card.cardType !== 'Seat'
+                    && card.cardType !== 'Endorsement'
                     && (card.cardType !== 'Mandate' || G.tokensUsedThisTurn.length === 0);
                   return (
                     <div className="card-preview">

@@ -258,18 +258,72 @@ export function getMandateResourceCost(player: LandgrabState["players"][0]): num
   return base;
 }
 
-export function canAffordMandate(tiles: LandgrabState["tiles"], player: LandgrabState["players"][0]): boolean {
-  const cost = getMandateResourceCost(player);
-  switch (player.type) {
-    case "Hotelier":
-      return player.resources.coins >= cost;
-    case "Industrialist":
-      return (player.resources.wood + player.resources.ore) >= cost;
-    case "Bureaucrat":
-      return player.resources.votes >= cost;
-    case "Chieftain":
-      return getPresenceScore(tiles) >= cost;
+/** Mandate cost each Endorsement in the tableau may cover with non-faction resources. */
+export const ENDORSEMENT_COVER = 3;
+
+type ResourceKey = "coins" | "wood" | "ore" | "votes";
+
+/** Resources a faction's Mandate is normally paid in (Chieftain pays in presence, which isn't spent). */
+const MANDATE_CURRENCY: Record<PlayerType, ResourceKey[]> = {
+  Hotelier: ["coins"],
+  Industrialist: ["wood", "ore"],
+  Bureaucrat: ["votes"],
+  Chieftain: [],
+};
+
+export interface MandatePayment {
+  /** Everything spent, including the 1-vote Mandate fee. */
+  spend: Record<ResourceKey, number>;
+  /** Endorsements needed to cover the shortfall (all Events leave the tableau on a Mandate anyway). */
+  endorsementsUsed: number;
+}
+
+/**
+ * How a player would pay for a Mandate right now, or null if they can't.
+ * Faction currency (or Chieftain presence) is used first; each Endorsement
+ * then covers up to {@link ENDORSEMENT_COVER} of the remainder with any other
+ * resources. The 1-vote fee is reserved before anything else.
+ */
+export function planMandatePayment(
+  tiles: LandgrabState["tiles"],
+  player: LandgrabState["players"][0]
+): MandatePayment | null {
+  const avail = { ...player.resources };
+  const spend: Record<ResourceKey, number> = { coins: 0, wood: 0, ore: 0, votes: 0 };
+  if (avail.votes < 1) return null;
+  avail.votes -= 1;
+  spend.votes += 1;
+
+  let remaining = getMandateResourceCost(player);
+  if (player.type === "Chieftain") remaining -= Math.min(remaining, getPresenceScore(tiles));
+  for (const r of MANDATE_CURRENCY[player.type]) {
+    const used = Math.min(avail[r], remaining);
+    avail[r] -= used;
+    spend[r] += used;
+    remaining -= used;
   }
+  if (remaining === 0) return { spend, endorsementsUsed: 0 };
+
+  const endorsements = player.tableau.filter((c) => c.cardType === "Endorsement").length;
+  if (remaining > endorsements * ENDORSEMENT_COVER) return null;
+  const endorsementsUsed = Math.ceil(remaining / ENDORSEMENT_COVER);
+
+  // Substitute from the most plentiful other resource first.
+  const others = (["coins", "wood", "ore", "votes"] as ResourceKey[]).filter(
+    (r) => !MANDATE_CURRENCY[player.type].includes(r)
+  );
+  while (remaining > 0) {
+    const r = others.reduce((a, b) => (avail[b] > avail[a] ? b : a));
+    if (avail[r] === 0) return null;
+    avail[r] -= 1;
+    spend[r] += 1;
+    remaining -= 1;
+  }
+  return { spend, endorsementsUsed };
+}
+
+export function canAffordMandate(tiles: LandgrabState["tiles"], player: LandgrabState["players"][0]): boolean {
+  return planMandatePayment(tiles, player) !== null;
 }
 
 export function getMandateCostLabel(player: LandgrabState["players"][0]): string {
@@ -281,6 +335,9 @@ export function getMandateCostLabel(player: LandgrabState["players"][0]): string
     case "Chieftain": return `Presence ≥ ${cost}`;
   }
 }
+
+/** Extra wood/ore each producing Industrial Zone yields per Procurement. */
+export const INDUSTRIALIST_EXTRACTION_BONUS = 1;
 
 // Procurement helper - count buildings for resource generation
 function getProcurementMultiplier(tile: { hasUrbanPlanning?: boolean }): number {
@@ -355,6 +412,11 @@ export function runProcurementForPlayer(
           if (!nt || nt.building === "Reserve") continue;
           if (nt.type === "Forest") wood += 1;
           if (nt.type === "Mountain") ore += 1;
+        }
+        // Extraction bonus: a zone that extracts anything yields +1 more of its main output.
+        if (wood + ore > 0) {
+          if (wood >= ore) wood += INDUSTRIALIST_EXTRACTION_BONUS;
+          else ore += INDUSTRIALIST_EXTRACTION_BONUS;
         }
         const mult = getProcurementMultiplier(t);
         res.wood += wood * mult;

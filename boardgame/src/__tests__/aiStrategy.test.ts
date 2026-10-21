@@ -432,10 +432,31 @@ describe('liaison_choose', () => {
     const G = makeState(2);
     placeCharterForPlayer(G, 0);
     G.players[0].resources = { coins: 16, wood: 2, ore: 2, votes: 0 };
-    G.politicsRow = ['Import', 'Airstrip', 'Expropriation', 'Bribe'];
+    G.politicsRow = ['Dividends', 'Airstrip', 'Expropriation', 'Bribe'];
     const liaison = G.players[0].tableau.find(c => c.cardType === 'Liaison')!;
     G.pendingAction = { type: 'liaison_choose', instanceId: liaison.instanceId };
     expect(getAIMove(G, 0)!.args[0]).toBe('politics');
+  });
+
+  it('does not buy Politics cards that do nothing for its faction', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 0);
+    G.players[0].resources = { coins: 16, wood: 2, ore: 2, votes: 3 };
+    // Hotelier: Import/Airstrip/Expropriation/NGOBacking have no effect for it.
+    G.politicsRow = ['Import', 'Airstrip', 'Expropriation', 'NGOBacking'];
+    const liaison = G.players[0].tableau.find(c => c.cardType === 'Liaison')!;
+    G.pendingAction = { type: 'liaison_choose', instanceId: liaison.instanceId };
+    expect(getAIMove(G, 0)!.args[0]).toBe('generate');
+  });
+
+  it('prefers a faction card over a cheaper useless one', () => {
+    const G = makeState(2);
+    placeCharterForPlayer(G, 1);
+    G.players[1].resources = { coins: 3, wood: 2, ore: 2, votes: 3 };
+    G.politicsRow = ['Expropriation', 'NGOBacking', 'Import', 'Bribe'];
+    G.pendingAction = { type: 'liaison_politics', instanceId: 'x' };
+    // Industrialist: Import (slot 2) beats the free but dead Expropriation.
+    expect(getAIMove(G, 1)).toEqual({ move: 'selectPoliticsCard', args: [2] });
   });
 
   it('does not activate Liaison in anti-hoard phase when no politics slot is available', () => {

@@ -12,10 +12,42 @@ export interface AIMove {
   args: any[];
 }
 
-const NON_ACTIVATABLE: Set<CardType> = new Set(['Seat']);
+const NON_ACTIVATABLE: Set<CardType> = new Set(['Seat', 'Endorsement']);
 
 /** Politics cards that add or convert to votes — take with Liaison before random events when votes < 4. */
-const VOTE_FUNNEL_POLITICS = new Set<string>(['Graft', 'LocalElections', 'NGOBacking', 'Propaganda']);
+/**
+ * How much each Politics card helps each faction under the rules as implemented
+ * (0 = no effect for that faction; the bot never buys it). Bots used to take the
+ * cheapest affordable card, which filled tableaux with cards that did nothing for them.
+ */
+const POLITICS_CARD_WEIGHTS: Record<PlayerType, Partial<Record<string, number>>> = {
+  Hotelier: {
+    Endorsement: 7, Graft: 5, Dividends: 5, UrbanPlanning: 4, Forestry: 3, Export: 3,
+    Conservation: 2, Reorganization: 3, Zoning: 2, Bribe: 1,
+  },
+  Industrialist: {
+    Endorsement: 8, Import: 6, Graft: 5, UrbanPlanning: 5, Forestry: 4, Dividends: 3,
+    Reorganization: 3, Fisheries: 2, Zoning: 2, Logging: 1, Bribe: 1,
+  },
+  Bureaucrat: {
+    Endorsement: 5, Graft: 6, UrbanPlanning: 4, Dividends: 2, Reorganization: 3,
+    Fisheries: 2, Zoning: 2, Bribe: 1,
+  },
+  Chieftain: {
+    Endorsement: 8, LocalElections: 7, Graft: 5, NGOBacking: 5, Subsidy: 4, Taxation: 4,
+    LandClaims: 3, Reorganization: 3, Dividends: 2, Conservation: 2, Bribe: 1,
+  },
+};
+
+function politicsCardWeight(type: PlayerType, card: string): number {
+  return POLITICS_CARD_WEIGHTS[type][card] ?? 0;
+}
+
+/** Cards that turn into votes for this faction (Mandate needs 1 vote; Politics costs votes). */
+function isVoteFunnelFor(type: PlayerType, card: string | null): boolean {
+  if (!card) return false;
+  return card === 'Graft' || (type === 'Chieftain' && card === 'LocalElections');
+}
 
 /** Stop endless Builder market micro-trades when resources are already high (buys only once stockpile handling runs). */
 const MARKET_WIND_DOWN_THRESHOLD = 40;
@@ -249,10 +281,6 @@ function votesShortForTableauMandate(G: LandgrabState, playerIndex: number): boo
   return hasMandateInTableau(player) && player.resources.votes < 1;
 }
 
-function isVoteFunnelCard(card: string | null): boolean {
-  return !!card && VOTE_FUNNEL_POLITICS.has(card);
-}
-
 function canTakePoliticsForCurrentPhase(G: LandgrabState, playerIndex: number, phase: AIPhase): boolean {
   const player = G.players[playerIndex];
   if (player.tableau.length >= 8) return false;
@@ -261,11 +289,11 @@ function canTakePoliticsForCurrentPhase(G: LandgrabState, playerIndex: number, p
   const card = G.politicsRow[slot];
   if (!card) return false;
   if (phase === 'get_vote_for_mandate') {
-    return card === 'Mandate' || isVoteFunnelCard(card);
+    return card === 'Mandate' || isVoteFunnelFor(player.type, card);
   }
   if (phase === 'anti_hoard') {
     // Avoid filling tableau with random events when already hoarding.
-    if (player.tableau.length >= 7) return card === 'Mandate' || isVoteFunnelCard(card);
+    if (player.tableau.length >= 7) return card === 'Mandate' || isVoteFunnelFor(player.type, card);
     return true;
   }
   return true;
@@ -278,11 +306,18 @@ function liaisonShouldTakePoliticsForVotePath(G: LandgrabState, playerIndex: num
   const VOTE_COSTS = [0, 1, 2, 3];
   for (let i = 0; i < 4; i++) {
     const card = G.politicsRow[i];
-    if (!card || !VOTE_FUNNEL_POLITICS.has(card)) continue;
+    if (!isVoteFunnelFor(player.type, card)) continue;
     const cost = VOTE_COSTS[i] ?? 0;
     if (player.resources.votes >= cost) return true;
   }
   return false;
+}
+
+/** A card worth an action on its own (weight >= 6) is affordable on the Politics row. */
+function liaisonShouldTakeValuableCard(G: LandgrabState, playerIndex: number): boolean {
+  const slot = pickBestPoliticsSlot(G, playerIndex);
+  const card = slot !== null ? G.politicsRow[slot] : null;
+  return !!card && card !== 'Mandate' && politicsCardWeight(G.players[playerIndex].type, card) >= 6;
 }
 
 /** Network / recruit personnel — lowest priority; bots should not spam these before the engine + Mandate path. */
@@ -555,6 +590,7 @@ function resolvePendingAction(G: LandgrabState, playerIndex: number, pa: Pending
           politicsRowHasMandate(G) ||
           votesShortForTableauMandate(G, playerIndex) ||
           liaisonShouldTakePoliticsForVotePath(G, playerIndex) ||
+          liaisonShouldTakeValuableCard(G, playerIndex) ||
           mandateStockpileRisk(player)
         );
       if (takePolitics) {
@@ -957,22 +993,23 @@ function pickBestPoliticsSlot(G: LandgrabState, playerIndex: number): number | n
     if (player.resources.votes >= cost) return i;
   }
 
-  if (player.resources.votes < 4) {
-    for (let i = 0; i < 4; i++) {
-      const card = G.politicsRow[i];
-      if (!card || !VOTE_FUNNEL_POLITICS.has(card)) continue;
-      const cost = VOTE_COSTS[i] ?? 0;
-      if (player.resources.votes >= cost) return i;
-    }
-  }
-
+  // Best affordable card by faction weight, a little discounted by vote cost; vote funnels
+  // jump the queue when votes are short. Cards worth nothing to this faction are skipped.
+  let bestSlot: number | null = null;
+  let bestScore = 0;
   for (let i = 0; i < 4; i++) {
     const card = G.politicsRow[i];
     if (!card) continue;
     const cost = VOTE_COSTS[i] ?? 0;
-    if (player.resources.votes >= cost) return i;
+    if (player.resources.votes < cost) continue;
+    let score = politicsCardWeight(player.type, card) - 0.5 * cost;
+    if (player.resources.votes < 4 && isVoteFunnelFor(player.type, card)) score += 10;
+    if (score > bestScore) {
+      bestScore = score;
+      bestSlot = i;
+    }
   }
-  return null;
+  return bestSlot;
 }
 
 function pickRevealHex(G: LandgrabState): string | null {

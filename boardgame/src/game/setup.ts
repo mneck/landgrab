@@ -5,13 +5,13 @@ import { shuffle } from './gameActions';
 
 export const DEFAULT_POLITICS_ROW: string[] = ['Graft', 'Import', 'Airstrip', 'Expropriation'];
 
-/** One copy of each Politics card; the deck holds two copies. */
+/** One copy of each Politics card (Endorsement twice, so it turns up often); the deck holds two copies. */
 export const DEFAULT_POLITICS_POOL: string[] = [
   'Bribe', 'Zoning', 'Conservation', 'UrbanPlanning', 'Dividends',
   'NGOBacking', 'Propaganda', 'Graft', 'LocalElections', 'Reorganization',
   'Import', 'Export', 'Logging', 'Forestry', 'LandClaims', 'Subsidy',
   'Boycotting', 'Protests', 'Taxation', 'Levy', 'Expropriation', 'Airstrip',
-  'Fisheries',
+  'Fisheries', 'Endorsement', 'Endorsement',
 ];
 
 function createStartingTableau(type: PlayerType, playerIdx: number): TableauCard[] {

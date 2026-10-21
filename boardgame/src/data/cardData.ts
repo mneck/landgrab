@@ -299,6 +299,15 @@ export const CARD_INFO: Record<string, CardInfo> = {
     image: "",
     category: "event",
   },
+  Endorsement: {
+    title: "Endorsement",
+    flavor: "Friends in the right places.",
+    description:
+      "Passive. When you play a Mandate, each Endorsement in your Tableau lets you pay up to 3 of its cost with any other resources. Stacks.",
+    icon: "🤝",
+    image: "",
+    category: "event",
+  },
   Seat: {
     title: "Seat",
     flavor: "A seat at the table.",

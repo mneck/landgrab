@@ -12,8 +12,7 @@ import {
   revealAdjacentFog,
   pickRevealedTileType,
   runProcurementForPlayer,
-  canAffordMandate as canAffordMandateCheck,
-  getMandateResourceCost,
+  planMandatePayment,
   getPresenceScore,
 } from './gameRules';
 import {
@@ -99,28 +98,15 @@ function resolveLandClaims(G: LandgrabState, playerIndex: number, instanceId: st
   removeFromTableau(G, playerIndex, instanceId);
 }
 
+/** Pays the Mandate cost and its 1-vote fee (see planMandatePayment). */
 function payMandateCost(G: LandgrabState, playerIndex: number): boolean {
   const player = G.players[playerIndex];
-  if (!canAffordMandateCheck(G.tiles, player)) return false;
-  const cost = getMandateResourceCost(player);
-  switch (player.type) {
-    case 'Hotelier':
-      player.resources.coins -= cost;
-      return true;
-    case 'Industrialist': {
-      let remaining = cost;
-      const woodSpend = Math.min(player.resources.wood, remaining);
-      player.resources.wood -= woodSpend;
-      remaining -= woodSpend;
-      player.resources.ore -= remaining;
-      return true;
-    }
-    case 'Bureaucrat':
-      player.resources.votes -= cost;
-      return true;
-    case 'Chieftain':
-      return true;
+  const plan = planMandatePayment(G.tiles, player);
+  if (!plan) return false;
+  for (const [r, n] of Object.entries(plan.spend) as [keyof typeof plan.spend, number][]) {
+    player.resources[r] -= n;
   }
+  return true;
 }
 
 /** Initiator first, then rest of play order. */
@@ -177,9 +163,7 @@ function resolveNetworkAuction(
 
 function activateMandate(G: LandgrabState, playerIndex: number, instanceId: string): boolean {
   const player = G.players[playerIndex];
-  if (player.resources.votes < 1) return false;
   if (!payMandateCost(G, playerIndex)) return false;
-  player.resources.votes -= 1;
 
   player.tableau = player.tableau.filter(c => c.category !== 'Event');
 
@@ -351,6 +335,7 @@ export const moves = {
         G.pendingAction = { type: 'event_stimulus_choose', instanceId, remaining: 4 };
         break;
       case 'Seat':
+      case 'Endorsement':
         return INVALID_MOVE;
       default:
         removeFromTableau(G, playerIndex, instanceId);
